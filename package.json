@@ -1,0 +1,26 @@
+{
+  "name": "appointments",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Multi-tenant appointment booking SaaS platform",
+  "scripts": {
+    "dev": "concurrently \"npm run dev:backend\" \"npm run dev:frontend\"",
+    "dev:frontend": "cd frontend && npm run dev",
+    "dev:backend": "cd backend && npm run dev",
+    "build": "npm run build:backend && npm run build:frontend",
+    "build:frontend": "cd frontend && npm run build",
+    "build:backend": "cd backend && npm run build",
+    "install:all": "npm install && cd frontend && npm install && cd ../backend && npm install",
+    "db:migrate": "cd backend && npm run db:migrate",
+    "db:generate": "cd backend && npm run db:generate",
+    "db:studio": "cd backend && npm run db:studio",
+    "db:seed": "cd backend && npm run db:seed"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  },
+  "engines": {
+    "node": ">=18.0.0",
+    "npm": ">=9.0.0"
+  }
+}
