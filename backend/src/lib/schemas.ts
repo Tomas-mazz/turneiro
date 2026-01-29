@@ -21,6 +21,20 @@ export const cancelAppointmentSchema = z.object({
   token: z.string().min(1, 'El token de cancelación es obligatorio'),
 })
 
+export const updateServiceSchema = z.object({
+  price: z.number().positive('El precio debe ser positivo').optional(),
+  duration: z.number().int().min(15, 'Duración mínima 15 min').max(120, 'Duración máxima 120 min').optional(),
+}).refine((data) => data.price !== undefined || data.duration !== undefined, {
+  message: 'Debe enviar al menos precio o duración',
+})
+
+export const ownerCancelAppointmentSchema = z.object({
+  reason: z.string().min(1, 'El motivo de cancelación es obligatorio').max(500),
+})
+
+export type UpdateServiceInput = z.infer<typeof updateServiceSchema>
+export type OwnerCancelAppointmentInput = z.infer<typeof ownerCancelAppointmentSchema>
+
 const emailSchema = z.string().email('Email inválido').min(1, 'El email es obligatorio')
 const passwordSchema = z.string().min(6, 'La contraseña debe tener al menos 6 caracteres')
 

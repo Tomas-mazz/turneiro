@@ -60,7 +60,6 @@ frontend/
 │   │       └── page.tsx          # Public booking page
 │   ├── (dashboard)/
 │   │   ├── dashboard/
-│   │   │   ├── appointments/
 │   │   │   ├── settings/
 │   │   │   └── page.tsx
 │   │   └── layout.tsx            # Protected layout
@@ -203,6 +202,8 @@ module.exports = {
 
 ## Google Calendar Integration
 
+**Scope**: MVP, basic subscription (not Premium). All appointments are viewed in Google Calendar; there is no /dashboard/appointments page. Owner dashboard (MVP) allows only: edit service prices, edit service duration, link to view Google Calendar, and cancel appointments; everything else is Admin.
+
 ### Overview
 
 **Integration Type**: One-way synchronization (read-only from Google Calendar perspective)
@@ -300,7 +301,7 @@ MERCADOPAGO_WEBHOOK_SECRET="your-mercadopago-webhook-secret"
 APP_URL="http://localhost:3000"
 APP_TIMEZONE="America/New_York"
 
-# Google Calendar Integration (Premium feature)
+# Google Calendar Integration (MVP, basic subscription)
 GOOGLE_CLIENT_ID="your-google-client-id"
 GOOGLE_CLIENT_SECRET="your-google-client-secret"
 GOOGLE_REDIRECT_URI="http://localhost:3000/api/google-calendar/callback"

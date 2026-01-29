@@ -3,13 +3,17 @@ import { ZodError } from 'zod'
 import {
   createAppointmentService,
   cancelAppointmentService,
+  getAppointmentsService,
+  cancelAppointmentByOwnerService,
   SlotUnavailableError,
   CancellationNotAllowedError,
 } from '../services/appointments.service'
 import {
   createAppointmentSchema,
   cancelAppointmentSchema,
+  ownerCancelAppointmentSchema,
 } from '../lib/schemas'
+import type { AuthRequest } from '../middleware/auth'
 
 export async function createAppointment(
   req: Request,
@@ -34,9 +38,49 @@ export async function createAppointment(
   }
 }
 
-export async function getAppointments(req: Request, res: Response) {
-  // TODO: Implement for dashboard (auth required)
-  res.json({ message: 'Not implemented' })
+export async function getAppointments(req: AuthRequest, res: Response) {
+  const businessId = req.user?.businessId
+  if (!businessId) {
+    return res.status(403).json({
+      error: 'No tienes un negocio asignado',
+    })
+  }
+  const appointments = await getAppointmentsService(businessId)
+  return res.json(appointments)
+}
+
+export async function cancelAppointmentByOwner(
+  req: AuthRequest,
+  res: Response,
+  next: NextFunction
+) {
+  try {
+    const businessId = req.user?.businessId
+    if (!businessId) {
+      return res.status(403).json({
+        error: 'No tienes un negocio asignado',
+      })
+    }
+    const parsed = ownerCancelAppointmentSchema.safeParse(req.body)
+    if (!parsed.success) {
+      return res.status(400).json({
+        error: 'Error de validación',
+        details: (parsed.error as ZodError).errors,
+      })
+    }
+    const appointmentId = req.params.id
+    const result = await cancelAppointmentByOwnerService(
+      appointmentId,
+      businessId,
+      parsed.data.reason
+    )
+    return res.status(200).json(result)
+  } catch (err) {
+    if (err instanceof CancellationNotAllowedError) {
+      return res.status(400).json({ error: err.message })
+    }
+    next(err)
+  }
 }
 
 export async function cancelAppointment(

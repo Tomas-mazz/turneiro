@@ -13,82 +13,74 @@
 - Access any dashboard
 - Modify business settings or schedules
 
-## Platform Admin (Central Admin Panel - for You)
-**Can do:**
-- **Manage Clients:**
+## Platform Admin (Central Admin Panel)
+**Can do (everything the owner cannot):**
+- **Manage Clients/Businesses:**
   - Create new clients (Business Name, Industry, Photo, Colors, Working Hours)
   - Generate credentials (User/Pass) for the Client Panel
   - Edit any client's data
-  - **Change business category/rubro**: Admin can change category, but this is very rare (category changes almost never happen). Change must always go through admin.
+  - Change business category/rubro (rare; change must go through admin)
   - View all clients and their configured services
-- **Configure Payment & Cancellation Rules (Per Client)**:
-  - **When creating new client with their rubro**: Admin loads cancellation rules as specified by shop owner in `/admin` panel when creating the client
-  - **Payment Configuration**: Payment rules are separated by client, not by rubro. Each client has their own rubro, conditions, and products configured. Admin configures payment rules when creating a new client with their specific rubro and conditions. Payment rules apply equally to all business categories (rubros).
-  - **No Limits**: No maximums or minimums - all rules are set manually by admin based on shop owner's requirements
+- **Configure Payment & Cancellation Rules (Per Client):**
+  - Payment rules per client (required, type, percentage, etc.)
+  - Cancellation rules (free window, fees, refund policy)
+  - All rules set manually by admin based on shop owner's requirements
 - **Manage Multi-Barber Support:**
   - Add multiple barbers within the same barbershop
-  - Set up working hours for each barber
-  - Configure individual calendars and schedules per barber
-  - **Note**: Shop owner must contact admin to add new barbers (not self-service in MVP)
-  - **Shop Owner Visibility**: Shop owner can view appointments of their employees
+  - Set up working hours per barber
+  - Shop owner must contact admin to add new barbers (not self-service in MVP)
 - **Manage Services:**
-  - Create services for any client (Haircut, Esthetics, Massage, etc.)
-  - Edit existing services: price, duration, activate/deactivate
-  - Assign predefined services to clients based on their industry (rubro)
+  - Create and delete services for any client
+  - Edit service name, price, duration, activate/deactivate
+  - Assign services to clients
 - **Manage Appointments (Turns):**
-  - Visualize all turns from all clients in a centralized view
-  - Cancel any turn (Mandatory reason entry)
-  - Change turn status (Confirmed / Cancelled)
-  - Consult cancellation history and reasons
+  - View all turns from all clients
+  - Cancel any turn (with mandatory reason)
+  - Change turn status
+  - Consult cancellation history
 - **Manage Blocks:**
   - Create schedule/day blocks for any client
   - Edit or delete existing blocks
+- **Manage Branding & Working Hours:**
+  - Edit business photo, cover, primary colors, texts
+  - Configure working hours per day (and lunch breaks)
 - **Security:**
-  - All actions are validated to prevent errors in pricing, duration, and schedules.
-  - No direct database access (all via panel).
+  - All actions validated via panel; no direct database access.
 
-## Business Owner (Client Panel - Limited Access)
-**Can do:**
-- **Manage Services:**
-  - Change price and duration of their own services
-  - Activate/deactivate their own services
-- **Manage Appointments (Turns):**
-  - View their own business calendar and turns
-  - Cancel their own turns (Mandatory reason entry)
-  - View appointments in Google Calendar (if connected)
-  - Access dashboard via link from Google Calendar event or direct login
-- **Manage Blocks:**
-  - Block specific hours or full days for their own business
-- **Visual Configuration:**
-  - Change business photo/cover
-  - Change business primary colors
-- **Google Calendar Integration:**
-  - Each shop owner with employees can add them, and each employee will have their own Google Calendar
-  - Not limited to barbershops - applies to all shop owners who have employees and want to add them
-  - Each employee has their own individual Google Calendar
-  - Connect Google Calendar account (OAuth)
-  - View all appointments synchronized to Google Calendar
-  - Access dashboard for appointment management via event link
-- **Communication:**
-  - When cancelling a turn, the mandatory reason is automatically sent to the end client via WhatsApp.
+## Business Owner (Client Panel – MVP Dashboard Only)
+**In the MVP, the owner dashboard allows ONLY:**
 
-**Cannot do:**
-- Create or delete services (only activate/deactivate or edit price/duration)
+1. **Edit service prices** – Change the price of each product/service of their business.
+2. **Edit service duration** – Change the duration (e.g. 15–120 min) of each product/service.
+3. **Link to view Google Calendar** – Access the link to open/view their Google Calendar (where appointments are synced).
+4. **Cancel appointments** – Cancel their own business’s appointments (e.g. from dashboard or via link; mandatory reason as per business rules).
+
+**Everything else is done by Admin:**
+- Create/edit/delete services, service names, activate/deactivate → Admin
+- Working hours, blocks, branding, payment rules, cancellation rules → Admin
+- View appointments (owner sees them in Google Calendar) → link to GC
+- Multi-barber, barber profiles → Admin
+
+**Cannot do (MVP):**
+- Create or delete services
 - Change service names
-- Access other businesses' data, turns, or schedules
-- Affect schedules or blocks of other businesses
+- Configure working hours or blocks
+- Change branding (photo, colors, texts)
+- Configure payment or cancellation rules
+- Access admin panel or other businesses' data
 
-## Panel Comparison Summary
+## Panel Comparison Summary (MVP)
 
-| Function | Admin Panel (You) | Client Panel (Owner) |
+| Function | Admin Panel | Owner Dashboard (MVP) |
 | :--- | :--- | :--- |
-| Create Clients | ✅ | ❌ |
-| Create Services | ✅ | ❌ |
-| Edit Services | ✅ (Full) | ✅ (Price, Duration, Status only) |
-| Configure Payment Rules | ✅ (Per business) | ❌ |
-| Configure Cancellation Rules | ✅ (Per business) | ❌ |
-| Cancel Turns | ✅ (With Reason + WhatsApp) | ✅ (Own business, with Reason + WhatsApp) |
-| Block Hours/Days | ✅ (Full control) | ✅ (Own business only) |
-| Visual Configuration | ✅ (Full control) | ✅ (Own business only) |
-| Access Other Businesses | ✅ | ❌ |
-| Direct DB Access | ❌ (Via Panel only) | ❌ (Via Panel only) |
+| Create/delete clients | ✅ | ❌ |
+| Create/delete services | ✅ | ❌ |
+| Edit service **price** | ✅ | ✅ (own only) |
+| Edit service **duration** | ✅ | ✅ (own only) |
+| Edit service name / activate-deactivate | ✅ | ❌ |
+| Working hours, blocks | ✅ | ❌ |
+| Branding (photo, colors, texts) | ✅ | ❌ |
+| Payment / cancellation rules | ✅ | ❌ |
+| Link to view Google Calendar | N/A | ✅ |
+| Cancel own business turns | ✅ | ✅ (owner can cancel) |
+| View turns (centralized list) | ✅ | ❌ (owner sees in GC only) |

@@ -42,11 +42,12 @@
 - Shop owner can view appointments of their employees
 
 ### Google Calendar Integration
-- **RESOLVED**: Included as main option (not part of Premium MVP)
-- Each shop owner with employees can add them, and each employee will have their own Google Calendar
-- Not limited to barbershops - applies to all shop owners who have employees and want to add them
-- Each employee has their own individual Google Calendar
-- Available as a main feature, not premium
+- **RESOLVED**: MVP, basic subscription (not Premium)
+- Owner views all appointments in Google Calendar; no list of appointments in the dashboard
+- Dashboard has link to view Google Calendar; connect/sync configured via Admin or same dashboard (link only in MVP)
+
+### Owner Dashboard (MVP) Scope
+- **RESOLVED**: In MVP the owner dashboard allows ONLY: (1) change service prices, (2) change service duration per service, (3) link to view Google Calendar, (4) cancel appointments. Everything else is done by Admin (see ROLES_PERMISSIONS.md). No /dashboard/appointments page.
 
 ### Service Cart Overlay
 - **RESOLVED**: Service cart overlay CANNOT be closed/dismissed

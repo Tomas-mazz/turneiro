@@ -62,7 +62,17 @@ npm run db:migrate
 npm run db:generate
 ```
 
-5. Start development servers:
+5. (Optional) Seed demo data so you can log in and use the dashboard. **Run from the project root** (so the backend can load `.env` and connect to the DB):
+```bash
+npm run db:seed
+```
+This creates a demo business, an owner user, a service, and working hours. **Use exactly:**
+- **Email:** `owner@demo.com`
+- **Password:** `demo123`
+
+If login fails or you see "No tienes un negocio asignado": (1) Run the seed again from the root: `npm run db:seed`. (2) Log in with **owner@demo.com** / **demo123** (exact spelling). (3) Ensure `backend/.env` has a valid `DATABASE_URL` and `frontend/.env.local` has `NEXT_PUBLIC_API_URL=http://localhost:3001` so the frontend can reach the backend.
+
+6. Start development servers:
 ```bash
 npm run dev
 ```
@@ -70,6 +80,8 @@ npm run dev
 This will start:
 - Frontend on `http://localhost:3000`
 - Backend on `http://localhost:3001`
+
+**To see the dashboard:** Open `http://localhost:3000/login`, sign in with `owner@demo.com` / `demo123`, then go to Dashboard or Settings. The public booking page is at `http://localhost:3000/barberia-demo`.
 
 ## Available Scripts
 

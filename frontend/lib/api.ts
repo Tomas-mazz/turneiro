@@ -1,5 +1,6 @@
 import axios from 'axios'
 import { getAuthToken } from './auth'
+import type { ServiceListItem, AppointmentListItem } from '@/types'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'
 
@@ -22,3 +23,32 @@ api.interceptors.response.use(
   (response) => response,
   (error) => Promise.reject(error)
 )
+
+export async function getServices(): Promise<ServiceListItem[]> {
+  const { data } = await api.get<ServiceListItem[]>('/services')
+  return data
+}
+
+export async function updateService(
+  id: string,
+  body: { price?: number; duration?: number }
+): Promise<ServiceListItem> {
+  const { data } = await api.patch<ServiceListItem>(`/services/${id}`, body)
+  return data
+}
+
+export async function getAppointments(): Promise<AppointmentListItem[]> {
+  const { data } = await api.get<AppointmentListItem[]>('/appointments')
+  return data
+}
+
+export async function cancelAppointmentByOwner(
+  id: string,
+  reason: string
+): Promise<{ cancelled: boolean; id: string }> {
+  const { data } = await api.post<{ cancelled: boolean; id: string }>(
+    `/appointments/${id}/cancel`,
+    { reason }
+  )
+  return data
+}

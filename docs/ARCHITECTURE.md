@@ -356,7 +356,6 @@ Appointments/                     # Project root (Git repository root)
 │   │   │       └── page.tsx      # Public booking page
 │   │   ├── (dashboard)/          # Protected routes
 │   │   │   ├── dashboard/
-│   │   │   │   ├── appointments/
 │   │   │   │   ├── settings/
 │   │   │   │   └── page.tsx
 │   │   │   └── layout.tsx        # Protected layout

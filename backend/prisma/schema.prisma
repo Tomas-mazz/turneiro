@@ -81,6 +81,7 @@ model Appointment {
   clientPhone   String
   status        String   // UPCOMING, COMPLETED, CANCELLED
   cancellationToken String? @unique
+  cancellationReason String? // Reason when cancelled by owner (mandatory in UI)
   businessId    String
   serviceId     String?
   createdAt     DateTime @default(now())

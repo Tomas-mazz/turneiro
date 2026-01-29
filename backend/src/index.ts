@@ -27,10 +27,12 @@ app.get('/health', (req, res) => {
 import businessesRoutes from './routes/businesses'
 import availabilityRoutes from './routes/availability'
 import appointmentsRoutes from './routes/appointments'
+import servicesRoutes from './routes/services'
 import authRoutes from './routes/auth'
 app.use('/api/businesses', businessesRoutes)
 app.use('/api/availability', availabilityRoutes)
 app.use('/api/appointments', appointmentsRoutes)
+app.use('/api/services', servicesRoutes)
 app.use('/api/auth', authRoutes)
 // app.use('/api/webhooks', webhooksRoutes)
 

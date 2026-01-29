@@ -1,5 +1,18 @@
 # Main Features (MVP)
 
+## Owner Dashboard (MVP) – Scope Only
+
+**In the MVP, the owner dashboard allows ONLY:**
+
+1. **Edit service prices** – Change the price of each product/service of their business.
+2. **Edit service duration** – Change the duration (e.g. 15–120 min) of each product/service.
+3. **Link to view Google Calendar** – Open/view Google Calendar where appointments are synced.
+4. **Cancel appointments** – Cancel their own business’s appointments (mandatory reason as per rules).
+
+**Everything else is done by Admin** (see ROLES_PERMISSIONS.md): create/edit/delete services, service names, working hours, blocks, branding, payment and cancellation rules. There is no /dashboard/appointments page; owner sees appointments in Google Calendar and can cancel from dashboard (or via client link).
+
+---
+
 ## Public Booking Page (`/business-slug`)
 
 ### URL Structure
@@ -100,14 +113,12 @@ Minimalist design with hero section as first view
 - **Language Support**: English and Spanish with language switcher button
 - **Multi-Barber Support**: Salon owners can create a shared booking page showing all barbers (future feature)
 
-## Editable Branding
-- **Barber Name**: Display name on booking page
-- **Logo Upload**: Profile picture or logo
-- **Main Color**: Primary brand color for UI theming
-- **Basic Texts**: 
-  - Welcome message
-  - Booking confirmation message template
-  - Page title and description
+## Editable Branding (Admin Only in MVP)
+- **Barber Name**: Display name on booking page – configured by Admin
+- **Logo Upload**: Profile picture or logo – configured by Admin
+- **Main Color**: Primary brand color for UI theming – configured by Admin
+- **Basic Texts**: Welcome message, confirmation template, page title/description – configured by Admin
+- Owner dashboard does NOT include branding in MVP.
 
 ## Appointment Calendar (Month View)
 - **Primary View**: Month calendar view (similar to pamp.dk design)
@@ -148,31 +159,20 @@ Minimalist design with hero section as first view
   - Only show dates within barber's availability window (e.g., 30 days ahead)
 
 ## Services and Pricing
-- **Configurable Services**: Each barber can configure their services
-- **Default Services**:
-  - Corte (Haircut)
-  - Corte + Barba (Haircut + Beard)
-  - Barba (Beard)
-- **Service Configuration**:
-  - Service name (editable)
-  - Price (configurable per barber)
-  - Duration (configurable per service, e.g., Corte: 30min, Corte+Barba: 45min, Barba: 20min)
-- **Display**: Services shown with prices before date selection
-- **Impact**: Selected service duration determines time slot blocking
+- **Service creation and names**: Admin creates services and sets names (owner cannot in MVP).
+- **Price and duration (owner in MVP)**: Owner dashboard allows only editing **price** and **duration** of each existing service (e.g. Corte: 30 min, Corte+Barba: 45 min).
+- **Display**: Services shown with prices before date selection on public page.
+- **Impact**: Service duration determines time slot blocking.
 
-## Editable Duration (Per Service)
-- **Service-Specific Duration**: Each service has its own duration
-- **Configuration Options**: 15, 20, 30, 45, 60, 90 minutes per service
-- **Impact**: Automatically blocks subsequent slots based on selected service duration
+## Editable Duration (Per Service) – Owner Dashboard (MVP)
+- **Service-Specific Duration**: Each service has its own duration; owner can change only this (and price) in MVP.
+- **Configuration Options**: 15–120 minutes per service (owner edits from dashboard).
+- Admin configures everything else (create/delete services, names, working hours, etc.).
 
-## Configurable Working Hours per Day
-- **Day-by-Day Configuration**: 
-  - Monday: 9:00 AM - 6:00 PM
-  - Tuesday: 9:00 AM - 6:00 PM
-  - Wednesday: Closed
-  - etc.
-- **Lunch Break**: Optional break time configuration (e.g., 12:00 PM - 1:00 PM)
-- **Different Hours per Day**: Support varying schedules
+## Configurable Working Hours per Day (Admin Only in MVP)
+- **Day-by-Day Configuration**: Monday–Sunday, open/closed, times – configured by Admin
+- **Lunch Break**: Optional break – configured by Admin
+- Owner dashboard does NOT configure working hours in MVP.
 
 ## Automatic Blocking of Booked Slots
 - **Real-time Availability**: Slots become unavailable immediately upon booking
@@ -180,22 +180,11 @@ Minimalist design with hero section as first view
 - **Visual Feedback**: Booked slots clearly marked on calendar
 - **Buffer Time**: Optional buffer between appointments (e.g., 15 minutes)
 
-## Manual Blocking (Time Slots and Days)
-- **Block Time Slots**: Business owner can manually block specific time ranges
-  - Select date and time range (start time, end time)
-  - Reason for blocking (optional)
-  - Blocks only affect future appointments
-- **Block Entire Days**: Business owner can block full days
-  - Select date(s)
-  - Reason for blocking (optional)
-  - All time slots for that day become unavailable
-- **Block Types**:
-  - **TIME_SLOT**: Specific time range blocked (e.g., 2:00 PM - 4:00 PM)
-  - **FULL_DAY**: Entire day blocked
-- **Block Management**: 
-  - View all active blocks in dashboard
-  - Edit or remove blocks
-  - Blocks only affect future dates (cannot block past dates)
+## Manual Blocking (Time Slots and Days) – Admin Only in MVP
+- **Block Time Slots**: Admin blocks specific time ranges for a client
+- **Block Entire Days**: Admin blocks full days for a client
+- **Block Types**: TIME_SLOT, FULL_DAY – managed by Admin
+- Owner dashboard does NOT manage blocks in MVP.
 
 ## Cancellation via Link with 24-Hour Rule
 - **Cancellation Link**: Unique link sent via WhatsApp and email
@@ -235,17 +224,7 @@ Minimalist design with hero section as first view
 - **Integration**: Twilio WhatsApp Cloud API or WhatsApp Business API (to be defined)
 - **Template Approval**: All message templates must be pre-approved by WhatsApp before use
 
-## Manual Business Registration
-- **Registration Flow**:
-  1. Business owner signs up with email and password
-  2. **Selects business category/rubro** (barbershop, beauty salon, massage, spa, etc.) - **permanent setting**
-  3. **Category Change**: Admin can change category, but this is very rare (category changes almost never happen). Change must always go through admin.
-  4. Completes profile setup (business name, phone, description)
-  4. Uploads cover photo and logo
-  5. Configures working hours and services
-  6. Sets up branding (primary color, welcome texts)
-  7. **Configures payment options** (free, percentage deposit, or full payment)
-  8. Receives unique booking page URL (`/business-slug`)
-- **Verification**: Email verification required
-- **Profile Completion**: Must complete all required fields before accepting bookings
-- **User Model**: Separate User model for authentication (email, password, role) linked to Business
+## Business Setup (Admin in MVP)
+- **Client/Business creation**: Admin creates clients (business name, category/rubro, profile, photo, logo, working hours, services, payment options, credentials). Admin assigns unique booking page URL (`/business-slug`).
+- **Owner**: Receives credentials (email/password) and can log into dashboard to edit only **service prices**, **service duration**, and access **link to Google Calendar**. Everything else (profile, working hours, blocks, branding, payment/cancellation rules) is configured by Admin.
+- **User Model**: Separate User model for authentication (email, password, role) linked to Business.

@@ -67,27 +67,19 @@ Send cancellation confirmation to client
 Notify barber of cancellation
 ```
 
-## Business Owner Dashboard Flow
+## Business Owner Dashboard Flow (MVP)
 ```
 Business owner logs into dashboard (User model with email/password)
   ↓
-Views upcoming appointments
+Can ONLY:
+  - Edit price of each service (product)
+  - Edit duration of each service (product)
+  - Open link to view Google Calendar (where appointments are synced)
+  - Cancel appointments (own business; mandatory reason as per rules)
   ↓
-Can filter by date range
-  ↓
-Views appointment details (name, phone, time, service, price, payment status)
-  ↓
-Can manually block time slots (specific hours)
-  ↓
-Can manually block entire days
-  ↓
-Can configure working hours
-  ↓
-Can update branding and settings
-  ↓
-Can activate/deactivate services
-  ↓
-Receives notifications for new bookings
+Everything else (create/edit services, working hours, blocks, branding,
+payment rules, cancellation rules, centralized list of turns) is done by Admin.
+No /dashboard/appointments page; owner sees appointments in Google Calendar.
 ```
 
 ## Platform Admin Configuration Flow (Payment & Cancellation Rules)

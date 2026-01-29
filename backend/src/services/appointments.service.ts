@@ -110,9 +110,56 @@ export async function cancelAppointmentService(token: string) {
   return { cancelled: true, id: appointment.id }
 }
 
-// eslint-disable-next-line @typescript-eslint/no-unused-vars -- used when dashboard implementation is added
-export async function getAppointmentsService(businessId: string) {
-  // TODO: Implement for dashboard (auth required)
-  void businessId
-  throw new Error('Not implemented')
+export interface AppointmentListItem {
+  id: string
+  startTime: Date
+  endTime: Date
+  serviceName: string
+  price: number
+  clientName: string
+  clientPhone: string
+  status: string
+  paymentStatus: string
+}
+
+export async function getAppointmentsService(
+  businessId: string
+): Promise<AppointmentListItem[]> {
+  const appointments = await prisma.appointment.findMany({
+    where: { businessId },
+    orderBy: { startTime: 'desc' },
+    select: {
+      id: true,
+      startTime: true,
+      endTime: true,
+      serviceName: true,
+      price: true,
+      clientName: true,
+      clientPhone: true,
+      status: true,
+      paymentStatus: true,
+    },
+  })
+  return appointments
+}
+
+export async function cancelAppointmentByOwnerService(
+  appointmentId: string,
+  businessId: string,
+  reason: string
+) {
+  const appointment = await prisma.appointment.findFirst({
+    where: { id: appointmentId, businessId },
+  })
+  if (!appointment) {
+    throw new CancellationNotAllowedError('Cita no encontrada o no pertenece a tu negocio')
+  }
+  if (appointment.status === 'CANCELLED') {
+    throw new CancellationNotAllowedError('La cita ya fue cancelada')
+  }
+  await prisma.appointment.update({
+    where: { id: appointmentId },
+    data: { status: 'CANCELLED', cancellationReason: reason },
+  })
+  return { cancelled: true, id: appointment.id }
 }
