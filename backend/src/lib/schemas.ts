@@ -1,0 +1,40 @@
+import { z } from 'zod'
+
+const phoneRegex = /^(\+?[1-9]\d{1,14}|\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4})$/
+const dateRegex = /^\d{4}-\d{2}-\d{2}$/
+const timeRegex = /^([0-1][0-9]|2[0-3]):[0-5][0-9]$/
+
+export const createAppointmentSchema = z.object({
+  businessSlug: z.string().min(1, 'El slug del negocio es obligatorio'),
+  serviceId: z.string().min(1, 'El servicio es obligatorio'),
+  date: z.string().regex(dateRegex, 'La fecha debe ser AAAA-MM-DD'),
+  slotTime: z.string().regex(timeRegex, 'El horario debe ser HH:MM'),
+  clientName: z.string().min(1, 'El nombre es obligatorio').max(100),
+  clientPhone: z.string().regex(phoneRegex, {
+    message: 'El teléfono debe ser internacional (+1234567890) o formato local',
+  }),
+})
+
+export type CreateAppointmentInput = z.infer<typeof createAppointmentSchema>
+
+export const cancelAppointmentSchema = z.object({
+  token: z.string().min(1, 'El token de cancelación es obligatorio'),
+})
+
+const emailSchema = z.string().email('Email inválido').min(1, 'El email es obligatorio')
+const passwordSchema = z.string().min(6, 'La contraseña debe tener al menos 6 caracteres')
+
+export const loginSchema = z.object({
+  email: emailSchema,
+  password: passwordSchema,
+})
+
+export const registerSchema = z.object({
+  email: emailSchema,
+  password: passwordSchema,
+  role: z.enum(['OWNER', 'ADMIN', 'STAFF']).optional().default('OWNER'),
+  businessId: z.string().cuid().optional().nullable(),
+})
+
+export type LoginInput = z.infer<typeof loginSchema>
+export type RegisterInput = z.infer<typeof registerSchema>

@@ -1,11 +1,9 @@
 import { Router } from 'express'
-// TODO: Import controllers
-// import { getAvailability, getWeekAvailability } from '../controllers/availability.controller'
+import { getAvailability, getWeekAvailability } from '../controllers/availability.controller'
 
 const router = Router()
 
-// TODO: Implement routes
-// router.get('/', getAvailability)
-// router.get('/week', getWeekAvailability)
+router.get('/week', getWeekAvailability)
+router.get('/', getAvailability)
 
 export default router

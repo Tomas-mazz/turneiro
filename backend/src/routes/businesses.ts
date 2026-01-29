@@ -1,11 +1,10 @@
 import { Router } from 'express'
-// TODO: Import controllers
-// import { getBusinessBySlug, getBusinesses } from '../controllers/businesses.controller'
+import { getBusinessBySlug } from '../controllers/businesses.controller'
 
 const router = Router()
 
-// TODO: Implement routes
-// router.get('/:slug', getBusinessBySlug)
+router.get('/:slug', getBusinessBySlug)
+// GET / (list businesses) - requires auth, TODO later
 // router.get('/', requireAuth, getBusinesses)
 
 export default router

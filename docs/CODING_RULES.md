@@ -2,19 +2,10 @@
 
 ## Project Language Rules
 
-**IMPORTANT**: All project content must be in English:
-- Code comments
-- Git commits and commit messages
-- README files and documentation
-- Variable names and function names
-- User-facing text (with i18n support for English/Spanish in the UI)
-- API documentation
-- Error messages and logs
-- Database schema and field names
-- Environment variable names
-- Configuration files
+**IMPORTANT** – Two separate rules:
 
-The user interface will support English and Spanish through internationalization (i18n), but all code, documentation, and technical content must be in English.
+1. **In English only**: Code comments, git commits, README, variable/function names, API docs, database schema and field names, env var names, configuration files.
+2. **User-facing content: Spanish by default.** All text the end user sees (UI, messages, errors shown in the app) must be in Spanish. Optional later: i18n for English.
 
 ## Error Handling
 
@@ -84,19 +75,9 @@ export const workingHoursSchema = z.object({
 
 ## Internationalization (i18n)
 
-```typescript
-// lib/i18n.ts
-// Support for English and Spanish
-import { useTranslations } from 'next-intl' // or similar i18n library
+**Default UI language: Spanish.** All user-facing text in the app is in Spanish. Optional later: add i18n (e.g. next-intl) and language switcher for English; persist preference in localStorage.
 
-// Language switcher component
-export function LanguageSwitcher() {
-  // Toggle between 'en' and 'es'
-  // Persist preference in localStorage
-}
-```
-
-### Translation Keys Structure
+### Translation Keys Structure (for future i18n)
 ```
 en/
   common.json

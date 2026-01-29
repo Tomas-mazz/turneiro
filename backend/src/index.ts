@@ -24,11 +24,14 @@ app.get('/health', (req, res) => {
 })
 
 // API Routes
-// TODO: Add routes
-// app.use('/api/businesses', businessesRoutes)
-// app.use('/api/appointments', appointmentsRoutes)
-// app.use('/api/availability', availabilityRoutes)
-// app.use('/api/auth', authRoutes)
+import businessesRoutes from './routes/businesses'
+import availabilityRoutes from './routes/availability'
+import appointmentsRoutes from './routes/appointments'
+import authRoutes from './routes/auth'
+app.use('/api/businesses', businessesRoutes)
+app.use('/api/availability', availabilityRoutes)
+app.use('/api/appointments', appointmentsRoutes)
+app.use('/api/auth', authRoutes)
 // app.use('/api/webhooks', webhooksRoutes)
 
 // 404 handler

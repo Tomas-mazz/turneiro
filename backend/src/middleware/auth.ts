@@ -1,26 +1,47 @@
 import { Request, Response, NextFunction } from 'express'
+import { verifyToken } from '../lib/jwt'
+import type { JwtPayload } from '../lib/jwt'
 
 export interface AuthRequest extends Request {
-  user?: {
-    id: string
-    email: string
-    role: 'OWNER' | 'ADMIN' | 'STAFF'
-    businessId?: string
+  user?: JwtPayload
+}
+
+export function requireAuth(
+  req: AuthRequest,
+  res: Response,
+  next: NextFunction
+): void {
+  const authHeader = req.headers.authorization
+  const token = authHeader?.startsWith('Bearer ') ? authHeader.slice(7) : null
+
+  if (!token) {
+    res.status(401).json({ error: 'Token de autenticación requerido' })
+    return
+  }
+
+  try {
+    const payload = verifyToken(token)
+    req.user = {
+      userId: payload.userId,
+      email: payload.email,
+      role: payload.role,
+      businessId: payload.businessId,
+    }
+    next()
+  } catch {
+    res.status(401).json({ error: 'Token inválido o expirado' })
   }
 }
 
-// TODO: Implement JWT authentication middleware
-export function requireAuth(req: AuthRequest, res: Response, next: NextFunction) {
-  // TODO: Verify JWT token
-  // TODO: Extract user information from token
-  // TODO: Attach user to request object
-  next()
-}
-
-export function requireBusinessOwner(req: AuthRequest, res: Response, next: NextFunction) {
+export function requireBusinessOwner(
+  req: AuthRequest,
+  res: Response,
+  next: NextFunction
+): void {
   requireAuth(req, res, () => {
     if (!req.user || !['OWNER', 'ADMIN', 'STAFF'].includes(req.user.role)) {
-      return res.status(403).json({ error: 'Forbidden' })
+      res.status(403).json({ error: 'Acceso denegado' })
+      return
     }
     next()
   })

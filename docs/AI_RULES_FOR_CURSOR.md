@@ -2,19 +2,21 @@
 
 ## Project Language Rules
 
-**IMPORTANT**: All project content must be in English:
-- Code comments
-- Git commits and commit messages
-- README files and documentation
-- Variable names and function names
-- User-facing text (with i18n support for English/Spanish in the UI)
-- API documentation
-- Error messages and logs
-- Database schema and field names
-- Environment variable names
-- Configuration files
+**IMPORTANT** – Two separate rules:
 
-The user interface will support English and Spanish through internationalization (i18n), but all code, documentation, and technical content must be in English.
+1. **In English only** (code, repo, tooling):
+   - Code comments
+   - Git commits and commit messages
+   - README and technical documentation
+   - Variable names and function names
+   - API documentation
+   - Database schema and field names
+   - Environment variable names
+   - Configuration files
+
+2. **User-facing content: Spanish by default**
+   - All text that the end user sees (UI labels, buttons, messages, errors shown in the app) must be in **Spanish**.
+   - Optional: add i18n later to support English as a second language; until then, Spanish is the only UI language.
 
 ## Code Organization Principles
 
@@ -59,11 +61,9 @@ The user interface will support English and Spanish through internationalization
 
 ## Internationalization Requirements
 
-- Support English and Spanish in MVP
-- Language switcher button on booking page
-- Persist language preference in localStorage
-- All user-facing text must be translatable
-- Code and documentation remain in English
+- **Default UI language: Spanish.** All user-facing text in the app is in Spanish.
+- Optional later: add i18n and language switcher (e.g. English); persist preference in localStorage.
+- Code, comments, README, and commits remain in English.
 
 ## Timezone Requirements
 

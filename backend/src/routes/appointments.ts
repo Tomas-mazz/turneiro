@@ -1,12 +1,14 @@
 import { Router } from 'express'
-// TODO: Import controllers
-// import { createAppointment, getAppointments, cancelAppointment } from '../controllers/appointments.controller'
+import {
+  createAppointment,
+  getAppointments,
+  cancelAppointment,
+} from '../controllers/appointments.controller'
 
 const router = Router()
 
-// TODO: Implement routes
-// router.post('/', createAppointment)
+router.post('/', createAppointment)
+router.post('/cancel', cancelAppointment)
 // router.get('/', requireAuth, getAppointments)
-// router.post('/cancel', cancelAppointment)
 
 export default router
