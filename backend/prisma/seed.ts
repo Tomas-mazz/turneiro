@@ -28,8 +28,13 @@ async function main() {
     where: { businessId: business.id },
     create: {
       businessId: business.id,
-      freeCancellationWindow: 24,
+      paymentRequired: true,
+      paymentType: 'PERCENTAGE',
+      depositPercentage: 10,
       requireRegistrationBeforePayment: true,
+      freeCancellationWindow: 24,
+      cancellationHasCost: false,
+      bufferTime: 0,
     },
     update: {},
   })

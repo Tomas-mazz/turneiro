@@ -32,10 +32,11 @@ Minimalist design with hero section as first view
    - Large "RESERVAR TURNO" / "BOOK APPOINTMENT" button (primary call-to-action)
    - Smooth scroll to booking section on button click
 
-2. **Multi-Barber Selection (if applicable)**:
-   - If salon has multiple barbers, show selection step
-   - Display all available barbers with photos/names
-   - Client selects barber before proceeding
+2. **Multi-Employee Selection (if applicable - Post-MVP)**:
+   - If business has multiple employees (barbers, manicurists, etc.), show selection step
+   - Display all available employees with photos/names
+   - Client selects employee before proceeding
+   - **Note:** "Multi-employee" (not "multi-barber") applies to all business categories/rubros
 
 3. **Service Selection**:
    - Display available services with prices (vertical list)
@@ -60,15 +61,16 @@ Minimalist design with hero section as first view
    - Selected day: Highlighted with white background and dark text
    - Past dates: Grayed out and disabled
 
-5. **Barbers and Time Slots Display**:
-   - **Note**: Multi-barber support is a current feature but NOT included in MVP. Admin can add multiple barbers per business, but shop owner must contact admin to add new barbers.
-   - After selecting a day, shows all barbers (if multi-barber salon) or single barber
-   - Each barber displayed with:
+5. **Employees and Time Slots Display (Post-MVP for Multi-Employee)**:
+   - **Note**: Multi-employee support is NOT included in MVP. Admin can add multiple employees per business, but shop owner must contact admin to add new employees. This feature is planned for post-MVP.
+   - **MVP:** Shows single employee/owner's available slots.
+   - **Post-MVP:** After selecting a day, shows all employees (if multi-employee business) or single employee
+   - Each employee displayed with:
      - Circular profile photo/avatar
-     - Barber name next to photo
+     - Employee name next to photo
      - Available time slots as small rectangular buttons in a grid
      - Time format: "09:00", "09:30", "11:00", etc. (24-hour or 12-hour format)
-   - If barber has no available slots: Shows message "No hay turnos disponibles" / "No available slots"
+   - If employee has no available slots: Shows message "No hay turnos disponibles" / "No available slots"
    - Time slot buttons: Clickable, show time only (e.g., "11:00")
    - Selected time slot: Highlighted with primary color
    - Grid layout: Multiple time slots per row (responsive)

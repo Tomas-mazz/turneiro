@@ -41,6 +41,8 @@ model User {
   password  String   // Hashed password
   role      String   // OWNER, ADMIN, STAFF
   businessId String?
+  googleRefreshToken String? // Google OAuth refresh token for Calendar API
+  googleCalendarId   String? // Google Calendar ID (usually "primary")
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -76,12 +78,17 @@ model Appointment {
   endTime       DateTime
   serviceName   String
   price         Float
-  paymentStatus String   // PENDING, PAID, REFUNDED
+  paymentStatus String   // PENDING, PAID, REFUNDED, PARTIALLY_REFUNDED
+  paymentProvider String? // STRIPE, MERCADOPAGO
+  paymentIntentId String? // Stripe Payment Intent ID or Mercado Pago Preference ID
+  paymentAmount Float?   // Amount paid (deposit or full)
+  refundAmount  Float?   // Amount refunded (if cancelled)
   clientName    String
   clientPhone   String
   status        String   // UPCOMING, COMPLETED, CANCELLED
   cancellationToken String? @unique
   cancellationReason String? // Reason when cancelled by owner (mandatory in UI)
+  googleEventId String? // Google Calendar Event ID for syncing
   businessId    String
   serviceId     String?
   createdAt     DateTime @default(now())
@@ -95,6 +102,8 @@ model Appointment {
   @@index([startTime])
   @@index([status])
   @@index([cancellationToken])
+  @@index([paymentIntentId])
+  @@index([googleEventId])
 }
 
 // WorkingHours model - business working hours per day

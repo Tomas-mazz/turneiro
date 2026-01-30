@@ -15,6 +15,11 @@ app.use(cors({
   origin: FRONTEND_URL,
   credentials: true,
 }))
+
+// Stripe webhook needs raw body - must come before express.json()
+import webhooksRoutes from './routes/webhooks'
+app.use('/api/webhooks', webhooksRoutes)
+
 app.use(express.json())
 app.use(express.urlencoded({ extended: true }))
 
@@ -29,12 +34,15 @@ import availabilityRoutes from './routes/availability'
 import appointmentsRoutes from './routes/appointments'
 import servicesRoutes from './routes/services'
 import authRoutes from './routes/auth'
+import paymentsRoutes from './routes/payments'
+import googleCalendarRoutes from './routes/google-calendar'
 app.use('/api/businesses', businessesRoutes)
 app.use('/api/availability', availabilityRoutes)
 app.use('/api/appointments', appointmentsRoutes)
 app.use('/api/services', servicesRoutes)
 app.use('/api/auth', authRoutes)
-// app.use('/api/webhooks', webhooksRoutes)
+app.use('/api/payments', paymentsRoutes)
+app.use('/api/google-calendar', googleCalendarRoutes)
 
 // 404 handler
 app.use((req, res) => {
