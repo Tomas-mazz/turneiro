@@ -1,6 +1,7 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { Suspense, useEffect, useState } from 'react'
+import { useSearchParams } from 'next/navigation'
 import { format } from 'date-fns'
 import { es } from 'date-fns/locale'
 import {
@@ -8,6 +9,9 @@ import {
   updateService,
   getAppointments,
   cancelAppointmentByOwner,
+  getGoogleCalendarAuthUrl,
+  getGoogleCalendarStatus,
+  disconnectGoogleCalendar,
 } from '@/lib/api'
 import type { ServiceListItem, AppointmentListItem } from '@/types'
 
@@ -18,7 +22,8 @@ function formatDateTime(iso: string) {
   return format(d, "d MMM yyyy, HH:mm", { locale: es })
 }
 
-export default function DashboardPage() {
+function DashboardContent() {
+  const searchParams = useSearchParams()
   const [services, setServices] = useState<ServiceListItem[]>([])
   const [appointments, setAppointments] = useState<AppointmentListItem[]>([])
   const [loadingServices, setLoadingServices] = useState(true)
@@ -30,6 +35,9 @@ export default function DashboardPage() {
   const [cancelModal, setCancelModal] = useState<{ id: string; clientName: string } | null>(null)
   const [cancelReason, setCancelReason] = useState('')
   const [cancelling, setCancelling] = useState(false)
+  const [calendarConnected, setCalendarConnected] = useState<boolean | null>(null)
+  const [calendarLoading, setCalendarLoading] = useState(false)
+  const [calendarMessage, setCalendarMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
 
   useEffect(() => {
     getServices()
@@ -44,6 +52,54 @@ export default function DashboardPage() {
       .catch(() => setAppointments([]))
       .finally(() => setLoadingAppointments(false))
   }, [])
+
+  useEffect(() => {
+    getGoogleCalendarStatus()
+      .then((data) => setCalendarConnected(data.connected))
+      .catch(() => setCalendarConnected(false))
+  }, [])
+
+  useEffect(() => {
+    const connected = searchParams.get('google_calendar')
+    const err = searchParams.get('google_calendar_error')
+    if (connected === 'connected') {
+      setCalendarMessage({ type: 'success', text: 'Google Calendar conectado correctamente.' })
+      setCalendarConnected(true)
+      window.history.replaceState({}, '', '/dashboard')
+    } else if (err) {
+      const messages: Record<string, string> = {
+        '1': 'No se pudo conectar Google Calendar. Intentá de nuevo.',
+        '2': 'No se recibió autorización. Revocá el acceso y autorizá de nuevo.',
+        '3': 'No se encontró calendario. Asegurate de tener Google Calendar habilitado.',
+      }
+      setCalendarMessage({ type: 'error', text: messages[err] || messages['1'] })
+      window.history.replaceState({}, '', '/dashboard')
+    }
+  }, [searchParams])
+
+  const handleConnectGoogleCalendar = async () => {
+    setCalendarLoading(true)
+    try {
+      const { authUrl } = await getGoogleCalendarAuthUrl()
+      window.location.href = authUrl
+    } catch (err) {
+      setError((err as { response?: { data?: { error?: string } } })?.response?.data?.error || 'Error al iniciar la conexión')
+      setCalendarLoading(false)
+    }
+  }
+
+  const handleDisconnectGoogleCalendar = async () => {
+    setCalendarLoading(true)
+    try {
+      await disconnectGoogleCalendar()
+      setCalendarConnected(false)
+      setCalendarMessage({ type: 'success', text: 'Google Calendar desconectado.' })
+    } catch (err) {
+      setError((err as { response?: { data?: { error?: string } } })?.response?.data?.error || 'Error al desconectar')
+    } finally {
+      setCalendarLoading(false)
+    }
+  }
 
   const upcomingAppointments = appointments.filter((a) => a.status === 'UPCOMING')
 
@@ -100,15 +156,57 @@ export default function DashboardPage() {
             Editá precios y duración de tus servicios y cancelá citas con motivo obligatorio.
           </p>
         </div>
-        <a
-          href={GOOGLE_CALENDAR_URL}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="shrink-0 rounded-lg border border-neutral-300 bg-white px-4 py-2.5 text-sm font-medium text-neutral-700 hover:bg-neutral-50"
-        >
-          Ver Google Calendar
-        </a>
+        <div className="flex shrink-0 flex-wrap items-center gap-2">
+          {calendarConnected ? (
+            <>
+              <a
+                href={GOOGLE_CALENDAR_URL}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="rounded-lg border border-neutral-300 bg-white px-4 py-2.5 text-sm font-medium text-neutral-700 hover:bg-neutral-50"
+              >
+                Ver Google Calendar
+              </a>
+              <button
+                type="button"
+                disabled={calendarLoading}
+                onClick={handleDisconnectGoogleCalendar}
+                className="rounded-lg border border-neutral-300 bg-white px-4 py-2.5 text-sm font-medium text-neutral-600 hover:bg-neutral-50 disabled:opacity-50"
+              >
+                Desconectar
+              </button>
+            </>
+          ) : (
+            <button
+              type="button"
+              disabled={calendarLoading}
+              onClick={handleConnectGoogleCalendar}
+              className="rounded-lg border border-neutral-300 bg-white px-4 py-2.5 text-sm font-medium text-neutral-700 hover:bg-neutral-50 disabled:opacity-50"
+            >
+              {calendarLoading ? 'Redirigiendo...' : 'Conectar Google Calendar'}
+            </button>
+          )}
+        </div>
       </div>
+
+      {calendarMessage && (
+        <div
+          className={`mt-4 rounded-lg border p-3 text-sm ${
+            calendarMessage.type === 'success'
+              ? 'border-green-200 bg-green-50 text-green-800'
+              : 'border-red-200 bg-red-50 text-red-800'
+          }`}
+        >
+          {calendarMessage.text}
+          <button
+            type="button"
+            onClick={() => setCalendarMessage(null)}
+            className="ml-2 underline"
+          >
+            Cerrar
+          </button>
+        </div>
+      )}
 
       {error && (
         <div className="mt-4 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-800">
@@ -259,5 +357,13 @@ export default function DashboardPage() {
         </div>
       )}
     </main>
+  )
+}
+
+export default function DashboardPage() {
+  return (
+    <Suspense fallback={<div className="p-8 text-neutral-500">Cargando...</div>}>
+      <DashboardContent />
+    </Suspense>
   )
 }

@@ -38,9 +38,9 @@ export async function createPreference(
         ],
         metadata,
         back_urls: {
-          success: `${process.env.FRONTEND_URL}/booking/success`,
-          failure: `${process.env.FRONTEND_URL}/booking/failure`,
-          pending: `${process.env.FRONTEND_URL}/booking/pending`,
+          success: `${process.env.FRONTEND_URL}/booking/success?appointmentId=${metadata.appointmentId}`,
+          failure: `${process.env.FRONTEND_URL}/booking/failure?appointmentId=${metadata.appointmentId}`,
+          pending: `${process.env.FRONTEND_URL}/booking/pending?appointmentId=${metadata.appointmentId}`,
         },
         auto_return: 'approved',
         notification_url: `${process.env.APP_URL}/api/webhooks/mercadopago`,

@@ -66,7 +66,13 @@ This is the **single source of truth** for the current state of the project. Use
   - Section "Servicios (precio y duración)": table with name, price input, duration input, "Guardar" per row; calls PATCH /api/services/:id.  
   - Section "Cancelar citas": list of **upcoming** appointments (from GET /api/appointments), each with "Cancelar cita" → modal with required reason → POST /api/appointments/:id/cancel.  
 - No `/dashboard/appointments` page (removed); `/dashboard/settings` redirects to `/dashboard`.  
-- Public page `[business-slug]`: full booking flow **without payment step yet** (hero, service, calendar, slots, client form, cancellation notice, confirmation).  
+- **Frontend: Google Calendar OAuth (done):** Dashboard has "Conectar Google Calendar" button; calls GET /api/google-calendar/auth and redirects to auth URL; Google redirects to frontend /api/google-calendar/callback, which forwards to backend callback; backend exchanges code and redirects to /dashboard?google_calendar=connected (or error param). Dashboard shows connection status, "Ver Google Calendar" and "Desconectar" when connected, and success/error messages from query params.  
+- **Frontend: Payment step in booking flow (done):**  
+  - GET /businesses/:slug returns `settings.paymentRequired` (and paymentType, depositPercentage).  
+  - After client form, if payment required: step "Pago" with "Pagar con tarjeta (Stripe)" and "Pagar con Mercado Pago".  
+  - Stripe: POST /payments/create-intent (STRIPE) → Stripe Elements (PaymentElement) → confirm → POST /payments/confirm → done. Return from 3DS: `/booking/stripe-return?appointmentId=&paymentIntentId=`.  
+  - Mercado Pago: POST /payments/create-intent (MERCADOPAGO) → redirect to initPoint → return to `/booking/success|failure|pending?appointmentId=`; success page calls confirm and shows "Cita confirmada".  
+- Public page `[business-slug]`: full booking flow **with payment step** (hero, service, calendar, slots, client form, payment when required, confirmation). Stripe Elements and Mercado Pago redirect; return pages: `/booking/success`, `/booking/failure`, `/booking/pending`, `/booking/stripe-return`.  
 - Page `/cancel` for client to cancel by token.  
 - UI and API error messages in Spanish.
 
@@ -74,8 +80,6 @@ This is the **single source of truth** for the current state of the project. Use
 
 ## 4. Immediate pending (next steps)
 
-- **Frontend: Payment step in booking flow** – Integrate payment UI (Stripe Elements or Mercado Pago SDK) in public `[business-slug]` page between client form and confirmation. Call `POST /api/payments/create-intent`, handle payment, confirm with `POST /api/payments/confirm`.  
-- **Frontend: Google Calendar OAuth** – Add "Conectar Google Calendar" button in owner dashboard; handle OAuth flow (redirect to auth URL, handle callback, show connection status).  
 - **Cancel by ID/código (optional UX improvement)** – Instead of listing all upcoming appointments, allow "enter appointment ID or short code → show that reservation → cancel with reason" to keep the dashboard light when there are many appointments. Add short code (last 6-8 chars of id) to Google Calendar event description for easy reference.
 
 ---

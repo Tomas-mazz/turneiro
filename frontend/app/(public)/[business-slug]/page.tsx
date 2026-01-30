@@ -1,6 +1,8 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { loadStripe } from '@stripe/stripe-js'
+import { Elements, PaymentElement, useStripe, useElements } from '@stripe/react-stripe-js'
 import { api } from '@/lib/api'
 
 type Business = {
@@ -11,9 +13,10 @@ type Business = {
   primaryColor: string
   services: { id: string; name: string; price: number; duration: number }[]
   workingHours: { dayOfWeek: number; startTime: string; endTime: string; isClosed: boolean }[]
+  settings: { paymentRequired: boolean; paymentType: string | null; depositPercentage: number | null } | null
 }
 
-type Step = 'hero' | 'service' | 'date' | 'time' | 'form' | 'done'
+type Step = 'hero' | 'service' | 'date' | 'time' | 'form' | 'payment' | 'done'
 
 function formatDateKey(d: Date) {
   return d.toISOString().slice(0, 10)
@@ -25,6 +28,73 @@ function getMonthStart(d: Date) {
 
 function getMonthEnd(d: Date) {
   return new Date(d.getFullYear(), d.getMonth() + 1, 0)
+}
+
+const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY || '')
+
+function StripePaymentForm({
+  appointmentId,
+  paymentIntentId,
+  onSuccess,
+  onError,
+  primaryColor,
+}: {
+  appointmentId: string
+  paymentIntentId: string
+  onSuccess: () => void
+  onError: (msg: string) => void
+  primaryColor: string
+}) {
+  const stripe = useStripe()
+  const elements = useElements()
+  const [loading, setLoading] = useState(false)
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!stripe || !elements) return
+    setLoading(true)
+    onError('')
+    try {
+      const returnUrl =
+        typeof window !== 'undefined'
+          ? `${window.location.origin}/booking/stripe-return?appointmentId=${appointmentId}&paymentIntentId=${encodeURIComponent(paymentIntentId)}`
+          : ''
+      const { error } = await stripe.confirmPayment({
+        elements,
+        confirmParams: {
+          return_url: returnUrl,
+          receipt_email: undefined,
+        },
+      })
+      if (error) {
+        onError(error.message || 'Error al procesar el pago')
+        setLoading(false)
+        return
+      }
+      await api.post('/payments/confirm', { appointmentId, paymentIntentId })
+      onSuccess()
+    } catch (err: unknown) {
+      const msg = (err as { response?: { data?: { error?: string } } })?.response?.data?.error || 'Error al confirmar el pago'
+      const isTechnical = /prisma|invocation|column|database|ECONNREFUSED/i.test(msg)
+      onError(isTechnical ? 'No se pudo confirmar el pago. Por favor intentá de nuevo.' : msg)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  return (
+    <form onSubmit={handleSubmit} className="space-y-4">
+      <PaymentElement />
+      <button
+        type="submit"
+        disabled={!stripe || loading}
+        className="w-full py-3 rounded-lg font-medium text-white disabled:opacity-50"
+        style={{ backgroundColor: primaryColor }}
+      >
+        {loading ? 'Procesando...' : 'Pagar'}
+      </button>
+    </form>
+  )
 }
 
 export default function BusinessBookingPage({
@@ -56,6 +126,12 @@ export default function BusinessBookingPage({
     serviceName: string
     cancellationToken: string | null
   } | null>(null)
+  const [paymentIntentId, setPaymentIntentId] = useState<string | null>(null)
+  const [paymentClientSecret, setPaymentClientSecret] = useState<string | null>(null)
+  const [paymentAmount, setPaymentAmount] = useState<number | null>(null)
+  const [paymentLoading, setPaymentLoading] = useState(false)
+  const [paymentError, setPaymentError] = useState<string | null>(null)
+  const [paymentProvider, setPaymentProvider] = useState<'STRIPE' | 'MERCADOPAGO' | null>(null)
 
   useEffect(() => {
     api
@@ -129,12 +205,102 @@ export default function BusinessBookingPage({
       )
       .then((res) => {
         setCreatedAppointment(res.data)
-        setStep('done')
+        if (business.settings?.paymentRequired) {
+          setStep('payment')
+          setPaymentError(null)
+          setPaymentProvider(null)
+          setPaymentClientSecret(null)
+          setPaymentIntentId(null)
+          setPaymentAmount(null)
+        } else {
+          setStep('done')
+        }
       })
       .catch((err) => {
-        setSubmitError(err.response?.data?.error || 'No se pudo crear la cita')
+        const status = err.response?.status
+        const msg = err.response?.data?.error
+        const isServerError = status >= 500
+        const isTechnical = typeof msg === 'string' && /prisma|invocation|column|database|ECONNREFUSED/i.test(msg)
+        setSubmitError(
+          isServerError || isTechnical
+            ? 'No se pudo completar la reserva. Por favor intentá de nuevo.'
+            : (msg || 'No se pudo crear la cita')
+        )
       })
       .finally(() => setSubmitLoading(false))
+  }
+
+  const handleCreateStripeIntent = () => {
+    if (!createdAppointment) return
+    setPaymentLoading(true)
+    setPaymentError(null)
+    setPaymentProvider('STRIPE')
+    api
+      .post<{ clientSecret: string; paymentIntentId: string; amount: number; provider: string }>(
+        '/payments/create-intent',
+        { appointmentId: createdAppointment.id, provider: 'STRIPE' }
+      )
+      .then((res) => {
+        setPaymentClientSecret(res.data.clientSecret)
+        setPaymentIntentId(res.data.paymentIntentId)
+        setPaymentAmount(res.data.amount)
+      })
+      .catch((err) => {
+        const status = err.response?.status
+        const msg = err.response?.data?.error
+        const isServerError = status >= 500
+        const isTechnical = typeof msg === 'string' && /prisma|invocation|column|database|ECONNREFUSED/i.test(msg)
+        setPaymentError(
+          isServerError || isTechnical
+            ? 'No se pudo iniciar el pago. Por favor intentá de nuevo.'
+            : (msg || 'No se pudo iniciar el pago')
+        )
+        setPaymentProvider(null)
+      })
+      .finally(() => setPaymentLoading(false))
+  }
+
+  const handleCreateMercadoPagoIntent = () => {
+    if (!createdAppointment || !selectedService || !selectedDate || !selectedSlot) return
+    setPaymentLoading(true)
+    setPaymentError(null)
+    api
+      .post<{ preferenceId: string; initPoint: string; amount: number; provider: string }>(
+        '/payments/create-intent',
+        { appointmentId: createdAppointment.id, provider: 'MERCADOPAGO' }
+      )
+      .then((res) => {
+        const storage: Record<string, string> = {
+          appointmentId: createdAppointment.id,
+          preferenceId: res.data.preferenceId,
+          serviceName: createdAppointment.serviceName,
+          startTime: createdAppointment.startTime,
+          endTime: createdAppointment.endTime,
+          cancellationToken: createdAppointment.cancellationToken || '',
+          businessSlug: slug,
+        }
+        sessionStorage.setItem('mp_booking', JSON.stringify(storage))
+        window.location.href = res.data.initPoint
+      })
+      .catch((err) => {
+        const status = err.response?.status
+        const msg = err.response?.data?.error
+        const isServerError = status >= 500
+        const isTechnical = typeof msg === 'string' && /prisma|invocation|column|database|ECONNREFUSED/i.test(msg)
+        setPaymentError(
+          isServerError || isTechnical
+            ? 'No se pudo iniciar el pago. Por favor intentá de nuevo.'
+            : (msg || 'No se pudo iniciar el pago')
+        )
+      })
+      .finally(() => setPaymentLoading(false))
+  }
+
+  const handleStripePaymentSuccess = () => {
+    setStep('done')
+    setPaymentClientSecret(null)
+    setPaymentIntentId(null)
+    setPaymentProvider(null)
   }
 
   const primaryColor = business?.primaryColor || '#000000'
@@ -371,11 +537,18 @@ export default function BusinessBookingPage({
               <input
                 id="clientPhone"
                 type="tel"
+                inputMode="numeric"
+                autoComplete="tel"
                 required
                 value={clientPhone}
-                onChange={(e) => setClientPhone(e.target.value)}
+                onChange={(e) => {
+                  const raw = e.target.value.replace(/[^\d+]/g, '')
+                  const hasLeadingPlus = raw.startsWith('+')
+                  const digitsOnly = raw.replace(/\+/g, '')
+                  setClientPhone(hasLeadingPlus ? `+${digitsOnly}` : digitsOnly)
+                }}
                 className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:ring-2 focus:ring-offset-0"
-                placeholder="+54 11 1234-5678 o formato local"
+                placeholder="+54 11 12345678"
               />
             </div>
             <p className="text-xs text-neutral-500">
@@ -391,6 +564,58 @@ export default function BusinessBookingPage({
               {submitLoading ? 'Reservando...' : 'Confirmar reserva'}
             </button>
           </form>
+        </section>
+      )}
+
+      {step === 'payment' && createdAppointment && selectedService && selectedDate && selectedSlot && (
+        <section className="py-12 px-4 max-w-lg mx-auto">
+          <h2 className="text-xl font-semibold text-neutral-900 mb-4">Pago</h2>
+          <p className="text-sm text-neutral-600 mb-2">
+            {createdAppointment.serviceName} · {selectedDate} · {selectedSlot}
+          </p>
+          {paymentAmount != null && (
+            <p className="text-sm font-medium text-neutral-700 mb-4">
+              Monto a pagar: {paymentAmount.toFixed(2)}
+            </p>
+          )}
+          {paymentError && <p className="text-sm text-red-600 mb-4">{paymentError}</p>}
+
+          {!paymentClientSecret ? (
+            <div className="space-y-3">
+              <button
+                type="button"
+                onClick={handleCreateStripeIntent}
+                disabled={paymentLoading}
+                className="w-full py-3 rounded-lg font-medium border border-neutral-300 hover:bg-neutral-50 disabled:opacity-50"
+              >
+                {paymentLoading ? 'Cargando...' : 'Pagar con tarjeta (Stripe)'}
+              </button>
+              <button
+                type="button"
+                onClick={handleCreateMercadoPagoIntent}
+                disabled={paymentLoading}
+                className="w-full py-3 rounded-lg font-medium border border-neutral-300 hover:bg-neutral-50 disabled:opacity-50"
+              >
+                {paymentLoading ? 'Cargando...' : 'Pagar con Mercado Pago'}
+              </button>
+            </div>
+          ) : paymentClientSecret && paymentIntentId && (
+            <Elements
+              stripe={stripePromise}
+              options={{
+                clientSecret: paymentClientSecret,
+                appearance: { theme: 'stripe' },
+              }}
+            >
+              <StripePaymentForm
+                appointmentId={createdAppointment.id}
+                paymentIntentId={paymentIntentId}
+                onSuccess={handleStripePaymentSuccess}
+                onError={setPaymentError}
+                primaryColor={primaryColor}
+              />
+            </Elements>
+          )}
         </section>
       )}
     </main>

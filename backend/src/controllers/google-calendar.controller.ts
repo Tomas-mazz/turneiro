@@ -9,11 +9,11 @@ import * as googleCalendarService from '../services/google-calendar.service'
  */
 export async function initiateOAuth(req: AuthRequest, res: Response) {
   try {
-    if (!req.user?.id) {
+    if (!req.user?.userId) {
       return res.status(401).json({ error: 'No autenticado' })
     }
 
-    const userId = req.user.id
+    const userId = req.user.userId
     const authUrl = googleCalendarService.getAuthUrl(userId)
 
     return res.json({
@@ -26,15 +26,17 @@ export async function initiateOAuth(req: AuthRequest, res: Response) {
   }
 }
 
+const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:3000'
+
 /**
- * OAuth callback - exchange code for tokens and save
+ * OAuth callback - exchange code for tokens and save, then redirect to dashboard
  */
 export async function oauthCallback(req: Request, res: Response) {
   try {
     const { code, state } = req.query
 
     if (!code || !state) {
-      return res.status(400).json({ error: 'Código o estado faltante' })
+      return res.redirect(`${FRONTEND_URL}/dashboard?google_calendar_error=1`)
     }
 
     const userId = state as string
@@ -44,19 +46,19 @@ export async function oauthCallback(req: Request, res: Response) {
       await googleCalendarService.getTokensFromCode(code as string)
 
     if (!refreshToken) {
-      return res.status(400).json({
-        error: 'No se recibió refresh token. Intenta revocar el acceso y autorizar de nuevo.',
-      })
+      return res.redirect(`${FRONTEND_URL}/dashboard?google_calendar_error=2`)
     }
 
-    // Get user's calendars to set default
-    const calendars = await googleCalendarService.listCalendars(refreshToken)
-    const primaryCalendar = calendars.find(cal => cal.primary) || calendars[0]
-
-    if (!primaryCalendar) {
-      return res.status(400).json({
-        error: 'No se encontró calendario. Asegúrate de tener Google Calendar habilitado.',
-      })
+    // Get user's calendars to set default; fallback to 'primary' if list fails or is empty
+    let calendarId: string = 'primary'
+    try {
+      const calendars = await googleCalendarService.listCalendars(refreshToken)
+      const primaryCalendar = calendars?.find((cal: any) => cal.primary) || calendars?.[0]
+      if (primaryCalendar?.id) {
+        calendarId = primaryCalendar.id
+      }
+    } catch (listErr) {
+      console.error('oauthCallback listCalendars fallback to primary:', listErr)
     }
 
     // Save refresh token and calendar ID to user
@@ -64,18 +66,14 @@ export async function oauthCallback(req: Request, res: Response) {
       where: { id: userId },
       data: {
         googleRefreshToken: refreshToken as any,
-        googleCalendarId: primaryCalendar.id as any,
+        googleCalendarId: calendarId as any,
       } as any,
     })
 
-    return res.json({
-      success: true,
-      message: 'Google Calendar conectado exitosamente',
-      calendarName: primaryCalendar.summary,
-    })
+    return res.redirect(`${FRONTEND_URL}/dashboard?google_calendar=connected`)
   } catch (error) {
     console.error('oauthCallback error:', error)
-    return res.status(500).json({ error: 'Error al procesar callback de OAuth' })
+    return res.redirect(`${FRONTEND_URL}/dashboard?google_calendar_error=1`)
   }
 }
 
@@ -84,12 +82,12 @@ export async function oauthCallback(req: Request, res: Response) {
  */
 export async function disconnectCalendar(req: AuthRequest, res: Response) {
   try {
-    if (!req.user?.id) {
+    if (!req.user?.userId) {
       return res.status(401).json({ error: 'No autenticado' })
     }
 
     await prisma.user.update({
-      where: { id: req.user.id },
+      where: { id: req.user.userId },
       data: {
         googleRefreshToken: null as any,
         googleCalendarId: null as any,
@@ -111,12 +109,12 @@ export async function disconnectCalendar(req: AuthRequest, res: Response) {
  */
 export async function getConnectionStatus(req: AuthRequest, res: Response) {
   try {
-    if (!req.user?.id) {
+    if (!req.user?.userId) {
       return res.status(401).json({ error: 'No autenticado' })
     }
 
     const user = await prisma.user.findUnique({
-      where: { id: req.user.id },
+      where: { id: req.user.userId },
       select: {
         googleRefreshToken: true,
         googleCalendarId: true,
@@ -140,7 +138,7 @@ export async function getConnectionStatus(req: AuthRequest, res: Response) {
  */
 export async function syncAppointment(req: AuthRequest, res: Response) {
   try {
-    if (!req.user?.id) {
+    if (!req.user?.userId) {
       return res.status(401).json({ error: 'No autenticado' })
     }
 
@@ -152,7 +150,7 @@ export async function syncAppointment(req: AuthRequest, res: Response) {
 
     // Get user with Google Calendar credentials
     const user = await prisma.user.findUnique({
-      where: { id: req.user.id },
+      where: { id: req.user.userId },
     })
 
     const refreshToken = (user as any)?.googleRefreshToken

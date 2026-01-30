@@ -29,6 +29,13 @@ export async function getBusinessBySlugService(slug: string) {
           isClosed: true,
         },
       },
+      settings: {
+        select: {
+          paymentRequired: true,
+          paymentType: true,
+          depositPercentage: true,
+        },
+      },
     },
   })
 

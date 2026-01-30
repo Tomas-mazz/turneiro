@@ -49,11 +49,9 @@ app.use((req, res) => {
   res.status(404).json({ error: 'Route not found' })
 })
 
-// Error handler
-app.use((err: Error, req: express.Request, res: express.Response, next: express.NextFunction) => {
-  console.error('Error:', err)
-  res.status(500).json({ error: 'Internal server error' })
-})
+// Error handler (use middleware for consistent logging and Spanish messages)
+import { errorHandler } from './middleware/errorHandler'
+app.use(errorHandler)
 
 app.listen(PORT, () => {
   console.log(`🚀 Backend server running on http://localhost:${PORT}`)

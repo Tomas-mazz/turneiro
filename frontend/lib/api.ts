@@ -52,3 +52,20 @@ export async function cancelAppointmentByOwner(
   )
   return data
 }
+
+export type GoogleCalendarStatus = { connected: boolean; calendarId: string | null }
+
+export async function getGoogleCalendarAuthUrl(): Promise<{ authUrl: string }> {
+  const { data } = await api.get<{ authUrl: string }>('/google-calendar/auth')
+  return data
+}
+
+export async function getGoogleCalendarStatus(): Promise<GoogleCalendarStatus> {
+  const { data } = await api.get<GoogleCalendarStatus>('/google-calendar/status')
+  return data
+}
+
+export async function disconnectGoogleCalendar(): Promise<{ success: boolean }> {
+  const { data } = await api.post<{ success: boolean }>('/google-calendar/disconnect')
+  return data
+}
