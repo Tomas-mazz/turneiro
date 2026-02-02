@@ -89,9 +89,9 @@
 - View their own Google Calendar with assigned appointments
 - See their schedule and upcoming appointments
 - Connect their personal Google Calendar via OAuth
+- **Cancel their own appointments** (by entering appointment ID/code, with mandatory reason); same flow as owner but restricted to appointments assigned to them
 
 **Cannot do:**
-- Cancel appointments (must ask owner to cancel via appointment ID)
 - Edit services or prices
 - Access owner dashboard
 - View or cancel appointments from other employees
@@ -110,7 +110,7 @@
 | Payment / cancellation rules | ✅ | ❌ | ❌ |
 | Link to view Google Calendar | N/A | ✅ | ✅ (own only) |
 | Connect Google Calendar OAuth | N/A | ✅ | ✅ (post-MVP) |
-| Cancel business appointments by ID | ✅ | ✅ (own business only) | ❌ |
+| Cancel business appointments by ID | ✅ | ✅ (own business only) | ✅ (own only) |
 | View appointments (centralized list) | ✅ | ❌ (sees in GC only) | ❌ (sees in own GC) |
 | Add/remove employees | ✅ | ❌ (must contact admin) | ❌ |
 
@@ -118,11 +118,16 @@
 
 When multi-employee is implemented:
 
-**Scenario: Owner wants to cancel employee's appointment**
-1. Employee tells owner the appointment ID (e.g., last 8 chars shown in their calendar event)
-2. Owner enters appointment ID in dashboard
-3. System verifies `appointment.businessId === owner.businessId`
-4. If yes: cancels appointment, processes refund, deletes event from **employee's Google Calendar** (not owner's)
-5. If no: shows error "Cita no encontrada o no pertenece a tu negocio"
+**Scenario: Owner wants to cancel any appointment in the business**
+1. Owner enters appointment ID (or short code) in dashboard
+2. System verifies `appointment.businessId === owner.businessId`
+3. If yes: cancels appointment, processes refund, deletes event from **assigned employee's Google Calendar**
+4. If no: shows error "Cita no encontrada o no pertenece a tu negocio"
 
-**Security:** Owner can only cancel appointments within their own business, enforced by `requireBusinessOwner` middleware which checks `user.businessId`.
+**Scenario: Employee wants to cancel their own appointment**
+1. Employee enters appointment ID (or short code) in their dashboard
+2. System verifies appointment is assigned to this employee (`appointment.assignedToUserId === user.id`)
+3. If yes: cancels appointment, processes refund, deletes event from **employee's Google Calendar**
+4. If no: shows error (e.g. "Cita no encontrada o no es tu turno")
+
+**Security:** Owner can only cancel appointments within their own business. Employee can only cancel appointments assigned to them. Enforced by middleware (e.g. `requireBusinessOwner`, or staff check for `assignedToUserId`).

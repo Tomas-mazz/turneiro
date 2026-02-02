@@ -24,6 +24,13 @@ api.interceptors.response.use(
   (error) => Promise.reject(error)
 )
 
+export type MyBusinessInfo = { name: string; slug: string }
+
+export async function getMyBusiness(): Promise<MyBusinessInfo> {
+  const { data } = await api.get<MyBusinessInfo>('/businesses/mine')
+  return data
+}
+
 export async function getServices(): Promise<ServiceListItem[]> {
   const { data } = await api.get<ServiceListItem[]>('/services')
   return data
@@ -39,6 +46,16 @@ export async function updateService(
 
 export async function getAppointments(): Promise<AppointmentListItem[]> {
   const { data } = await api.get<AppointmentListItem[]>('/appointments')
+  return data
+}
+
+export async function getAppointmentsByPhone(
+  phone: string
+): Promise<AppointmentListItem[]> {
+  const { data } = await api.get<AppointmentListItem[]>(
+    '/appointments/lookup',
+    { params: { phone: phone.trim() } }
+  )
   return data
 }
 

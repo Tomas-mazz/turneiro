@@ -1,5 +1,23 @@
 import { prisma } from '../lib/prisma'
 
+export interface MyBusinessInfo {
+  name: string
+  slug: string
+}
+
+/**
+ * Get current user's business name and slug (for dashboard header).
+ */
+export async function getMyBusinessService(
+  businessId: string
+): Promise<MyBusinessInfo | null> {
+  const business = await prisma.business.findUnique({
+    where: { id: businessId },
+    select: { name: true, slug: true },
+  })
+  return business
+}
+
 /**
  * Public business profile by slug (for booking page).
  * Returns business with active services and working hours.

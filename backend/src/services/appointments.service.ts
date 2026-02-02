@@ -295,6 +295,42 @@ export async function getAppointmentsService(
   return appointments
 }
 
+/** Normalize phone for comparison: digits only (and optional leading +) */
+function normalizePhone(phone: string): string {
+  return phone.replace(/\D/g, '')
+}
+
+export async function getAppointmentsByPhoneService(
+  businessId: string,
+  phone: string
+): Promise<AppointmentListItem[]> {
+  const trimmed = phone.trim()
+  if (!trimmed) return []
+
+  const normalizedInput = normalizePhone(trimmed)
+  const appointments = await prisma.appointment.findMany({
+    where: {
+      businessId,
+      status: 'UPCOMING',
+    },
+    orderBy: { startTime: 'asc' },
+    select: {
+      id: true,
+      startTime: true,
+      endTime: true,
+      serviceName: true,
+      price: true,
+      clientName: true,
+      clientPhone: true,
+      status: true,
+      paymentStatus: true,
+    },
+  })
+  return appointments.filter(
+    (a) => normalizePhone(a.clientPhone) === normalizedInput
+  )
+}
+
 export async function cancelAppointmentByOwnerService(
   appointmentId: string,
   businessId: string,

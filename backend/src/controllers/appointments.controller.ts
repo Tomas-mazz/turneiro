@@ -4,6 +4,7 @@ import {
   createAppointmentService,
   cancelAppointmentService,
   getAppointmentsService,
+  getAppointmentsByPhoneService,
   cancelAppointmentByOwnerService,
   SlotUnavailableError,
   CancellationNotAllowedError,
@@ -46,6 +47,31 @@ export async function getAppointments(req: AuthRequest, res: Response) {
     })
   }
   const appointments = await getAppointmentsService(businessId)
+  return res.json(appointments)
+}
+
+export async function getAppointmentLookup(
+  req: AuthRequest,
+  res: Response
+) {
+  const businessId = req.user?.businessId
+  if (!businessId) {
+    return res.status(403).json({
+      error: 'No tienes un negocio asignado',
+    })
+  }
+  const phone = typeof req.query.phone === 'string' ? req.query.phone : ''
+  if (!phone.trim()) {
+    return res.status(400).json({
+      error: 'Falta el teléfono del cliente',
+    })
+  }
+  const appointments = await getAppointmentsByPhoneService(businessId, phone)
+  if (appointments.length === 0) {
+    return res.status(404).json({
+      error: 'No hay reservas próximas para ese teléfono',
+    })
+  }
   return res.json(appointments)
 }
 

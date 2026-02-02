@@ -76,6 +76,7 @@ Can ONLY:
   - Edit duration of each service (product)
   - Open link to view Google Calendar (where appointments are synced)
   - Cancel appointments (own business; mandatory reason as per rules)
+  - When business has employees: each employee can cancel their own appointments (their turns) by ID/code
   ↓
 Everything else (create/edit services, working hours, blocks, branding,
 payment rules, cancellation rules, centralized list of turns) is done by Admin.

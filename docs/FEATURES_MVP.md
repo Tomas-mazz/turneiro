@@ -7,7 +7,7 @@
 1. **Edit service prices** – Change the price of each product/service of their business.
 2. **Edit service duration** – Change the duration (e.g. 15–120 min) of each product/service.
 3. **Link to view Google Calendar** – Open/view Google Calendar where appointments are synced.
-4. **Cancel appointments** – Cancel their own business’s appointments (mandatory reason as per rules).
+4. **Cancel appointments** – Cancel their own business’s appointments (mandatory reason as per rules). When the business has employees (multi-rubro / staff with their own turns), **each employee can cancel their own appointments** (their own turns) by ID/code; they cannot cancel other employees’ appointments.
 
 **Everything else is done by Admin** (see ROLES_PERMISSIONS.md): create/edit/delete services, service names, working hours, blocks, branding, payment and cancellation rules. There is no /dashboard/appointments page; owner sees appointments in Google Calendar and can cancel from dashboard (or via client link).
 

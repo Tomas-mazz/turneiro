@@ -1,13 +1,15 @@
 'use client'
 
 import { Suspense, useEffect, useState } from 'react'
+import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
 import { format } from 'date-fns'
 import { es } from 'date-fns/locale'
 import {
+  getMyBusiness,
   getServices,
   updateService,
-  getAppointments,
+  getAppointmentsByPhone,
   cancelAppointmentByOwner,
   getGoogleCalendarAuthUrl,
   getGoogleCalendarStatus,
@@ -22,22 +24,51 @@ function formatDateTime(iso: string) {
   return format(d, "d MMM yyyy, HH:mm", { locale: es })
 }
 
+function formatDateShort(iso: string) {
+  const d = new Date(iso)
+  return format(d, 'd/M')
+}
+
+function groupAppointmentsByDate(appointments: AppointmentListItem[]) {
+  const groups: Record<string, AppointmentListItem[]> = {}
+  for (const a of appointments) {
+    const key = format(new Date(a.startTime), 'yyyy-MM-dd')
+    if (!groups[key]) groups[key] = []
+    groups[key].push(a)
+  }
+  return Object.entries(groups).sort(([a], [b]) => a.localeCompare(b))
+}
+
 function DashboardContent() {
   const searchParams = useSearchParams()
+  const [businessTitle, setBusinessTitle] = useState<string | null>(null)
+  const [businessSlug, setBusinessSlug] = useState<string | null>(null)
   const [services, setServices] = useState<ServiceListItem[]>([])
-  const [appointments, setAppointments] = useState<AppointmentListItem[]>([])
   const [loadingServices, setLoadingServices] = useState(true)
-  const [loadingAppointments, setLoadingAppointments] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [editingPrice, setEditingPrice] = useState<Record<string, string>>({})
   const [editingDuration, setEditingDuration] = useState<Record<string, string>>({})
   const [savingId, setSavingId] = useState<string | null>(null)
-  const [cancelModal, setCancelModal] = useState<{ id: string; clientName: string } | null>(null)
+  const [justSavedId, setJustSavedId] = useState<string | null>(null)
+  const [phoneInput, setPhoneInput] = useState('')
+  const [searchedAppointments, setSearchedAppointments] = useState<AppointmentListItem[]>([])
+  const [lookupLoading, setLookupLoading] = useState(false)
+  const [lookupError, setLookupError] = useState<string | null>(null)
+  const [cancelModal, setCancelModal] = useState<AppointmentListItem | null>(null)
   const [cancelReason, setCancelReason] = useState('')
   const [cancelling, setCancelling] = useState(false)
   const [calendarConnected, setCalendarConnected] = useState<boolean | null>(null)
   const [calendarLoading, setCalendarLoading] = useState(false)
   const [calendarMessage, setCalendarMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
+
+  useEffect(() => {
+    getMyBusiness()
+      .then((b) => {
+        setBusinessTitle(`${b.name} - Panel`)
+        setBusinessSlug(b.slug)
+      })
+      .catch(() => setBusinessTitle('Panel'))
+  }, [])
 
   useEffect(() => {
     getServices()
@@ -46,12 +77,6 @@ function DashboardContent() {
       .finally(() => setLoadingServices(false))
   }, [])
 
-  useEffect(() => {
-    getAppointments()
-      .then(setAppointments)
-      .catch(() => setAppointments([]))
-      .finally(() => setLoadingAppointments(false))
-  }, [])
 
   useEffect(() => {
     getGoogleCalendarStatus()
@@ -101,7 +126,24 @@ function DashboardContent() {
     }
   }
 
-  const upcomingAppointments = appointments.filter((a) => a.status === 'UPCOMING')
+  const handleLookupAppointment = async () => {
+    const phone = phoneInput.trim()
+    if (!phone) return
+    setLookupError(null)
+    setSearchedAppointments([])
+    setLookupLoading(true)
+    try {
+      const list = await getAppointmentsByPhone(phone)
+      setSearchedAppointments(list)
+    } catch (err: unknown) {
+      const msg =
+        (err as { response?: { data?: { error?: string } } })?.response?.data?.error ||
+        'No hay reservas próximas para ese teléfono'
+      setLookupError(msg)
+    } finally {
+      setLookupLoading(false)
+    }
+  }
 
   const handleSaveService = async (s: ServiceListItem) => {
     const priceStr = editingPrice[s.id] ?? String(s.price)
@@ -111,6 +153,7 @@ function DashboardContent() {
     if (Number.isNaN(price) || price <= 0) return
     if (Number.isNaN(duration) || duration < 15 || duration > 120) return
     setSavingId(s.id)
+    setJustSavedId(null)
     try {
       const updated = await updateService(s.id, { price, duration })
       setServices((prev) => prev.map((x) => (x.id === s.id ? updated : x)))
@@ -124,6 +167,7 @@ function DashboardContent() {
         delete next[s.id]
         return next
       })
+      setJustSavedId(s.id)
     } catch (err) {
       setError((err as { response?: { data?: { error?: string } } })?.response?.data?.error || 'Error al guardar')
     } finally {
@@ -131,12 +175,18 @@ function DashboardContent() {
     }
   }
 
+  useEffect(() => {
+    if (!justSavedId) return
+    const t = setTimeout(() => setJustSavedId(null), 2500)
+    return () => clearTimeout(t)
+  }, [justSavedId])
+
   const handleCancelAppointment = async () => {
     if (!cancelModal || !cancelReason.trim()) return
     setCancelling(true)
     try {
       await cancelAppointmentByOwner(cancelModal.id, cancelReason.trim())
-      setAppointments((prev) => prev.filter((a) => a.id !== cancelModal.id))
+      setSearchedAppointments((prev) => prev.filter((a) => a.id !== cancelModal.id))
       setCancelModal(null)
       setCancelReason('')
     } catch (err) {
@@ -147,13 +197,29 @@ function DashboardContent() {
   }
 
   return (
-    <main className="p-8">
+    <main className="p-4 pb-10 sm:p-6 lg:p-8">
+      {/* Título principal: nombre del negocio + Panel; derecha: volver a página principal */}
+      {businessTitle && (
+        <header className="mb-6 flex flex-col gap-3 border-b border-neutral-200 pb-4 sm:mb-8 sm:flex-row sm:items-center sm:justify-between sm:pb-6">
+          <h1 className="text-xl font-bold text-neutral-900 sm:text-2xl">
+            {businessTitle}
+          </h1>
+          <Link
+            href={businessSlug ? `/${businessSlug}` : '/'}
+            className="inline-flex shrink-0 items-center gap-1.5 text-sm font-medium text-neutral-600 underline decoration-neutral-300 underline-offset-2 transition-colors hover:text-neutral-900 hover:decoration-neutral-500"
+          >
+            <span aria-hidden>←</span>
+            Ir a la página principal
+          </Link>
+        </header>
+      )}
+
       {/* Header: título a la izquierda, Google Calendar a la derecha */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-neutral-900">Configuración</h1>
-          <p className="mt-1 text-neutral-600">
-            Editá precios y duración de tus servicios y cancelá citas con motivo obligatorio.
+          <h2 className="text-2xl font-bold text-neutral-900 sm:text-3xl">Configuración</h2>
+          <p className="mt-1 text-sm text-neutral-600 sm:text-base">
+            Editá precios y duración de tus servicios y cancelá turnos con motivo obligatorio.
           </p>
         </div>
         <div className="flex shrink-0 flex-wrap items-center gap-2">
@@ -163,7 +229,7 @@ function DashboardContent() {
                 href={GOOGLE_CALENDAR_URL}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="rounded-lg border border-neutral-300 bg-white px-4 py-2.5 text-sm font-medium text-neutral-700 hover:bg-neutral-50"
+                className="rounded-lg border border-sky-200 bg-sky-50 px-4 py-2.5 text-sm font-medium text-sky-800 transition-colors hover:bg-sky-100"
               >
                 Ver Google Calendar
               </a>
@@ -171,7 +237,7 @@ function DashboardContent() {
                 type="button"
                 disabled={calendarLoading}
                 onClick={handleDisconnectGoogleCalendar}
-                className="rounded-lg border border-neutral-300 bg-white px-4 py-2.5 text-sm font-medium text-neutral-600 hover:bg-neutral-50 disabled:opacity-50"
+                className="rounded-lg border border-red-200 bg-red-50 px-4 py-2.5 text-sm font-medium text-red-700 transition-colors hover:bg-red-100 disabled:opacity-50"
               >
                 Desconectar
               </button>
@@ -181,7 +247,7 @@ function DashboardContent() {
               type="button"
               disabled={calendarLoading}
               onClick={handleConnectGoogleCalendar}
-              className="rounded-lg border border-neutral-300 bg-white px-4 py-2.5 text-sm font-medium text-neutral-700 hover:bg-neutral-50 disabled:opacity-50"
+              className="rounded-lg border border-sky-200 bg-sky-50 px-4 py-2.5 text-sm font-medium text-sky-800 transition-colors hover:bg-sky-100 disabled:opacity-50"
             >
               {calendarLoading ? 'Redirigiendo...' : 'Conectar Google Calendar'}
             </button>
@@ -191,7 +257,7 @@ function DashboardContent() {
 
       {calendarMessage && (
         <div
-          className={`mt-4 rounded-lg border p-3 text-sm ${
+          className={`mt-4 rounded-lg border p-3 text-sm sm:mt-4 ${
             calendarMessage.type === 'success'
               ? 'border-green-200 bg-green-50 text-green-800'
               : 'border-red-200 bg-red-50 text-red-800'
@@ -221,110 +287,236 @@ function DashboardContent() {
         </div>
       )}
 
-      {/* Servicios */}
-      <section className="mt-8">
-        <h2 className="text-xl font-semibold text-neutral-900">Servicios (precio y duración)</h2>
+      {/* Servicios: cards en mobile, tabla en desktop */}
+      <section className="mt-8 mb-10 sm:mt-10 sm:mb-12">
+        <h2 className="text-lg font-semibold text-neutral-900 sm:text-xl">Servicios (precio y duración)</h2>
         {loadingServices ? (
-          <p className="mt-2 text-neutral-500">Cargando servicios...</p>
+          <p className="mt-2 text-sm text-neutral-500">Cargando servicios...</p>
         ) : services.length === 0 ? (
-          <p className="mt-2 text-neutral-500">No hay servicios. El admin debe crearlos.</p>
+          <p className="mt-2 text-sm text-neutral-500">No hay servicios. El admin debe crearlos.</p>
         ) : (
-          <div className="mt-4 overflow-x-auto rounded-lg border border-neutral-200">
-            <table className="min-w-full divide-y divide-neutral-200 text-left text-sm">
-              <thead className="bg-neutral-50">
-                <tr>
-                  <th className="px-4 py-3 font-medium text-neutral-700">Servicio</th>
-                  <th className="px-4 py-3 font-medium text-neutral-700">Precio ($)</th>
-                  <th className="px-4 py-3 font-medium text-neutral-700">Duración (min)</th>
-                  <th className="px-4 py-3 font-medium text-neutral-700">Acción</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-neutral-200 bg-white">
-                {services.map((s) => (
-                  <tr key={s.id}>
-                    <td className="px-4 py-3 font-medium text-neutral-900">{s.name}</td>
-                    <td className="px-4 py-3">
+          <>
+            {/* Mobile: una card por servicio */}
+            <div className="mt-4 space-y-4 md:hidden">
+              {services.map((s) => (
+                <div
+                  key={s.id}
+                  className="rounded-lg border border-neutral-200 bg-white p-4 shadow-sm"
+                >
+                  <p className="mb-3 font-medium text-neutral-900">{s.name}</p>
+                  <div className="grid grid-cols-2 gap-3 sm:gap-4">
+                    <div>
+                      <label className="mb-1 block text-xs font-medium text-neutral-500">Precio ($)</label>
                       <input
                         type="number"
                         min="0"
                         step="0.01"
-                        className="w-24 rounded border border-neutral-300 px-2 py-1"
+                        className="w-full rounded border border-neutral-300 px-3 py-2 text-sm"
                         defaultValue={s.price}
                         onChange={(e) =>
                           setEditingPrice((prev) => ({ ...prev, [s.id]: e.target.value }))
                         }
                       />
-                    </td>
-                    <td className="px-4 py-3">
+                    </div>
+                    <div>
+                      <label className="mb-1 block text-xs font-medium text-neutral-500">Duración (min)</label>
                       <input
                         type="number"
                         min="15"
                         max="120"
-                        className="w-20 rounded border border-neutral-300 px-2 py-1"
+                        className="w-full rounded border border-neutral-300 px-3 py-2 text-sm"
                         defaultValue={s.duration}
                         onChange={(e) =>
                           setEditingDuration((prev) => ({ ...prev, [s.id]: e.target.value }))
                         }
                       />
-                    </td>
-                    <td className="px-4 py-3">
-                      <button
-                        type="button"
-                        disabled={savingId === s.id}
-                        onClick={() => handleSaveService(s)}
-                        className="rounded bg-neutral-800 px-3 py-1.5 text-sm font-medium text-white hover:bg-neutral-700 disabled:opacity-50"
-                      >
-                        {savingId === s.id ? 'Guardando...' : 'Guardar'}
-                      </button>
-                    </td>
+                    </div>
+                  </div>
+                  <div className="mt-3 flex justify-center sm:justify-end">
+                    <button
+                      type="button"
+                      disabled={savingId === s.id}
+                      onClick={() => handleSaveService(s)}
+                      className={`inline-block rounded-lg border px-4 py-2 text-sm font-medium transition-transform duration-300 disabled:hover:scale-100 ${
+                        justSavedId === s.id
+                          ? 'border-emerald-300 bg-emerald-100 text-emerald-800 scale-105 animate-pulse'
+                          : savingId === s.id
+                            ? 'border-emerald-200 bg-emerald-50 text-emerald-800 opacity-70'
+                            : 'border-emerald-200 bg-emerald-50 text-emerald-800 hover:scale-105 hover:bg-emerald-100 disabled:opacity-50'
+                      }`}
+                    >
+                      {savingId === s.id
+                        ? 'Guardando...'
+                        : justSavedId === s.id
+                          ? 'Guardado ✓'
+                          : 'Guardar'}
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+            {/* Desktop: tabla */}
+            <div className="mt-4 hidden md:block md:overflow-x-auto md:rounded-lg md:border md:border-neutral-200">
+              <table className="min-w-full divide-y divide-neutral-200 text-left text-sm">
+                <thead className="bg-neutral-50">
+                  <tr>
+                    <th className="px-4 py-3 font-medium text-neutral-700">Servicio</th>
+                    <th className="px-4 py-3 font-medium text-neutral-700">Precio ($)</th>
+                    <th className="px-4 py-3 font-medium text-neutral-700">Duración (min)</th>
+                    <th className="px-4 py-3 font-medium text-neutral-700">Acción</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody className="divide-y divide-neutral-200 bg-white">
+                  {services.map((s) => (
+                    <tr key={s.id}>
+                      <td className="px-4 py-3 font-medium text-neutral-900">{s.name}</td>
+                      <td className="px-4 py-3">
+                        <input
+                          type="number"
+                          min="0"
+                          step="0.01"
+                          className="w-24 rounded border border-neutral-300 px-2 py-1"
+                          defaultValue={s.price}
+                          onChange={(e) =>
+                            setEditingPrice((prev) => ({ ...prev, [s.id]: e.target.value }))
+                          }
+                        />
+                      </td>
+                      <td className="px-4 py-3">
+                        <input
+                          type="number"
+                          min="15"
+                          max="120"
+                          className="w-20 rounded border border-neutral-300 px-2 py-1"
+                          defaultValue={s.duration}
+                          onChange={(e) =>
+                            setEditingDuration((prev) => ({ ...prev, [s.id]: e.target.value }))
+                          }
+                        />
+                      </td>
+                      <td className="w-0 px-4 py-3">
+                        <span className="inline-block min-w-[7.5rem] text-center">
+                          <button
+                            type="button"
+                            disabled={savingId === s.id}
+                            onClick={() => handleSaveService(s)}
+                            className={`inline-block rounded-lg border px-3 py-1.5 text-sm font-medium transition-transform duration-300 disabled:hover:scale-100 ${
+                              justSavedId === s.id
+                                ? 'border-emerald-300 bg-emerald-100 text-emerald-800 scale-110 animate-pulse'
+                                : savingId === s.id
+                                  ? 'border-emerald-200 bg-emerald-50 text-emerald-800 opacity-70'
+                                  : 'border-emerald-200 bg-emerald-50 text-emerald-800 hover:scale-110 hover:bg-emerald-100 disabled:opacity-50'
+                            }`}
+                          >
+                            {savingId === s.id
+                              ? 'Guardando...'
+                              : justSavedId === s.id
+                                ? 'Guardado ✓'
+                                : 'Guardar'}
+                          </button>
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </>
         )}
       </section>
 
-      {/* Cancelar citas */}
-      <section className="mt-10">
-        <h2 className="text-xl font-semibold text-neutral-900">Cancelar citas</h2>
+      {/* Cancelar turno */}
+      <section className="mt-8 sm:mt-10">
+        <h2 className="text-lg font-semibold text-neutral-900 sm:text-xl">Cancelar turno</h2>
         <p className="mt-1 text-sm text-neutral-600">
-          Las citas se ven en Google Calendar. Acá podés cancelar con un motivo obligatorio.
+          Ingresá el teléfono del cliente para ver sus reservas y cancelar. El motivo es obligatorio. Al cancelar se elimina de Google Calendar.
         </p>
-        {loadingAppointments ? (
-          <p className="mt-2 text-neutral-500">Cargando citas...</p>
-        ) : upcomingAppointments.length === 0 ? (
-          <p className="mt-2 text-neutral-500">No hay citas próximas.</p>
-        ) : (
-          <ul className="mt-4 space-y-2">
-            {upcomingAppointments.map((a) => (
-              <li
-                key={a.id}
-                className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-neutral-200 bg-white p-3"
-              >
-                <span className="text-neutral-700">
-                  {formatDateTime(a.startTime)} – {a.clientName} – {a.serviceName}
-                </span>
-                <button
-                  type="button"
-                  onClick={() => setCancelModal({ id: a.id, clientName: a.clientName })}
-                  className="rounded border border-red-200 bg-red-50 px-3 py-1.5 text-sm font-medium text-red-800 hover:bg-red-100"
-                >
-                  Cancelar cita
-                </button>
-              </li>
-            ))}
-          </ul>
+        <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:gap-2">
+          <input
+            type="text"
+            inputMode="tel"
+            value={phoneInput}
+            onChange={(e) => {
+              const v = e.target.value
+              setPhoneInput(v)
+              if (!v.trim()) {
+                setSearchedAppointments([])
+                setLookupError(null)
+              }
+            }}
+            onKeyDown={(e) => e.key === 'Enter' && handleLookupAppointment()}
+            placeholder="Ingresar teléfono del cliente"
+            className="min-w-0 flex-1 rounded border border-neutral-300 px-3 py-2.5 text-sm sm:min-w-[200px] sm:flex-none"
+          />
+          <button
+            type="button"
+            disabled={lookupLoading || !phoneInput.trim()}
+            onClick={handleLookupAppointment}
+            className="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-2 text-sm font-medium text-emerald-800 transition-all hover:scale-105 hover:bg-emerald-100 disabled:opacity-50 disabled:hover:scale-100"
+          >
+            {lookupLoading ? 'Buscando...' : 'Buscar'}
+          </button>
+        </div>
+        {lookupError && (
+          <p className="mt-2 text-sm text-red-600">{lookupError}</p>
         )}
+        {searchedAppointments.length > 0 && (() => {
+          const grouped = groupAppointmentsByDate(searchedAppointments)
+          return (
+            <div className="mt-4 space-y-4">
+              {grouped.map(([dateKey, list], groupIndex) => (
+                <div key={dateKey}>
+                  <p className="mb-2 text-sm font-medium text-neutral-700">
+                    {formatDateShort(list[0].startTime)}
+                  </p>
+                  {list.map((a) => (
+                    <div
+                      key={a.id}
+                      className="flex flex-col gap-2 rounded-lg border border-neutral-200 bg-white px-3 py-3 text-sm sm:flex-row sm:flex-wrap sm:items-center sm:justify-between sm:gap-2 sm:py-2"
+                    >
+                      <div className="flex min-w-0 flex-wrap items-baseline gap-x-1.5 gap-y-1 text-neutral-700 sm:gap-x-3">
+                        <span className="font-medium text-neutral-900">{formatDateTime(a.startTime)}</span>
+                        <span aria-hidden className="text-neutral-400">·</span>
+                        <span>{a.serviceName}</span>
+                        <span aria-hidden className="text-neutral-400">·</span>
+                        <span>{a.clientName}</span>
+                        <span aria-hidden className="text-neutral-400">·</span>
+                        <span>{a.clientPhone}</span>
+                        <span aria-hidden className="text-neutral-400">·</span>
+                        <span className="font-medium">${a.price}</span>
+                      </div>
+                      {a.status === 'UPCOMING' ? (
+                        <button
+                          type="button"
+                          onClick={() => setCancelModal(a)}
+                          className="w-full shrink-0 rounded border border-red-200 bg-red-50 px-3 py-2 text-sm font-medium text-red-800 transition-colors hover:bg-red-100 sm:w-auto sm:py-1.5"
+                        >
+                          Cancelar reserva
+                        </button>
+                      ) : (
+                        <span className="shrink-0 text-neutral-500">Cancelada</span>
+                      )}
+                    </div>
+                  ))}
+                  {groupIndex < grouped.length - 1 && (
+                    <div className="mt-4 border-t border-neutral-200 pt-4" aria-hidden>
+                      ---------
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          )
+        })()}
       </section>
 
       {/* Modal cancelar */}
       {cancelModal && (
         <div className="fixed inset-0 z-10 flex items-center justify-center bg-black/50 p-4">
           <div className="w-full max-w-md rounded-lg bg-white p-6 shadow-lg">
-            <h3 className="text-lg font-semibold text-neutral-900">Cancelar cita</h3>
+            <h3 className="text-lg font-semibold text-neutral-900">Cancelar reserva</h3>
             <p className="mt-1 text-sm text-neutral-600">
-              Cita de <strong>{cancelModal.clientName}</strong>. El motivo es obligatorio.
+              Reserva de <strong>{cancelModal.clientName}</strong> ({cancelModal.serviceName}). El motivo es obligatorio. Se eliminará de Google Calendar.
             </p>
             <textarea
               value={cancelReason}

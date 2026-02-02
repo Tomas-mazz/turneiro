@@ -60,12 +60,13 @@ This is the **single source of truth** for the current state of the project. Use
   - `GET /api/services` – list services for owner's business (requireBusinessOwner).  
   - `PATCH /api/services/:id` – update **price** and/or **duration** only (requireBusinessOwner).  
   - `GET /api/appointments` – list appointments for owner's business (for sync/UI; requireBusinessOwner).  
+  - **GET /api/appointments/lookup?phone=...** – return upcoming appointments for that client phone in owner's business (requireBusinessOwner); phone matched by normalized digits.  
   - `POST /api/appointments/:id/cancel` – owner cancel with body `{ "reason": "..." }` (requireBusinessOwner); sets `status: CANCELLED` and `cancellationReason`; processes refund if paid; deletes Google Calendar event.  
 - **Owner dashboard (single page):**  
   - One page at `/dashboard`: header with "Configuración" (left) and "Ver Google Calendar" (right, opens https://calendar.google.com).  
   - Section "Servicios (precio y duración)": table with name, price input, duration input, "Guardar" per row; calls PATCH /api/services/:id.  
-  - Section "Cancelar citas": list of **upcoming** appointments (from GET /api/appointments), each with "Cancelar cita" → modal with required reason → POST /api/appointments/:id/cancel.  
-- No `/dashboard/appointments` page (removed); `/dashboard/settings` redirects to `/dashboard`.  
+  - Section **"Cancelar turno"**: input "Ingresar teléfono del cliente" → **GET /api/appointments/lookup?phone=...** returns upcoming reservations for that phone (owner's business only); reservations shown grouped by date (d/M), compact card per reservation with "Cancelar reserva" → modal with required reason → POST /api/appointments/:id/cancel. Clearing the phone input hides the list. No full list of all appointments; only results of the search by phone.
+- No `/dashboard/appointments` page (removed); `/dashboard/settings` redirects to `/dashboard`.
 - **Frontend: Google Calendar OAuth (done):** Dashboard has "Conectar Google Calendar" button; calls GET /api/google-calendar/auth and redirects to auth URL; Google redirects to frontend /api/google-calendar/callback, which forwards to backend callback; backend exchanges code and redirects to /dashboard?google_calendar=connected (or error param). Dashboard shows connection status, "Ver Google Calendar" and "Desconectar" when connected, and success/error messages from query params.  
 - **Frontend: Payment step in booking flow (done):**  
   - GET /businesses/:slug returns `settings.paymentRequired` (and paymentType, depositPercentage).  
@@ -74,13 +75,14 @@ This is the **single source of truth** for the current state of the project. Use
   - Mercado Pago: POST /payments/create-intent (MERCADOPAGO) → redirect to initPoint → return to `/booking/success|failure|pending?appointmentId=`; success page calls confirm and shows "Cita confirmada".  
 - Public page `[business-slug]`: full booking flow **with payment step** (hero, service, calendar, slots, client form, payment when required, confirmation). Stripe Elements and Mercado Pago redirect; return pages: `/booking/success`, `/booking/failure`, `/booking/pending`, `/booking/stripe-return`.  
 - Page `/cancel` for client to cancel by token.  
-- UI and API error messages in Spanish.
+- UI and API error messages in Spanish.  
+- **Error handling and UX:** Backend returns generic message for 5xx (no internal details to client); frontend shows user-friendly messages for server/technical errors (reservation, payment). Phone input in booking form restricted to digits and `+` only.
 
 ---
 
 ## 4. Immediate pending (next steps)
 
-- **Cancel by ID/código (optional UX improvement)** – Instead of listing all upcoming appointments, allow "enter appointment ID or short code → show that reservation → cancel with reason" to keep the dashboard light when there are many appointments. Add short code (last 6-8 chars of id) to Google Calendar event description for easy reference.
+- None at this time. Cancel-by-phone UX is done (search by client phone, reservations grouped by date, compact cards, clear on empty input). Next steps could be: end-to-end testing, deploy preparation, or picking a new item from docs (e.g. PENDING_OR_UNCERTAIN, IDEAS_FUTURE).
 
 ---
 
@@ -92,10 +94,11 @@ The owner dashboard allows **only**:
 2. Edit **service duration** (per service, 15–120 min).  
 3. **Link to view Google Calendar** (top right on dashboard).  
 4. **Cancel appointments** (with mandatory reason).  
-   - Owner can cancel appointments by entering appointment ID (including appointments of their employees).  
-   - Can only cancel appointments within their own business (cannot cancel appointments from other businesses).
+   - Owner can cancel appointments by entering **client phone** in dashboard (lookup returns that client's upcoming reservations; owner picks one and cancels with reason). Owner can also cancel any appointment in their business (including employees').  
+   - Can only cancel appointments within their own business (cannot cancel appointments from other businesses).  
+   - **Each employee** (when the business has staff / multi-rubro) **can cancel their own appointments** (their own turns); they cannot cancel other employees' appointments.
 
-Everything else (create/delete services, service names, working hours, blocks, branding, payment/cancellation rules) is **admin** (see ROLES_PERMISSIONS.md). There is no list-of-appointments page at `/dashboard/appointments`; owner sees appointments in Google Calendar (and currently in the "Cancelar citas" section on the single dashboard page).
+Everything else (create/delete services, service names, working hours, blocks, branding, payment/cancellation rules) is **admin** (see ROLES_PERMISSIONS.md). There is no list-of-appointments page at `/dashboard/appointments`; owner sees appointments in Google Calendar and in the "Cancelar turno" section (search by client phone).
 
 ---
 
@@ -183,10 +186,10 @@ When multi-employee support is implemented:
   4. If no: shows error "Cita no encontrada o no pertenece a tu negocio".
 - Owner **cannot** cancel appointments from other businesses (enforced by `requireBusinessOwner` middleware).
 
-#### Employee Calendar Access
+#### Employee Calendar Access and Cancellation
 - Each employee can view their own Google Calendar to see their schedule.
 - Frontend (employee dashboard - future) would show link to their Google Calendar.
-- Employees **cannot** cancel appointments themselves in MVP (must ask owner for cancellation).
+- **Each employee can cancel their own appointments** (their own turns) by entering appointment ID/code, with mandatory reason; they cannot cancel other employees' appointments. Owner can still cancel any appointment in the business.
 
 ### Database Changes Required (Post-MVP)
 

@@ -1,5 +1,18 @@
 import { Request, Response, NextFunction } from 'express'
-import { getBusinessBySlugService } from '../services/businesses.service'
+import { getBusinessBySlugService, getMyBusinessService } from '../services/businesses.service'
+import type { AuthRequest } from '../middleware/auth'
+
+export async function getMyBusiness(req: AuthRequest, res: Response) {
+  const businessId = req.user?.businessId
+  if (!businessId) {
+    return res.status(403).json({ error: 'No tienes un negocio asignado' })
+  }
+  const business = await getMyBusinessService(businessId)
+  if (!business) {
+    return res.status(404).json({ error: 'Negocio no encontrado' })
+  }
+  return res.json(business)
+}
 
 export async function getBusinessBySlug(req: Request, res: Response, next: NextFunction) {
   try {
