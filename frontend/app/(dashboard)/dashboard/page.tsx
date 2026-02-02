@@ -3,7 +3,7 @@
 import { Suspense, useEffect, useState } from 'react'
 import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
-import { format } from 'date-fns'
+import { format, addDays } from 'date-fns'
 import { es } from 'date-fns/locale'
 import {
   getMyBusiness,
@@ -14,8 +14,11 @@ import {
   getGoogleCalendarAuthUrl,
   getGoogleCalendarStatus,
   disconnectGoogleCalendar,
+  getBlockedSlots,
+  createBlockedSlot,
+  deleteBlockedSlot,
 } from '@/lib/api'
-import type { ServiceListItem, AppointmentListItem } from '@/types'
+import type { ServiceListItem, AppointmentListItem, BlockedSlotListItem } from '@/types'
 
 const GOOGLE_CALENDAR_URL = 'https://calendar.google.com'
 
@@ -60,6 +63,15 @@ function DashboardContent() {
   const [calendarConnected, setCalendarConnected] = useState<boolean | null>(null)
   const [calendarLoading, setCalendarLoading] = useState(false)
   const [calendarMessage, setCalendarMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
+  const [blockedSlots, setBlockedSlots] = useState<BlockedSlotListItem[]>([])
+  const [loadingBlockedSlots, setLoadingBlockedSlots] = useState(true)
+  const [blockDate, setBlockDate] = useState('')
+  const [blockType, setBlockType] = useState<'FULL_DAY' | 'TIME_SLOT'>('FULL_DAY')
+  const [blockStartTime, setBlockStartTime] = useState('')
+  const [blockEndTime, setBlockEndTime] = useState('')
+  const [blockReason, setBlockReason] = useState('')
+  const [blockSubmitting, setBlockSubmitting] = useState(false)
+  const [deletingBlockId, setDeletingBlockId] = useState<string | null>(null)
 
   useEffect(() => {
     getMyBusiness()
@@ -82,6 +94,19 @@ function DashboardContent() {
     getGoogleCalendarStatus()
       .then((data) => setCalendarConnected(data.connected))
       .catch(() => setCalendarConnected(false))
+  }, [])
+
+  const loadBlockedSlots = () => {
+    const today = format(new Date(), 'yyyy-MM-dd')
+    const to = format(addDays(new Date(), 60), 'yyyy-MM-dd')
+    getBlockedSlots({ from: today, to })
+      .then(setBlockedSlots)
+      .catch(() => setBlockedSlots([]))
+      .finally(() => setLoadingBlockedSlots(false))
+  }
+
+  useEffect(() => {
+    loadBlockedSlots()
   }, [])
 
   useEffect(() => {
@@ -193,6 +218,46 @@ function DashboardContent() {
       setError((err as { response?: { data?: { error?: string } } })?.response?.data?.error || 'Error al cancelar')
     } finally {
       setCancelling(false)
+    }
+  }
+
+  const handleCreateBlock = async () => {
+    if (!blockDate.trim()) return
+    if (blockType === 'TIME_SLOT' && (!blockStartTime.trim() || !blockEndTime.trim())) return
+    setBlockSubmitting(true)
+    try {
+      const body: Parameters<typeof createBlockedSlot>[0] = {
+        date: blockDate,
+        type: blockType,
+        reason: blockReason.trim() || undefined,
+      }
+      if (blockType === 'TIME_SLOT') {
+        body.startTime = blockStartTime
+        body.endTime = blockEndTime
+      }
+      await createBlockedSlot(body)
+      setBlockDate('')
+      setBlockType('FULL_DAY')
+      setBlockStartTime('')
+      setBlockEndTime('')
+      setBlockReason('')
+      loadBlockedSlots()
+    } catch (err) {
+      setError((err as { response?: { data?: { error?: string } } })?.response?.data?.error || 'Error al crear el bloqueo')
+    } finally {
+      setBlockSubmitting(false)
+    }
+  }
+
+  const handleDeleteBlock = async (id: string) => {
+    setDeletingBlockId(id)
+    try {
+      await deleteBlockedSlot(id)
+      setBlockedSlots((prev) => prev.filter((b) => b.id !== id))
+    } catch (err) {
+      setError((err as { response?: { data?: { error?: string } } })?.response?.data?.error || 'Error al eliminar el bloqueo')
+    } finally {
+      setDeletingBlockId(null)
     }
   }
 
@@ -425,6 +490,135 @@ function DashboardContent() {
         )}
       </section>
 
+      {/* Bloquear días u horarios */}
+      <section className="mt-8 mb-10 sm:mt-10 sm:mb-12">
+        <h2 className="text-lg font-semibold text-neutral-900 sm:text-xl">Bloquear días u horarios</h2>
+        <p className="mt-1 text-sm text-neutral-600">
+          Bloqueá un día completo o un rango horario para que no aparezcan en la página de reservas.
+        </p>
+        <div className="mt-4 rounded-lg border border-neutral-200 bg-neutral-50/50 p-4 sm:p-5">
+          <div className="flex flex-col gap-4 sm:flex-row sm:flex-wrap sm:items-end">
+            <div>
+              <label className="mb-1 block text-xs font-medium text-neutral-600">Fecha</label>
+              <input
+                type="date"
+                value={blockDate}
+                onChange={(e) => setBlockDate(e.target.value)}
+                className="rounded border border-neutral-300 px-3 py-2 text-sm"
+              />
+            </div>
+            <div>
+              <span className="mb-1 block text-xs font-medium text-neutral-600">Tipo</span>
+              <div className="flex gap-4">
+                <label className="flex cursor-pointer items-center gap-2">
+                  <input
+                    type="radio"
+                    name="blockType"
+                    checked={blockType === 'FULL_DAY'}
+                    onChange={() => setBlockType('FULL_DAY')}
+                    className="rounded-full border-neutral-300"
+                  />
+                  <span className="text-sm">Día completo</span>
+                </label>
+                <label className="flex cursor-pointer items-center gap-2">
+                  <input
+                    type="radio"
+                    name="blockType"
+                    checked={blockType === 'TIME_SLOT'}
+                    onChange={() => setBlockType('TIME_SLOT')}
+                    className="rounded-full border-neutral-300"
+                  />
+                  <span className="text-sm">Rango horario</span>
+                </label>
+              </div>
+            </div>
+            {blockType === 'TIME_SLOT' && (
+              <>
+                <div>
+                  <label className="mb-1 block text-xs font-medium text-neutral-600">Desde</label>
+                  <input
+                    type="time"
+                    value={blockStartTime}
+                    onChange={(e) => setBlockStartTime(e.target.value)}
+                    className="rounded border border-neutral-300 px-3 py-2 text-sm"
+                  />
+                </div>
+                <div>
+                  <label className="mb-1 block text-xs font-medium text-neutral-600">Hasta</label>
+                  <input
+                    type="time"
+                    value={blockEndTime}
+                    onChange={(e) => setBlockEndTime(e.target.value)}
+                    className="rounded border border-neutral-300 px-3 py-2 text-sm"
+                  />
+                </div>
+              </>
+            )}
+            <div className="min-w-0 flex-1 sm:min-w-[180px]">
+              <label className="mb-1 block text-xs font-medium text-neutral-600">Motivo (opcional)</label>
+              <input
+                type="text"
+                value={blockReason}
+                onChange={(e) => setBlockReason(e.target.value)}
+                placeholder="Ej. Vacaciones, almuerzo"
+                className="w-full rounded border border-neutral-300 px-3 py-2 text-sm"
+              />
+            </div>
+            <button
+              type="button"
+              disabled={blockSubmitting || !blockDate || (blockType === 'TIME_SLOT' && (!blockStartTime || !blockEndTime))}
+              onClick={handleCreateBlock}
+              className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-2 text-sm font-medium text-amber-800 transition-colors hover:bg-amber-100 disabled:opacity-50"
+            >
+              {blockSubmitting ? 'Bloqueando...' : 'Bloquear'}
+            </button>
+          </div>
+        </div>
+        <div className="mt-4">
+          <h3 className="text-sm font-medium text-neutral-700">Bloqueos próximos (60 días)</h3>
+          {loadingBlockedSlots ? (
+            <p className="mt-2 text-sm text-neutral-500">Cargando...</p>
+          ) : blockedSlots.length === 0 ? (
+            <p className="mt-2 text-sm text-neutral-500">No hay bloqueos en los próximos 60 días.</p>
+          ) : (
+            <ul className="mt-2 space-y-2">
+              {blockedSlots.map((b) => (
+                <li
+                  key={b.id}
+                  className="flex flex-col gap-2 rounded-lg border border-neutral-200 bg-white px-3 py-2.5 text-sm sm:flex-row sm:flex-wrap sm:items-center sm:justify-between"
+                >
+                  <div className="flex min-w-0 flex-wrap items-baseline gap-x-2 gap-y-1 text-neutral-700">
+                    <span className="font-medium text-neutral-900">
+                      {format(new Date(b.date + 'T12:00:00'), 'd MMM yyyy', { locale: es })}
+                    </span>
+                    <span aria-hidden className="text-neutral-400">·</span>
+                    <span>
+                      {b.type === 'FULL_DAY'
+                        ? 'Día completo'
+                        : `${b.startTime ?? ''} – ${b.endTime ?? ''}`}
+                    </span>
+                    {b.reason && (
+                      <>
+                        <span aria-hidden className="text-neutral-400">·</span>
+                        <span className="text-neutral-600">{b.reason}</span>
+                      </>
+                    )}
+                  </div>
+                  <button
+                    type="button"
+                    disabled={deletingBlockId === b.id}
+                    onClick={() => handleDeleteBlock(b.id)}
+                    className="shrink-0 rounded border border-red-200 bg-red-50 px-3 py-1.5 text-sm font-medium text-red-700 hover:bg-red-100 disabled:opacity-50"
+                  >
+                    {deletingBlockId === b.id ? 'Eliminando...' : 'Eliminar'}
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      </section>
+
       {/* Cancelar turno */}
       <section className="mt-8 sm:mt-10">
         <h2 className="text-lg font-semibold text-neutral-900 sm:text-xl">Cancelar turno</h2>
@@ -498,11 +692,6 @@ function DashboardContent() {
                       )}
                     </div>
                   ))}
-                  {groupIndex < grouped.length - 1 && (
-                    <div className="mt-4 border-t border-neutral-200 pt-4" aria-hidden>
-                      ---------
-                    </div>
-                  )}
                 </div>
               ))}
             </div>

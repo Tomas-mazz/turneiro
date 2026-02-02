@@ -25,3 +25,13 @@ export interface AppointmentListItem {
   status: string
   paymentStatus: string
 }
+
+export interface BlockedSlotListItem {
+  id: string
+  date: string
+  startTime: string | null
+  endTime: string | null
+  type: string
+  reason: string | null
+  createdAt: string
+}

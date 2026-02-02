@@ -16,11 +16,13 @@ function minutesToTime(m: number): string {
 /**
  * Available time slots for a single day.
  * Returns array of "HH:MM" strings. Empty if business closed, no service, or full day blocked.
+ * dateStr must be YYYY-MM-DD (same as frontend sends) so BlockedSlot query is timezone-safe.
  */
 export async function getAvailabilityService(
   businessSlug: string,
   serviceId: string,
-  date: Date
+  date: Date,
+  dateStr: string
 ): Promise<string[]> {
   const business = await prisma.business.findUnique({
     where: { slug: businessSlug },
@@ -59,11 +61,12 @@ export async function getAvailabilityService(
     select: { startTime: true, endTime: true },
   })
 
-  const dateOnly = new Date(date.getFullYear(), date.getMonth(), date.getDate())
+  // Use noon UTC so we match BlockedSlot rows by calendar date in any timezone
+  const dateForBlockQuery = new Date(dateStr + 'T12:00:00.000Z')
   const blockedSlots = await prisma.blockedSlot.findMany({
     where: {
       businessId: business.id,
-      date: dateOnly,
+      date: dateForBlockQuery,
     },
   })
 
@@ -102,6 +105,7 @@ export async function getAvailabilityService(
 /**
  * For each day in the week starting at startDate, whether there is at least one available slot.
  * Used by calendar to gray out days with no availability.
+ * dateStr uses local calendar date (YYYY-MM-DD) so it matches what the frontend sends per day.
  */
 export async function getWeekAvailabilityService(
   businessSlug: string,
@@ -112,8 +116,11 @@ export async function getWeekAvailabilityService(
   for (let i = 0; i < 7; i++) {
     const d = new Date(startDate)
     d.setDate(d.getDate() + i)
-    const dateStr = d.toISOString().slice(0, 10)
-    const slots = await getAvailabilityService(businessSlug, serviceId, d)
+    const y = d.getFullYear()
+    const m = String(d.getMonth() + 1).padStart(2, '0')
+    const day = String(d.getDate()).padStart(2, '0')
+    const dateStr = `${y}-${m}-${day}`
+    const slots = await getAvailabilityService(businessSlug, serviceId, d, dateStr)
     result.push({ date: dateStr, hasSlots: slots.length > 0 })
   }
   return result

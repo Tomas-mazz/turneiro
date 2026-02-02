@@ -1,6 +1,6 @@
 import axios from 'axios'
 import { getAuthToken } from './auth'
-import type { ServiceListItem, AppointmentListItem } from '@/types'
+import type { ServiceListItem, AppointmentListItem, BlockedSlotListItem } from '@/types'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'
 
@@ -85,4 +85,32 @@ export async function getGoogleCalendarStatus(): Promise<GoogleCalendarStatus> {
 export async function disconnectGoogleCalendar(): Promise<{ success: boolean }> {
   const { data } = await api.post<{ success: boolean }>('/google-calendar/disconnect')
   return data
+}
+
+// Blocked slots (owner dashboard)
+export async function getBlockedSlots(params?: {
+  from?: string
+  to?: string
+}): Promise<BlockedSlotListItem[]> {
+  const { data } = await api.get<BlockedSlotListItem[]>('/blocked-slots', { params })
+  return data
+}
+
+export type CreateBlockedSlotBody = {
+  date: string
+  type: 'FULL_DAY' | 'TIME_SLOT'
+  startTime?: string
+  endTime?: string
+  reason?: string
+}
+
+export async function createBlockedSlot(
+  body: CreateBlockedSlotBody
+): Promise<BlockedSlotListItem> {
+  const { data } = await api.post<BlockedSlotListItem>('/blocked-slots', body)
+  return data
+}
+
+export async function deleteBlockedSlot(id: string): Promise<void> {
+  await api.delete(`/blocked-slots/${id}`)
 }

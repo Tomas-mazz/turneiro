@@ -52,3 +52,40 @@ export const registerSchema = z.object({
 
 export type LoginInput = z.infer<typeof loginSchema>
 export type RegisterInput = z.infer<typeof registerSchema>
+
+// Blocked slots (owner dashboard)
+const blockedSlotTypeEnum = z.enum(['FULL_DAY', 'TIME_SLOT'])
+
+export const createBlockedSlotSchema = z
+  .object({
+    date: z.string().regex(dateRegex, 'La fecha debe ser AAAA-MM-DD'),
+    type: blockedSlotTypeEnum,
+    startTime: z.string().regex(timeRegex).optional(),
+    endTime: z.string().regex(timeRegex).optional(),
+    reason: z.string().max(500).optional(),
+  })
+  .refine(
+    (data) => {
+      if (data.type === 'FULL_DAY') return true
+      return data.startTime != null && data.endTime != null
+    },
+    { message: 'Para bloqueo por horario se requieren startTime y endTime', path: ['startTime'] }
+  )
+  .refine(
+    (data) => {
+      if (data.type !== 'TIME_SLOT' || !data.startTime || !data.endTime) return true
+      const [sh, sm] = data.startTime.split(':').map(Number)
+      const [eh, em] = data.endTime.split(':').map(Number)
+      return sh * 60 + sm < eh * 60 + em
+    },
+    { message: 'La hora de inicio debe ser anterior a la hora de fin', path: ['endTime'] }
+  )
+
+export type CreateBlockedSlotInput = z.infer<typeof createBlockedSlotSchema>
+
+export const listBlockedSlotsQuerySchema = z.object({
+  from: z.string().regex(dateRegex).optional(),
+  to: z.string().regex(dateRegex).optional(),
+})
+
+export type ListBlockedSlotsQuery = z.infer<typeof listBlockedSlotsQuerySchema>

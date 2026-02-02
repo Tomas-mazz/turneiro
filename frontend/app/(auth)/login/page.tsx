@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { api } from '@/lib/api'
-import { setAuthToken } from '@/lib/auth'
+import { setAuthToken, setAuthUser } from '@/lib/auth'
 
 type LoginResponse = { token: string; user: { id: string; email: string; role: string; businessId: string | null } }
 
@@ -21,7 +21,9 @@ export default function LoginPage() {
     try {
       const res = await api.post<LoginResponse>('/auth/login', { email, password })
       setAuthToken(res.data.token)
-      router.push('/dashboard')
+      setAuthUser(res.data.user)
+      const destination = res.data.user.role === 'ADMIN' ? '/admin' : '/dashboard'
+      router.push(destination)
       router.refresh()
     } catch (err: unknown) {
       const msg = err && typeof err === 'object' && 'response' in err

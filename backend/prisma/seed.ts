@@ -9,6 +9,9 @@ const DEMO_SLUG = 'barberia-demo'
 const DEMO_OWNER_EMAIL = 'owner@demo.com'
 const DEMO_OWNER_PASSWORD = 'demo123'
 
+const ADMIN_EMAIL = 'tmazzucco.dev@gmail.com'
+const ADMIN_PASSWORD = 'Aron15576667'
+
 async function main() {
   const hashedPassword = await bcrypt.hash(DEMO_OWNER_PASSWORD, 10)
 
@@ -59,6 +62,28 @@ async function main() {
       data: { password: hashedPassword, businessId: business.id },
     })
     console.log('Usuario de demo actualizado:', DEMO_OWNER_EMAIL)
+  }
+
+  const adminHashedPassword = await bcrypt.hash(ADMIN_PASSWORD, 10)
+  const adminUser = await prisma.user.findUnique({
+    where: { email: ADMIN_EMAIL },
+  })
+  if (!adminUser) {
+    await prisma.user.create({
+      data: {
+        email: ADMIN_EMAIL,
+        password: adminHashedPassword,
+        role: 'ADMIN',
+        businessId: null,
+      },
+    })
+    console.log('Usuario admin creado:', ADMIN_EMAIL)
+  } else {
+    await prisma.user.update({
+      where: { id: adminUser.id },
+      data: { password: adminHashedPassword, role: 'ADMIN', businessId: null },
+    })
+    console.log('Usuario admin actualizado:', ADMIN_EMAIL)
   }
 
   let service = await prisma.service.findFirst({ where: { businessId: business.id } })
@@ -148,9 +173,8 @@ async function main() {
 
   console.log('---')
   console.log('Seed listo. Podés iniciar sesión en el frontend con:')
-  console.log('  Email:    ', DEMO_OWNER_EMAIL)
-  console.log('  Password: ', DEMO_OWNER_PASSWORD)
-  console.log('  Dashboard: http://localhost:3000/dashboard')
+  console.log('  Owner:    ', DEMO_OWNER_EMAIL, '/', DEMO_OWNER_PASSWORD, '→ /dashboard')
+  console.log('  Admin:    ', ADMIN_EMAIL, '→ /admin')
   console.log('  Página pública: http://localhost:3000/' + DEMO_SLUG)
 }
 

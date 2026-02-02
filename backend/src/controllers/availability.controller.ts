@@ -25,7 +25,12 @@ export async function getAvailability(req: Request, res: Response, next: NextFun
       res.status(400).json({ error: 'Fecha inválida' })
       return
     }
-    const slots = await getAvailabilityService(businessSlug.trim(), serviceId.trim(), date)
+    const slots = await getAvailabilityService(
+      businessSlug.trim(),
+      serviceId.trim(),
+      date,
+      dateStr
+    )
     res.json({ slots })
   } catch (err) {
     next(err)

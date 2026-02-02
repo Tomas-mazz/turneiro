@@ -62,9 +62,10 @@ This is the **single source of truth** for the current state of the project. Use
   - `GET /api/appointments` – list appointments for owner's business (for sync/UI; requireBusinessOwner).  
   - **GET /api/appointments/lookup?phone=...** – return upcoming appointments for that client phone in owner's business (requireBusinessOwner); phone matched by normalized digits.  
   - `POST /api/appointments/:id/cancel` – owner cancel with body `{ "reason": "..." }` (requireBusinessOwner); sets `status: CANCELLED` and `cancellationReason`; processes refund if paid; deletes Google Calendar event.  
-- **Owner dashboard (single page):**  
-  - One page at `/dashboard`: header with "Configuración" (left) and "Ver Google Calendar" (right, opens https://calendar.google.com).  
-  - Section "Servicios (precio y duración)": table with name, price input, duration input, "Guardar" per row; calls PATCH /api/services/:id.  
+- **Owner dashboard (single page):**
+  - One page at `/dashboard`: header with "Configuración" (left) and "Ver Google Calendar" (right, opens https://calendar.google.com).
+  - Section "Servicios (precio y duración)": table with name, price input, duration input, "Guardar" per row; calls PATCH /api/services/:id.
+  - Section **"Bloquear días u horarios"**: owner can create FULL_DAY or TIME_SLOT blocks (date, optional reason); list next 60 days with "Eliminar". APIs: GET/POST/DELETE /api/blocked-slots (requireBusinessOwner). Public booking page respects blocks (day grayed out or slots hidden).
   - Section **"Cancelar turno"**: input "Ingresar teléfono del cliente" → **GET /api/appointments/lookup?phone=...** returns upcoming reservations for that phone (owner's business only); reservations shown grouped by date (d/M), compact card per reservation with "Cancelar reserva" → modal with required reason → POST /api/appointments/:id/cancel. Clearing the phone input hides the list. No full list of all appointments; only results of the search by phone.
 - No `/dashboard/appointments` page (removed); `/dashboard/settings` redirects to `/dashboard`.
 - **Frontend: Google Calendar OAuth (done):** Dashboard has "Conectar Google Calendar" button; calls GET /api/google-calendar/auth and redirects to auth URL; Google redirects to frontend /api/google-calendar/callback, which forwards to backend callback; backend exchanges code and redirects to /dashboard?google_calendar=connected (or error param). Dashboard shows connection status, "Ver Google Calendar" and "Desconectar" when connected, and success/error messages from query params.  
@@ -77,16 +78,34 @@ This is the **single source of truth** for the current state of the project. Use
 - Page `/cancel` for client to cancel by token.  
 - UI and API error messages in Spanish.  
 - **Error handling and UX:** Backend returns generic message for 5xx (no internal details to client); frontend shows user-friendly messages for server/technical errors (reservation, payment). Phone input in booking form restricted to digits and `+` only.
+- **Admin panel – login and redirect (done):**  
+  - Single login at `/login` for owners and admin; backend returns JWT with `user.role` (OWNER, ADMIN, STAFF).  
+  - Role-based redirect after login: ADMIN → `/admin`; OWNER/STAFF → `/dashboard`.  
+  - Frontend stores user (id, email, role, businessId) in localStorage on login for layout checks; `removeAuthToken` clears token and user.  
+  - Admin account in seed: `tmazzucco.dev@gmail.com` with role ADMIN (password in seed only).  
+  - `/admin` route group with layout: protected; requires auth and role ADMIN, else redirect to /login or /dashboard.  
+  - Dashboard layout: if user is ADMIN, redirect to `/admin`.  
+  - Admin page at `/admin`: placeholder "Panel de administración" (first features to be added).
 
 ---
 
 ## 4. Immediate pending (next steps)
 
-- None at this time. Cancel-by-phone UX is done (search by client phone, reservations grouped by date, compact cards, clear on empty input). Next steps could be: end-to-end testing, deploy preparation, or picking a new item from docs (e.g. PENDING_OR_UNCERTAIN, IDEAS_FUTURE).
+- **Admin panel – first features:** define and implement first admin features (e.g. list businesses, edit business, blocks, etc.) per ROLES_PERMISSIONS.md and FEATURES_MVP.md.
 
 ---
 
-## 5. Owner dashboard scope (MVP) – do not add more here
+## 5. Auth: single login, role-based redirect
+
+- **Login:** One login page at `/login` for both **business owners** (MVP dashboard) and **platform admin** (admin panel). Same API: `POST /api/auth/login`; response includes `user.role` (OWNER | ADMIN | STAFF).
+- **Redirect after login:**  
+  - **ADMIN** → `/admin` (admin panel).  
+  - **OWNER** or **STAFF** → `/dashboard` (owner dashboard).
+- **Admin account:** Email `tmazzucco.dev@gmail.com`; password configured in seed or environment (never committed). Seed must create or update this user with `role: 'ADMIN'`.
+
+---
+
+## 6. Owner dashboard scope (MVP) – do not add more here
 
 The owner dashboard allows **only**:
 
@@ -98,11 +117,11 @@ The owner dashboard allows **only**:
    - Can only cancel appointments within their own business (cannot cancel appointments from other businesses).  
    - **Each employee** (when the business has staff / multi-rubro) **can cancel their own appointments** (their own turns); they cannot cancel other employees' appointments.
 
-Everything else (create/delete services, service names, working hours, blocks, branding, payment/cancellation rules) is **admin** (see ROLES_PERMISSIONS.md). There is no list-of-appointments page at `/dashboard/appointments`; owner sees appointments in Google Calendar and in the "Cancelar turno" section (search by client phone).
+Everything else (create/delete services, service names, working hours, blocks, branding, payment/cancellation rules) is **admin** (see ROLES_PERMISSIONS.md). There is no list-of-appointments page at `/dashboard/appointments`; owner sees appointments in Google Calendar and in the "Cancelar turno" section (search by client phone). Owner **can** create/delete blocked days or time slots from the dashboard (see Done – Bloquear días u horarios).
 
 ---
 
-## 6. Blocked / out of scope (do not implement without clarification)
+## 7. Blocked / out of scope (do not implement without clarification)
 
 - **Out of scope for now:** Premium features, complex automations.  
 - **Multi-employee (multi-barber, multi-manicurista, etc.)** is **not in current MVP** but planned for next phase (see section 10).  
@@ -110,27 +129,29 @@ Everything else (create/delete services, service names, working hours, blocks, b
 
 ---
 
-## 7. Key files to touch when continuing
+## 8. Key files to touch when continuing
 
-- **Backend:** `backend/src/routes/services.ts`, `backend/src/controllers/services.controller.ts`, `backend/src/services/services.service.ts`; `backend/src/routes/appointments.ts`, `backend/src/controllers/appointments.controller.ts`, `backend/src/services/appointments.service.ts`; `backend/src/lib/schemas.ts`; `backend/prisma/schema.prisma`.  
-- **Frontend:** `frontend/app/(dashboard)/dashboard/page.tsx` (single dashboard page); `frontend/app/(public)/[business-slug]/page.tsx` (booking page); `frontend/lib/api.ts`; `frontend/types/index.ts`.  
+- **Backend:** `backend/src/routes/services.ts`, `backend/src/controllers/services.controller.ts`, `backend/src/services/services.service.ts`; `backend/src/routes/appointments.ts`, `backend/src/controllers/appointments.controller.ts`, `backend/src/services/appointments.service.ts`; `backend/src/routes/auth.ts`, `backend/src/controllers/auth.controller.ts`; `backend/src/lib/schemas.ts`; `backend/prisma/schema.prisma`; `backend/prisma/seed.ts` (admin user).  
+- **Frontend:** `frontend/app/(auth)/login/page.tsx` (redirect by role); `frontend/app/(dashboard)/layout.tsx`; `frontend/app/(dashboard)/dashboard/page.tsx`; `frontend/app/(admin)/layout.tsx` and `frontend/app/(admin)/admin/page.tsx` (admin panel, when added); `frontend/app/(public)/[business-slug]/page.tsx`; `frontend/lib/api.ts`, `frontend/lib/auth.ts`; `frontend/types/index.ts`.  
 - **Docs:** Update PROJECT_STATE.md when completing pending items.
 
 ---
 
-## 8. How to run (for you or the new chat)
+## 9. How to run (for you or the new chat)
 
 - From repo root: `npm run dev` (frontend :3000, backend :3001).  
 - Seed (demo user + business + services + appointments): `npm run db:seed` from root.  
-- Login: `owner@demo.com` / `demo123`.  
+- **Owner login:** `owner@demo.com` / `demo123` → redirects to `/dashboard`.  
+- **Admin login:** `tmazzucco.dev@gmail.com` (password set in seed; see seed or env) → redirects to `/admin`.  
 - Dashboard: http://localhost:3000/dashboard .  
+- Admin panel: http://localhost:3000/admin (after implementation).  
 - Public booking: http://localhost:3000/barberia-demo .  
 - Migrations: `backend/prisma/migrations/` is in `.gitignore`; apply with `cd backend && npx prisma migrate dev` when schema changes.  
 - Commits: **English** only (see AI_RULES_FOR_CURSOR.md, CODING_RULES.md).
 
 ---
 
-## 9. Last commits (context for new chat)
+## 10. Last commits (context for new chat)
 
 - **feat: payment backend - Stripe + Mercado Pago with webhooks and refunds**  
   - Backend: payment intent/preference creation, webhook handlers, automatic refunds on cancellation.  
@@ -146,7 +167,7 @@ Everything else (create/delete services, service names, working hours, blocks, b
 
 ---
 
-## 10. Multi-Employee Google Calendar (Post-MVP Architecture)
+## 11. Multi-Employee Google Calendar (Post-MVP Architecture)
 
 **Note:** "Multi-employee" refers to businesses with multiple staff members (barbers, manicurists, masseuses, etc.) across all business categories (rubros), not just barbershops.
 
@@ -227,7 +248,7 @@ model Appointment {
 
 ---
 
-## 11. Documentation Files
+## 12. Documentation Files
 
 - `backend/PAYMENT_SETUP.md` – Complete payment setup (Stripe/Mercado Pago, webhooks, testing).
 - `backend/GOOGLE_CALENDAR_SETUP.md` – Complete Google Calendar setup (OAuth, sync, testing).

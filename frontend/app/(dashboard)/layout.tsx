@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { isAuthenticated } from '@/lib/auth'
+import { isAuthenticated, getAuthUser } from '@/lib/auth'
 
 export default function DashboardLayout({
   children,
@@ -15,6 +15,10 @@ export default function DashboardLayout({
   useEffect(() => {
     if (!isAuthenticated()) {
       router.replace('/login')
+      return
+    }
+    if (getAuthUser()?.role === 'ADMIN') {
+      router.replace('/admin')
       return
     }
     setAllowed(true)
