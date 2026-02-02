@@ -1,3 +1,9 @@
+export type Employee = {
+  id: string
+  name: string
+  photoUrl: string | null
+}
+
 export type Business = {
   id: string
   name: string
@@ -6,8 +12,12 @@ export type Business = {
   coverPhoto: string | null
   coverVideo?: string | null
   primaryColor: string
+  phone: string | null
+  email: string | null
+  address: string | null
   services: { id: string; name: string; price: number; duration: number }[]
   workingHours: { dayOfWeek: number; startTime: string; endTime: string; isClosed: boolean }[]
+  employees: Employee[]
   settings: { paymentRequired: boolean; paymentType: string | null; depositPercentage: number | null } | null
 }
 

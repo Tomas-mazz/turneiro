@@ -23,8 +23,15 @@ async function main() {
       description: 'Negocio de prueba para desarrollo',
       category: 'barbershop',
       primaryColor: '#000000',
+      phone: '+54 11 1234-5678',
+      email: 'contacto@barberia-demo.com',
+      address: 'Av. Demo 123, CABA',
     },
-    update: {},
+    update: {
+      phone: '+54 11 1234-5678',
+      email: 'contacto@barberia-demo.com',
+      address: 'Av. Demo 123, CABA',
+    },
   })
 
   await prisma.businessSettings.upsert({
@@ -86,18 +93,49 @@ async function main() {
     console.log('Usuario admin actualizado:', ADMIN_EMAIL)
   }
 
-  let service = await prisma.service.findFirst({ where: { businessId: business.id } })
-  if (!service) {
-    service = await prisma.service.create({
-      data: {
-        businessId: business.id,
-        name: 'Corte',
-        price: 500,
-        duration: 30,
-        isActive: true,
-      },
+  const demoServiceNames = ['Corte', 'Corte + Barba', 'Barba']
+  const demoServices = [
+    { name: 'Corte', price: 500, duration: 30 },
+    { name: 'Corte + Barba', price: 700, duration: 45 },
+    { name: 'Barba', price: 350, duration: 20 },
+  ]
+  for (const s of demoServices) {
+    const existing = await prisma.service.findFirst({
+      where: { businessId: business.id, name: s.name },
     })
-    console.log('Servicio de demo creado: Corte')
+    if (existing) {
+      await prisma.service.update({
+        where: { id: existing.id },
+        data: { price: s.price, duration: s.duration },
+      })
+    } else {
+      await prisma.service.create({
+        data: { businessId: business.id, ...s, isActive: true },
+      })
+    }
+  }
+  await prisma.service.deleteMany({
+    where: {
+      businessId: business.id,
+      name: { notIn: demoServiceNames },
+    },
+  })
+  const service = await prisma.service.findFirst({
+    where: { businessId: business.id, name: 'Corte' },
+  })
+  if (!service) throw new Error('Corte service missing after seed')
+  console.log('Servicios de demo: Corte, Corte + Barba, Barba')
+
+  const employeeCount = await prisma.employee.count({ where: { businessId: business.id } })
+  if (employeeCount === 0) {
+    await prisma.employee.createMany({
+      data: [
+        { businessId: business.id, name: 'Juan' },
+        { businessId: business.id, name: 'María' },
+        { businessId: business.id, name: 'Carlos' },
+      ],
+    })
+    console.log('Empleados de demo creados: Juan, María, Carlos')
   }
 
   const hoursCount = await prisma.workingHours.count({ where: { businessId: business.id } })

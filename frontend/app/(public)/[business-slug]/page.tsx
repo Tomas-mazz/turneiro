@@ -62,6 +62,19 @@ export default function BusinessBookingPage({
       .finally(() => setLoading(false))
   }, [slug])
 
+  // Dark background for service step so overscroll/scroll edges don't show white
+  useEffect(() => {
+    if (step !== 'service') return
+    const prevHtml = document.documentElement.style.backgroundColor
+    const prevBody = document.body.style.backgroundColor
+    document.documentElement.style.backgroundColor = '#0a0a0a'
+    document.body.style.backgroundColor = '#0a0a0a'
+    return () => {
+      document.documentElement.style.backgroundColor = prevHtml
+      document.body.style.backgroundColor = prevBody
+    }
+  }, [step])
+
   useEffect(() => {
     if (step !== 'date' || !business || !selectedService) return
     const monthStart = getMonthStart(calendarMonth)
@@ -241,7 +254,9 @@ export default function BusinessBookingPage({
       className={
         step === 'hero'
           ? 'min-h-screen h-screen overflow-hidden bg-neutral-100'
-          : 'min-h-screen bg-neutral-100'
+          : step === 'service'
+            ? 'min-h-screen bg-[#0a0a0a]'
+            : 'min-h-screen bg-neutral-100'
       }
     >
       {step === 'hero' && (

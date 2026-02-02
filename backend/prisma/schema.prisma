@@ -19,6 +19,7 @@ model Business {
   primaryColor String  @default("#000000")
   phone       String?
   email       String?
+  address     String?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
@@ -30,8 +31,24 @@ model Business {
   blockedSlots  BlockedSlot[]
   settings      BusinessSettings?
   subscription  Subscription?
+  employees     Employee[]
 
   @@index([slug])
+}
+
+// Employee model - display profile for booking page (name, photo); admin creates these
+model Employee {
+  id         String   @id @default(cuid())
+  name       String
+  photoUrl   String?
+  businessId String
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  // Relations
+  business Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+
+  @@index([businessId])
 }
 
 // User model - authentication for business owners/staff

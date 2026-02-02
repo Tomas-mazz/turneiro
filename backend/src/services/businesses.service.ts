@@ -54,6 +54,13 @@ export async function getBusinessBySlugService(slug: string) {
           depositPercentage: true,
         },
       },
+      employees: {
+        select: {
+          id: true,
+          name: true,
+          photoUrl: true,
+        },
+      },
     },
   })
 
