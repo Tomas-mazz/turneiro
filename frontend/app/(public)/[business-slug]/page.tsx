@@ -67,8 +67,8 @@ export default function BusinessBookingPage({
     if (step !== 'service') return
     const prevHtml = document.documentElement.style.backgroundColor
     const prevBody = document.body.style.backgroundColor
-    document.documentElement.style.backgroundColor = '#0a0a0a'
-    document.body.style.backgroundColor = '#0a0a0a'
+    document.documentElement.style.backgroundColor = 'hsl(0, 0%, 9%)'
+    document.body.style.backgroundColor = 'hsl(0, 0%, 9%)'
     return () => {
       document.documentElement.style.backgroundColor = prevHtml
       document.body.style.backgroundColor = prevBody
@@ -254,10 +254,9 @@ export default function BusinessBookingPage({
       className={
         step === 'hero'
           ? 'min-h-screen h-screen overflow-hidden bg-neutral-100'
-          : step === 'service'
-            ? 'min-h-screen bg-[#0a0a0a]'
-            : 'min-h-screen bg-neutral-100'
+          : 'min-h-screen bg-neutral-100'
       }
+      style={step === 'service' ? { backgroundColor: 'hsl(0, 0%, 9%)' } : undefined}
     >
       {step === 'hero' && (
         <BookingHero

@@ -1,7 +1,9 @@
 'use client'
 
+import { useState, useEffect, useRef } from 'react'
 import Image from 'next/image'
 import type { Business, ServiceOption } from '../types'
+import { useTypewriter } from '../hooks/useTypewriter'
 
 const DAY_NAMES = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado']
 
@@ -29,13 +31,44 @@ export function ServiceStep({
     },
     {} as Record<number, { startTime: string; endTime: string; isClosed: boolean }>
   )
+  const displayName = useTypewriter(business.name)
+  const [isClosing, setIsClosing] = useState(false)
+  const panelRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    if (selectedService) setIsClosing(false)
+  }, [selectedService])
+
+  const handleCloseCart = () => {
+    setIsClosing(true)
+  }
+
+  const handleSlideDownEnd = (e: React.AnimationEvent<HTMLDivElement>) => {
+    if (e.animationName === 'slide-down') {
+      onSelectService(null)
+      setIsClosing(false)
+    }
+  }
 
   return (
-    <section className="min-h-screen bg-[#0a0a0a] text-white">
-      <div className="mx-auto flex max-w-6xl flex-col gap-8 px-4 py-12 md:flex-row md:gap-12">
+    <section className="min-h-screen text-white" style={{ backgroundColor: 'hsl(0, 0%, 9%)' }}>
+      {/* Header: business name with typewriter */}
+      <header className="border-b border-neutral-600 py-6">
+        <div className="mx-auto max-w-6xl px-4 text-center md:text-left">
+          <h1 className="text-2xl font-bold text-white md:text-3xl">
+            {displayName}
+            <span className="animate-pulse">|</span>
+          </h1>
+        </div>
+      </header>
+
+      <div className="mx-auto flex max-w-6xl flex-col gap-8 px-4 py-8 md:flex-row md:gap-12">
         {/* Left: services list */}
         <div className="flex-1 md:min-w-0">
-          <ul className="divide-y divide-neutral-700">
+          <h2 className="mb-4 text-center text-lg font-semibold text-neutral-300 md:text-left md:text-xl">
+            Servicios
+          </h2>
+          <ul className="divide-y divide-neutral-600">
             {business.services.map((s) => {
               const isSelected = selectedService?.id === s.id
               return (
@@ -43,10 +76,10 @@ export function ServiceStep({
                   <button
                     type="button"
                     onClick={() => onSelectService(s)}
-                    className="flex w-full items-start gap-4 py-4 text-left transition-colors hover:bg-neutral-900/50"
+                    className="flex w-full items-start gap-4 py-6 pl-1 pr-4 text-left transition-colors hover:bg-neutral-700/50"
                   >
                     <span
-                      className="mt-1 flex h-5 w-5 shrink-0 items-center justify-center rounded-full border-2 border-neutral-500"
+                      className="mt-1.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full border-2 border-neutral-500"
                       aria-hidden
                     >
                       {isSelected && (
@@ -54,13 +87,15 @@ export function ServiceStep({
                       )}
                     </span>
                     <div className="min-w-0 flex-1">
-                      <span className="font-medium text-white">{s.name}</span>
-                      <p className="mt-0.5 text-sm text-neutral-400">
+                      <span className="text-base font-medium text-white md:text-lg">
+                        {s.name}
+                      </span>
+                      <p className="mt-1 text-sm text-neutral-400 md:text-base">
                         {s.duration} min
                       </p>
                     </div>
-                    <span className="shrink-0 font-medium text-white">
-                      ${s.price.toFixed(0)}
+                    <span className="ml-6 shrink-0 pr-2 text-base font-medium text-white md:text-lg">
+                      $ {s.price.toFixed(0)}
                     </span>
                   </button>
                 </li>
@@ -69,8 +104,8 @@ export function ServiceStep({
           </ul>
         </div>
 
-        {/* Right: employees, contact, hours — sticky, fills viewport height */}
-        <aside className="sticky top-12 w-full shrink-0 self-start md:w-72">
+        {/* Right: employees, contact, hours — sticky, desktop only */}
+        <aside className="hidden w-full shrink-0 self-start md:block md:w-72 md:sticky md:top-12">
           <div className="flex min-h-[calc(100vh-6rem)] flex-col justify-between gap-8 py-4">
             {business.employees && business.employees.length > 0 ? (
               <div>
@@ -177,44 +212,51 @@ export function ServiceStep({
         </aside>
       </div>
 
-      {/* Cart modal */}
+      {/* Cart bottom sheet — no overlay, side and bottom margins like reference */}
       {selectedService && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
+          className="fixed bottom-0 left-0 right-0 z-50 px-6 pb-6 md:px-10 md:pb-8"
           role="dialog"
           aria-labelledby="cart-title"
           aria-modal="true"
         >
-          <div className="w-full max-w-md rounded-xl bg-neutral-900 p-6 shadow-xl">
+          <div
+            ref={panelRef}
+            onAnimationEnd={handleSlideDownEnd}
+            className={`mx-auto max-w-xl w-full rounded-2xl p-6 shadow-[0_-4px_24px_rgba(0,0,0,0.3)] ${isClosing ? 'animate-slide-down' : 'animate-slide-up'}`}
+            style={{ backgroundColor: 'rgb(41, 41, 41)' }}
+          >
             <div className="mb-4 flex items-center justify-between">
               <h2 id="cart-title" className="text-lg font-semibold text-white">
                 Tu carrito
               </h2>
               <button
                 type="button"
-                onClick={() => onSelectService(null)}
-                className="flex h-8 w-8 items-center justify-center rounded-full text-neutral-400 transition-colors hover:bg-neutral-800 hover:text-white"
+                onClick={handleCloseCart}
+                className="flex h-8 w-8 items-center justify-center rounded-full border border-neutral-500 text-neutral-400 transition-colors hover:bg-neutral-600 hover:text-white"
                 aria-label="Cerrar"
               >
                 <span className="text-xl leading-none">×</span>
               </button>
             </div>
-            <div className="mb-4 flex items-center justify-between rounded-lg bg-neutral-800/50 px-3 py-2">
+            <div className="mb-4 flex items-center justify-between py-2">
               <span className="text-white">{selectedService.name}</span>
               <span className="font-medium text-white">
-                ${selectedService.price.toFixed(0)}
+                $ {selectedService.price.toFixed(0)}
               </span>
             </div>
-            <button
-              type="button"
-              onClick={onContinue}
-              className="flex w-full items-center justify-center gap-2 rounded-lg bg-white px-4 py-3 font-medium text-black transition-opacity hover:opacity-90"
-            >
-              Continuar
-              <span className="text-orange-500" aria-hidden>
-                →
-              </span>
-            </button>
+            <div className="flex justify-center">
+              <button
+                type="button"
+                onClick={onContinue}
+                className="flex w-1/2 min-w-0 items-center justify-center gap-2 rounded-lg bg-white px-4 py-3 font-medium text-black transition-opacity hover:opacity-90"
+              >
+                Continuar
+                <span aria-hidden>
+                  →
+                </span>
+              </button>
+            </div>
           </div>
         </div>
       )}
