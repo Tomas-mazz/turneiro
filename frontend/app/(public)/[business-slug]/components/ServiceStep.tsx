@@ -53,8 +53,8 @@ export function ServiceStep({
   return (
     <section className="min-h-screen text-white" style={{ backgroundColor: 'hsl(0, 0%, 9%)' }}>
       {/* Header: business name with typewriter */}
-      <header className="border-b border-neutral-600 py-6">
-        <div className="mx-auto max-w-6xl px-4 text-center md:text-left">
+      <header className="border-b border-neutral-600 py-6 md:py-8">
+        <div className="mx-auto max-w-4xl px-4 text-center md:max-w-4xl md:px-6 md:text-left lg:max-w-6xl lg:px-8">
           <h1 className="text-2xl font-bold text-white md:text-3xl">
             {displayName}
             <span className="animate-pulse">|</span>
@@ -62,10 +62,10 @@ export function ServiceStep({
         </div>
       </header>
 
-      <div className="mx-auto flex max-w-6xl flex-col gap-8 px-4 py-8 md:flex-row md:gap-12">
+      <div className="mx-auto flex max-w-4xl flex-col gap-8 px-4 py-8 md:max-w-4xl md:flex-row md:gap-10 md:px-6 md:py-10 lg:max-w-6xl lg:gap-12 lg:px-8">
         {/* Left: services list */}
-        <div className="flex-1 md:min-w-0">
-          <h2 className="mb-4 text-center text-lg font-semibold text-neutral-300 md:text-left md:text-xl">
+        <div className="min-w-0 flex-1">
+          <h2 className="mb-4 text-center text-lg font-semibold text-neutral-300 md:mb-5 md:text-left md:text-xl">
             Servicios
           </h2>
           <ul className="divide-y divide-neutral-600">
@@ -76,7 +76,7 @@ export function ServiceStep({
                   <button
                     type="button"
                     onClick={() => onSelectService(s)}
-                    className="flex w-full items-start gap-4 py-6 pl-1 pr-4 text-left transition-colors hover:bg-neutral-700/50"
+                    className="flex w-full items-start gap-4 py-5 pl-1 pr-4 text-left transition-colors hover:bg-neutral-700/50 md:py-6 md:gap-5"
                   >
                     <span
                       className="mt-1.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full border-2 border-neutral-500"
@@ -106,13 +106,13 @@ export function ServiceStep({
 
         {/* Right: employees, contact, hours — sticky, desktop only */}
         <aside className="hidden w-full shrink-0 self-start md:block md:w-72 md:sticky md:top-12">
-          <div className="flex min-h-[calc(100vh-6rem)] flex-col justify-between gap-8 py-4">
+          <div className="flex flex-col gap-8 py-4 md:gap-9">
             {business.employees && business.employees.length > 0 ? (
               <div>
                 <h3 className="mb-3 text-sm font-semibold uppercase tracking-wide text-neutral-400">
                   Empleados
                 </h3>
-                <div className="flex flex-wrap gap-3">
+                <div className="grid grid-cols-3 gap-3">
                   {business.employees.map((emp) => (
                     <div
                       key={emp.id}
@@ -215,7 +215,7 @@ export function ServiceStep({
       {/* Cart bottom sheet — no overlay, side and bottom margins like reference */}
       {selectedService && (
         <div
-          className="fixed bottom-0 left-0 right-0 z-50 px-6 pb-6 md:px-10 md:pb-8"
+          className="fixed bottom-0 left-0 right-0 z-50 px-4 pb-6 md:px-6 md:pb-8 lg:px-10"
           role="dialog"
           aria-labelledby="cart-title"
           aria-modal="true"
@@ -223,7 +223,7 @@ export function ServiceStep({
           <div
             ref={panelRef}
             onAnimationEnd={handleSlideDownEnd}
-            className={`mx-auto max-w-xl w-full rounded-2xl p-6 shadow-[0_-4px_24px_rgba(0,0,0,0.3)] ${isClosing ? 'animate-slide-down' : 'animate-slide-up'}`}
+            className={`mx-auto w-full max-w-md rounded-2xl p-6 shadow-[0_-4px_24px_rgba(0,0,0,0.3)] md:max-w-lg md:p-6 ${isClosing ? 'animate-slide-down' : 'animate-slide-up'}`}
             style={{ backgroundColor: 'rgb(41, 41, 41)' }}
           >
             <div className="mb-4 flex items-center justify-between">

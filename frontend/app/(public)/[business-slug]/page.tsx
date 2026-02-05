@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import { api } from '@/lib/api'
 import type { Business, Step, ServiceOption, CreatedAppointment } from './types'
-import { formatDateKey, getMonthStart, getMonthEnd } from './utils'
+import { formatDateKey } from './utils'
 import {
   BookingHero,
   BookingDone,
@@ -11,7 +11,6 @@ import {
   DateStep,
   PaymentStep,
   ServiceStep,
-  TimeStep,
 } from './components'
 
 function isTechnicalError(msg: unknown): boolean {
@@ -62,9 +61,9 @@ export default function BusinessBookingPage({
       .finally(() => setLoading(false))
   }, [slug])
 
-  // Dark background for service step so overscroll/scroll edges don't show white
+  // Dark background for service and date steps so overscroll/scroll edges don't show white
   useEffect(() => {
-    if (step !== 'service') return
+    if (step !== 'service' && step !== 'date') return
     const prevHtml = document.documentElement.style.backgroundColor
     const prevBody = document.body.style.backgroundColor
     document.documentElement.style.backgroundColor = 'hsl(0, 0%, 9%)'
@@ -77,26 +76,18 @@ export default function BusinessBookingPage({
 
   useEffect(() => {
     if (step !== 'date' || !business || !selectedService) return
-    const monthStart = getMonthStart(calendarMonth)
-    const map: Record<string, boolean> = {}
-    const fetchWeek = (start: Date) => {
-      const startStr = formatDateKey(start)
-      return api
-        .get<{ week: { date: string; hasSlots: boolean }[] }>('/availability/week', {
-          params: { businessSlug: slug, serviceId: selectedService.id, startDate: startStr },
+    const startStr = formatDateKey(calendarMonth)
+    api
+      .get<{ week: { date: string; hasSlots: boolean }[] }>('/availability/week', {
+        params: { businessSlug: slug, serviceId: selectedService.id, startDate: startStr },
+      })
+      .then((res) => {
+        const map: Record<string, boolean> = {}
+        res.data.week.forEach((w) => {
+          map[w.date] = w.hasSlots
         })
-        .then((res) => {
-          res.data.week.forEach((w) => {
-            map[w.date] = w.hasSlots
-          })
-        })
-    }
-    const start1 = new Date(monthStart)
-    const start2 = new Date(monthStart.getFullYear(), monthStart.getMonth(), monthStart.getDate() + 7)
-    const start3 = new Date(monthStart.getFullYear(), monthStart.getMonth(), monthStart.getDate() + 14)
-    const start4 = new Date(monthStart.getFullYear(), monthStart.getMonth(), monthStart.getDate() + 21)
-    Promise.all([fetchWeek(start1), fetchWeek(start2), fetchWeek(start3), fetchWeek(start4)])
-      .then(() => setWeekAvailability({ ...map }))
+        setWeekAvailability(map)
+      })
       .catch(() => setWeekAvailability({}))
   }, [step, business, selectedService, slug, calendarMonth])
 
@@ -256,7 +247,7 @@ export default function BusinessBookingPage({
           ? 'min-h-screen h-screen overflow-hidden bg-neutral-100'
           : 'min-h-screen bg-neutral-100'
       }
-      style={step === 'service' ? { backgroundColor: 'hsl(0, 0%, 9%)' } : undefined}
+      style={step === 'service' || step === 'date' ? { backgroundColor: 'hsl(0, 0%, 9%)' } : undefined}
     >
       {step === 'hero' && (
         <BookingHero
@@ -280,26 +271,20 @@ export default function BusinessBookingPage({
 
       {step === 'date' && selectedService && (
         <DateStep
+          selectedService={selectedService}
+          employees={business.employees ?? []}
           calendarMonth={calendarMonth}
           onCalendarMonth={setCalendarMonth}
           weekAvailability={weekAvailability}
           selectedDate={selectedDate}
           onSelectedDate={setSelectedDate}
           todayKey={todayKey}
-          onContinue={() => setStep('time')}
-          primaryColor={primaryColor}
-        />
-      )}
-
-      {step === 'time' && selectedService && selectedDate && (
-        <TimeStep
-          selectedService={selectedService}
-          selectedDate={selectedDate}
           slots={slots}
           slotsLoading={slotsLoading}
           selectedSlot={selectedSlot}
           onSelectedSlot={setSelectedSlot}
           onContinue={() => setStep('form')}
+          onBack={() => setStep('service')}
           primaryColor={primaryColor}
         />
       )}
