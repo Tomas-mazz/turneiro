@@ -25,6 +25,8 @@ type DateStepProps = {
   selectedDate: string | null
   onSelectedDate: (date: string | null) => void
   todayKey: string
+  /** Current time HH:MM in booking timezone (e.g. Argentina); used to filter past slots for today */
+  currentTimeStr?: string
   slots: string[]
   slotsLoading: boolean
   selectedSlot: string | null
@@ -43,6 +45,7 @@ export function DateStep({
   selectedDate,
   onSelectedDate,
   todayKey,
+  currentTimeStr: currentTimeStrProp,
   slots,
   slotsLoading,
   selectedSlot,
@@ -54,9 +57,10 @@ export function DateStep({
   const visibleDates = getVisibleDates(calendarMonth)
   const monthLabel = calendarMonth.toLocaleString('es', { month: 'long', year: 'numeric' })
 
-  // When selected date is today, only show slots after current time (HH:MM string comparison)
-  const now = new Date()
-  const currentTimeStr = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`
+  // When selected date is today, only show slots after current time (HH:MM); use Argentina time when provided
+  const currentTimeStr =
+    currentTimeStrProp ??
+    `${String(new Date().getHours()).padStart(2, '0')}:${String(new Date().getMinutes()).padStart(2, '0')}`
   const displaySlots =
     selectedDate === todayKey ? slots.filter((slot) => slot > currentTimeStr) : slots
 
@@ -172,11 +176,10 @@ export function DateStep({
               <button
                 key={key}
                 type="button"
-                disabled={!canSelect}
-                onClick={() => canSelect && onSelectedDate(key)}
+                onClick={() => onSelectedDate(key)}
                 className={`flex min-w-0 flex-1 flex-col rounded-lg px-2 py-2.5 text-center transition-colors md:min-w-[4.5rem] md:flex-none md:shrink-0 md:rounded-xl md:px-3 md:py-3.5 lg:min-w-[5.5rem] lg:px-4 lg:py-4 ${
                   !canSelect
-                    ? 'cursor-not-allowed bg-neutral-800/60 text-neutral-500'
+                    ? 'cursor-pointer bg-neutral-800/60 text-neutral-500 hover:bg-neutral-800/70'
                     : isSelected
                       ? 'border border-neutral-300 bg-white text-neutral-800'
                       : 'bg-neutral-800/80 text-white hover:bg-neutral-700'

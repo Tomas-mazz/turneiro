@@ -104,8 +104,8 @@ export async function getAvailabilityService(
 
 /**
  * For each day in the week starting at startDate, whether there is at least one available slot.
- * Used by calendar to gray out days with no availability.
- * dateStr uses local calendar date (YYYY-MM-DD) so it matches what the frontend sends per day.
+ * Used by calendar to gray out days: tachado only when closed or no slots at all.
+ * We do not filter "today" by current time here; the frontend filters past slots when displaying.
  */
 export async function getWeekAvailabilityService(
   businessSlug: string,

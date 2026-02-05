@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import { api } from '@/lib/api'
 import type { Business, Step, ServiceOption, CreatedAppointment } from './types'
-import { formatDateKey } from './utils'
+import { formatDateKey, getNowInArgentina } from './utils'
 import {
   BookingHero,
   BookingDone,
@@ -77,9 +77,16 @@ export default function BusinessBookingPage({
   useEffect(() => {
     if (step !== 'date' || !business || !selectedService) return
     const startStr = formatDateKey(calendarMonth)
+    const { dateKey: todayStr, timeStr: currentTimeStr } = getNowInArgentina()
     api
       .get<{ week: { date: string; hasSlots: boolean }[] }>('/availability/week', {
-        params: { businessSlug: slug, serviceId: selectedService.id, startDate: startStr },
+        params: {
+          businessSlug: slug,
+          serviceId: selectedService.id,
+          startDate: startStr,
+          today: todayStr,
+          currentTime: currentTimeStr,
+        },
       })
       .then((res) => {
         const map: Record<string, boolean> = {}
@@ -218,7 +225,7 @@ export default function BusinessBookingPage({
   }
 
   const primaryColor = business?.primaryColor || '#000000'
-  const todayKey = formatDateKey(new Date())
+  const { dateKey: todayKey, timeStr: currentTimeArgentina } = getNowInArgentina()
 
   if (loading) {
     return (
@@ -279,6 +286,7 @@ export default function BusinessBookingPage({
           selectedDate={selectedDate}
           onSelectedDate={setSelectedDate}
           todayKey={todayKey}
+          currentTimeStr={currentTimeArgentina}
           slots={slots}
           slotsLoading={slotsLoading}
           selectedSlot={selectedSlot}
