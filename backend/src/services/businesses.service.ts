@@ -532,3 +532,18 @@ export async function updateBusinessForAdmin(
     }
   })
 }
+
+/**
+ * Admin: delete a business and all related data (cascade: users, appointments, services, workingHours, blockedSlots, settings, subscription, employees).
+ */
+export async function deleteBusinessForAdmin(businessId: string): Promise<void> {
+  const business = await prisma.business.findUnique({
+    where: { id: businessId },
+  })
+  if (!business) {
+    throw new Error('Negocio no encontrado')
+  }
+  await prisma.business.delete({
+    where: { id: businessId },
+  })
+}

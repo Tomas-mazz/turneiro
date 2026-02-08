@@ -9,8 +9,10 @@ import {
   getAdminBusinessServices,
   createAdminService,
   deleteAdminService,
+  getAdminWorkingHours,
+  updateAdminWorkingHours,
 } from '@/lib/api'
-import type { AdminBusinessDetail, UpdateBusinessBody, ServiceListItem } from '@/types'
+import type { AdminBusinessDetail, UpdateBusinessBody, ServiceListItem, WorkingHoursItem } from '@/types'
 
 const STEPS = [
   { num: 2, title: 'Reglas de pago y cancelación', slug: 'pago' },
@@ -54,6 +56,12 @@ export default function AdminBusinessSetupPage() {
     lateCancellationFee: '',
     bufferTime: '',
   })
+  const [workingHours, setWorkingHours] = useState<WorkingHoursItem[]>([])
+  const [workingHoursLoading, setWorkingHoursLoading] = useState(false)
+  const [workingHoursSaving, setWorkingHoursSaving] = useState(false)
+  const [workingHoursError, setWorkingHoursError] = useState<string | null>(null)
+
+  const DAY_NAMES = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado']
 
   useEffect(() => {
     if (!id) return
@@ -83,6 +91,22 @@ export default function AdminBusinessSetupPage() {
         .finally(() => setServicesLoading(false))
     }
   }, [id, business?.id])
+
+  useEffect(() => {
+    if (!id || !business) return
+    if (currentStep !== 4) return
+    setWorkingHoursLoading(true)
+    getAdminWorkingHours(id)
+      .then(setWorkingHours)
+      .catch(() => setWorkingHoursError('Error al cargar horarios'))
+      .finally(() => setWorkingHoursLoading(false))
+  }, [id, business?.id, currentStep])
+
+  const handleWorkingHoursChange = (dayOfWeek: number, field: keyof WorkingHoursItem, value: string | boolean | null) => {
+    setWorkingHours((prev) =>
+      prev.map((h) => (h.dayOfWeek === dayOfWeek ? { ...h, [field]: value } : h))
+    )
+  }
 
   const handleAddService = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -527,21 +551,125 @@ export default function AdminBusinessSetupPage() {
         <div className="rounded-lg border border-neutral-200 bg-white p-6 shadow-sm">
           <h2 className="text-lg font-medium text-neutral-900">Horarios de apertura</h2>
           <p className="mt-2 text-sm text-neutral-600">
-            Configurá los horarios de apertura y cierre para cada día de la semana. Podés configurarlos ahora o más tarde desde la página de edición.
+            Configurá horario de apertura y cierre por día. Opcional: pausa de almuerzo (inicio y fin).
           </p>
+          {workingHoursError && (
+            <p className="mt-3 rounded-md bg-red-50 p-2 text-sm text-red-700">{workingHoursError}</p>
+          )}
+          {workingHoursLoading ? (
+            <p className="mt-4 text-sm text-neutral-500">Cargando horarios...</p>
+          ) : workingHours.length > 0 ? (
+            <div className="mt-4 overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-neutral-200 text-left text-neutral-600">
+                    <th className="py-2">Día</th>
+                    <th className="py-2">Cerrado</th>
+                    <th className="py-2">Apertura</th>
+                    <th className="py-2">Cierre</th>
+                    <th className="py-2">Almuerzo inicio</th>
+                    <th className="py-2">Almuerzo fin</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {workingHours.map((h) => (
+                    <tr key={h.dayOfWeek} className="border-b border-neutral-100">
+                      <td className="py-2 font-medium">{DAY_NAMES[h.dayOfWeek]}</td>
+                      <td className="py-2">
+                        <input
+                          type="checkbox"
+                          checked={h.isClosed}
+                          onChange={(e) => handleWorkingHoursChange(h.dayOfWeek, 'isClosed', e.target.checked)}
+                          className="rounded border-neutral-300 text-neutral-900"
+                        />
+                      </td>
+                      <td className="py-2">
+                        <input
+                          type="time"
+                          value={h.startTime}
+                          onChange={(e) => handleWorkingHoursChange(h.dayOfWeek, 'startTime', e.target.value)}
+                          disabled={h.isClosed}
+                          className="w-28 rounded border border-neutral-300 px-2 py-1 disabled:bg-neutral-100"
+                        />
+                      </td>
+                      <td className="py-2">
+                        <input
+                          type="time"
+                          value={h.endTime}
+                          onChange={(e) => handleWorkingHoursChange(h.dayOfWeek, 'endTime', e.target.value)}
+                          disabled={h.isClosed}
+                          className="w-28 rounded border border-neutral-300 px-2 py-1 disabled:bg-neutral-100"
+                        />
+                      </td>
+                      <td className="py-2">
+                        <input
+                          type="time"
+                          value={h.lunchStart ?? ''}
+                          onChange={(e) =>
+                            handleWorkingHoursChange(h.dayOfWeek, 'lunchStart', e.target.value || null)
+                          }
+                          disabled={h.isClosed}
+                          className="w-28 rounded border border-neutral-300 px-2 py-1 disabled:bg-neutral-100"
+                        />
+                      </td>
+                      <td className="py-2">
+                        <input
+                          type="time"
+                          value={h.lunchEnd ?? ''}
+                          onChange={(e) =>
+                            handleWorkingHoursChange(h.dayOfWeek, 'lunchEnd', e.target.value || null)
+                          }
+                          disabled={h.isClosed}
+                          className="w-28 rounded border border-neutral-300 px-2 py-1 disabled:bg-neutral-100"
+                        />
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : null}
           <div className="mt-6 flex flex-wrap gap-3">
-            <Link
-              href={`/admin/businesses/${id}#horarios`}
-              className="rounded-lg bg-neutral-900 px-4 py-2.5 text-sm font-medium text-white hover:bg-neutral-800"
+            <button
+              type="button"
+              disabled={workingHoursLoading || workingHoursSaving}
+              onClick={async () => {
+                if (!id) return
+                setWorkingHoursError(null)
+                setWorkingHoursSaving(true)
+                try {
+                  const payload = workingHours.map(
+                    ({ dayOfWeek, startTime, endTime, isClosed, lunchStart, lunchEnd }) => ({
+                      dayOfWeek,
+                      startTime,
+                      endTime,
+                      isClosed,
+                      lunchStart: lunchStart || null,
+                      lunchEnd: lunchEnd || null,
+                    })
+                  )
+                  await updateAdminWorkingHours(id, payload)
+                  goToStep(5)
+                } catch (err: unknown) {
+                  const msg =
+                    err && typeof err === 'object' && 'response' in err
+                      ? (err as { response?: { data?: { error?: string } } }).response?.data?.error
+                      : null
+                  setWorkingHoursError(msg || 'Error al guardar horarios')
+                } finally {
+                  setWorkingHoursSaving(false)
+                }
+              }}
+              className="rounded-lg bg-neutral-900 px-4 py-2.5 text-sm font-medium text-white hover:bg-neutral-800 disabled:opacity-50"
             >
-              Configurar horarios ahora
-            </Link>
+              {workingHoursSaving ? 'Guardando...' : 'Siguiente: Empleados'}
+            </button>
             <button
               type="button"
               onClick={() => goToStep(5)}
               className="rounded-lg border border-neutral-300 px-4 py-2.5 text-sm font-medium text-neutral-700 hover:bg-neutral-50"
             >
-              Siguiente: Empleados
+              Omitir y seguir
             </button>
             <button
               type="button"

@@ -3,6 +3,8 @@
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { useParams, useRouter } from 'next/navigation'
+import { format, addDays } from 'date-fns'
+import { es } from 'date-fns/locale'
 import {
   getAdminBusiness,
   updateAdminBusiness,
@@ -11,8 +13,20 @@ import {
   createAdminService,
   updateAdminService,
   deleteAdminService,
+  getAdminWorkingHours,
+  updateAdminWorkingHours,
+  getAdminBlockedSlots,
+  createAdminBlockedSlot,
+  deleteAdminBlockedSlot,
+  deleteAdminBusiness,
 } from '@/lib/api'
-import type { AdminBusinessDetail, UpdateBusinessBody, ServiceListItem } from '@/types'
+import type {
+  AdminBusinessDetail,
+  UpdateBusinessBody,
+  ServiceListItem,
+  WorkingHoursItem,
+  BlockedSlotListItem,
+} from '@/types'
 
 type FormState = Omit<
   UpdateBusinessBody,
@@ -64,6 +78,23 @@ export default function AdminBusinessPage() {
   const [newService, setNewService] = useState({ name: '', price: '', duration: '30', isActive: true })
   const [creatingService, setCreatingService] = useState(false)
   const [editingService, setEditingService] = useState<ServiceListItem | null>(null)
+  const [workingHours, setWorkingHours] = useState<WorkingHoursItem[]>([])
+  const [workingHoursLoading, setWorkingHoursLoading] = useState(false)
+  const [workingHoursSaving, setWorkingHoursSaving] = useState(false)
+  const [workingHoursError, setWorkingHoursError] = useState<string | null>(null)
+  const [blockedSlots, setBlockedSlots] = useState<BlockedSlotListItem[]>([])
+  const [loadingBlockedSlots, setLoadingBlockedSlots] = useState(false)
+  const [blockDate, setBlockDate] = useState('')
+  const [blockType, setBlockType] = useState<'FULL_DAY' | 'TIME_SLOT'>('FULL_DAY')
+  const [blockStartTime, setBlockStartTime] = useState('')
+  const [blockEndTime, setBlockEndTime] = useState('')
+  const [blockReason, setBlockReason] = useState('')
+  const [blockSubmitting, setBlockSubmitting] = useState(false)
+  const [deletingBlockId, setDeletingBlockId] = useState<string | null>(null)
+  const [showDeleteBusinessConfirm, setShowDeleteBusinessConfirm] = useState(false)
+  const [deletingBusiness, setDeletingBusiness] = useState(false)
+
+  const DAY_NAMES = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado']
 
   useEffect(() => {
     if (!id) return
@@ -115,6 +146,119 @@ export default function AdminBusinessPage() {
         .finally(() => setServicesLoading(false))
     }
   }, [id, business?.id])
+
+  useEffect(() => {
+    if (!id || !business) return
+    setWorkingHoursLoading(true)
+    getAdminWorkingHours(id)
+      .then(setWorkingHours)
+      .catch(() => setWorkingHoursError('Error al cargar horarios'))
+      .finally(() => setWorkingHoursLoading(false))
+  }, [id, business?.id])
+
+  const handleWorkingHoursChange = (dayOfWeek: number, field: keyof WorkingHoursItem, value: string | boolean | null) => {
+    setWorkingHours((prev) =>
+      prev.map((h) =>
+        h.dayOfWeek === dayOfWeek ? { ...h, [field]: value } : h
+      )
+    )
+  }
+
+  const handleSaveWorkingHours = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!id) return
+    setWorkingHoursError(null)
+    setWorkingHoursSaving(true)
+    try {
+      const payload = workingHours.map(({ dayOfWeek, startTime, endTime, isClosed, lunchStart, lunchEnd }) => ({
+        dayOfWeek,
+        startTime,
+        endTime,
+        isClosed,
+        lunchStart: lunchStart || null,
+        lunchEnd: lunchEnd || null,
+      }))
+      const updated = await updateAdminWorkingHours(id, payload)
+      setWorkingHours(updated)
+    } catch (err: unknown) {
+      const msg =
+        err && typeof err === 'object' && 'response' in err
+          ? (err as { response?: { data?: { error?: string } } }).response?.data?.error
+          : null
+      setWorkingHoursError(msg || 'Error al guardar horarios')
+    } finally {
+      setWorkingHoursSaving(false)
+    }
+  }
+
+  useEffect(() => {
+    if (!id || !business) return
+    setLoadingBlockedSlots(true)
+    const from = format(new Date(), 'yyyy-MM-dd')
+    const to = format(addDays(new Date(), 60), 'yyyy-MM-dd')
+    getAdminBlockedSlots(id, { from, to })
+      .then(setBlockedSlots)
+      .catch(() => setBlockedSlots([]))
+      .finally(() => setLoadingBlockedSlots(false))
+  }, [id, business?.id])
+
+  const handleCreateBlock = async () => {
+    if (!id || !blockDate.trim()) return
+    if (blockType === 'TIME_SLOT' && (!blockStartTime || !blockEndTime)) return
+    setBlockSubmitting(true)
+    try {
+      const body = {
+        date: blockDate,
+        type: blockType,
+        ...(blockType === 'TIME_SLOT' && { startTime: blockStartTime, endTime: blockEndTime }),
+        ...(blockReason.trim() && { reason: blockReason.trim() }),
+      }
+      const created = await createAdminBlockedSlot(id, body)
+      setBlockedSlots((prev) => [...prev, created].sort((a, b) => a.date.localeCompare(b.date)))
+      setBlockDate('')
+      setBlockStartTime('')
+      setBlockEndTime('')
+      setBlockReason('')
+    } catch (err: unknown) {
+      const msg =
+        err && typeof err === 'object' && 'response' in err
+          ? (err as { response?: { data?: { error?: string } } }).response?.data?.error
+          : null
+      setError(msg || 'Error al crear bloqueo')
+    } finally {
+      setBlockSubmitting(false)
+    }
+  }
+
+  const handleDeleteBlock = async (blockId: string) => {
+    setDeletingBlockId(blockId)
+    try {
+      await deleteAdminBlockedSlot(blockId)
+      setBlockedSlots((prev) => prev.filter((b) => b.id !== blockId))
+    } catch {
+      setError('Error al eliminar bloqueo')
+    } finally {
+      setDeletingBlockId(null)
+    }
+  }
+
+  const handleConfirmDeleteBusiness = async () => {
+    if (!id) return
+    setDeletingBusiness(true)
+    try {
+      await deleteAdminBusiness(id)
+      router.push('/admin')
+    } catch (err: unknown) {
+      const msg =
+        err && typeof err === 'object' && 'response' in err
+          ? (err as { response?: { data?: { error?: string } } }).response?.data?.error
+          : null
+      setError(msg || 'Error al eliminar el negocio')
+      setShowDeleteBusinessConfirm(false)
+    } finally {
+      setDeletingBusiness(false)
+    }
+  }
 
   const handleAddService = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -819,6 +963,224 @@ export default function AdminBusinessPage() {
           )}
         </fieldset>
 
+        <fieldset id="horarios" className="rounded-lg border border-neutral-200 p-4">
+          <legend className="text-sm font-medium text-neutral-700">
+            Horarios de apertura
+          </legend>
+          <p className="mb-4 text-xs text-neutral-500">
+            Configurá horario de apertura y cierre por día. Opcional: pausa de almuerzo (inicio y fin).
+          </p>
+          {workingHoursError && (
+            <p className="mb-3 rounded-md bg-red-50 p-2 text-sm text-red-700">{workingHoursError}</p>
+          )}
+          {workingHoursLoading ? (
+            <p className="text-sm text-neutral-500">Cargando horarios...</p>
+          ) : workingHours.length === 0 ? (
+            <p className="text-sm text-neutral-500">No hay horarios cargados.</p>
+          ) : (
+            <form onSubmit={handleSaveWorkingHours} className="space-y-3">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-neutral-200 text-left text-neutral-600">
+                    <th className="py-2">Día</th>
+                    <th className="py-2">Cerrado</th>
+                    <th className="py-2">Apertura</th>
+                    <th className="py-2">Cierre</th>
+                    <th className="py-2">Almuerzo inicio</th>
+                    <th className="py-2">Almuerzo fin</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {workingHours.map((h) => (
+                    <tr key={h.dayOfWeek} className="border-b border-neutral-100">
+                      <td className="py-2 font-medium">{DAY_NAMES[h.dayOfWeek]}</td>
+                      <td className="py-2">
+                        <input
+                          type="checkbox"
+                          checked={h.isClosed}
+                          onChange={(e) => handleWorkingHoursChange(h.dayOfWeek, 'isClosed', e.target.checked)}
+                          className="rounded border-neutral-300 text-neutral-900"
+                        />
+                      </td>
+                      <td className="py-2">
+                        <input
+                          type="time"
+                          value={h.startTime}
+                          onChange={(e) => handleWorkingHoursChange(h.dayOfWeek, 'startTime', e.target.value)}
+                          disabled={h.isClosed}
+                          className="w-28 rounded border border-neutral-300 px-2 py-1 disabled:bg-neutral-100"
+                        />
+                      </td>
+                      <td className="py-2">
+                        <input
+                          type="time"
+                          value={h.endTime}
+                          onChange={(e) => handleWorkingHoursChange(h.dayOfWeek, 'endTime', e.target.value)}
+                          disabled={h.isClosed}
+                          className="w-28 rounded border border-neutral-300 px-2 py-1 disabled:bg-neutral-100"
+                        />
+                      </td>
+                      <td className="py-2">
+                        <input
+                          type="time"
+                          value={h.lunchStart ?? ''}
+                          onChange={(e) => handleWorkingHoursChange(h.dayOfWeek, 'lunchStart', e.target.value || null)}
+                          disabled={h.isClosed}
+                          className="w-28 rounded border border-neutral-300 px-2 py-1 disabled:bg-neutral-100"
+                        />
+                      </td>
+                      <td className="py-2">
+                        <input
+                          type="time"
+                          value={h.lunchEnd ?? ''}
+                          onChange={(e) => handleWorkingHoursChange(h.dayOfWeek, 'lunchEnd', e.target.value || null)}
+                          disabled={h.isClosed}
+                          className="w-28 rounded border border-neutral-300 px-2 py-1 disabled:bg-neutral-100"
+                        />
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              <button
+                type="submit"
+                disabled={workingHoursSaving}
+                className="rounded-lg bg-neutral-900 px-4 py-2 text-sm font-medium text-white hover:bg-neutral-800 disabled:opacity-50"
+              >
+                {workingHoursSaving ? 'Guardando...' : 'Guardar horarios'}
+              </button>
+            </form>
+          )}
+        </fieldset>
+
+        <fieldset id="bloqueos" className="rounded-lg border border-neutral-200 p-4">
+          <legend className="text-sm font-medium text-neutral-700">
+            Bloquear días u horarios
+          </legend>
+          <p className="mb-4 text-xs text-neutral-500">
+            Bloqueá un día completo o un rango horario para que no aparezcan en la página de reservas.
+          </p>
+          <div className="mb-4 flex flex-col gap-4 rounded-lg border border-neutral-200 bg-neutral-50/50 p-4 sm:flex-row sm:flex-wrap sm:items-end">
+            <div>
+              <label className="mb-1 block text-xs font-medium text-neutral-600">Fecha</label>
+              <input
+                type="date"
+                value={blockDate}
+                onChange={(e) => setBlockDate(e.target.value)}
+                className="rounded border border-neutral-300 px-3 py-2 text-sm"
+              />
+            </div>
+            <div>
+              <span className="mb-1 block text-xs font-medium text-neutral-600">Tipo</span>
+              <div className="flex gap-4">
+                <label className="flex cursor-pointer items-center gap-2">
+                  <input
+                    type="radio"
+                    name="blockType"
+                    checked={blockType === 'FULL_DAY'}
+                    onChange={() => setBlockType('FULL_DAY')}
+                    className="rounded-full border-neutral-300"
+                  />
+                  <span className="text-sm">Día completo</span>
+                </label>
+                <label className="flex cursor-pointer items-center gap-2">
+                  <input
+                    type="radio"
+                    name="blockType"
+                    checked={blockType === 'TIME_SLOT'}
+                    onChange={() => setBlockType('TIME_SLOT')}
+                    className="rounded-full border-neutral-300"
+                  />
+                  <span className="text-sm">Rango horario</span>
+                </label>
+              </div>
+            </div>
+            {blockType === 'TIME_SLOT' && (
+              <>
+                <div>
+                  <label className="mb-1 block text-xs font-medium text-neutral-600">Desde</label>
+                  <input
+                    type="time"
+                    value={blockStartTime}
+                    onChange={(e) => setBlockStartTime(e.target.value)}
+                    className="rounded border border-neutral-300 px-3 py-2 text-sm"
+                  />
+                </div>
+                <div>
+                  <label className="mb-1 block text-xs font-medium text-neutral-600">Hasta</label>
+                  <input
+                    type="time"
+                    value={blockEndTime}
+                    onChange={(e) => setBlockEndTime(e.target.value)}
+                    className="rounded border border-neutral-300 px-3 py-2 text-sm"
+                  />
+                </div>
+              </>
+            )}
+            <div className="min-w-0 flex-1 sm:min-w-[180px]">
+              <label className="mb-1 block text-xs font-medium text-neutral-600">Motivo (opcional)</label>
+              <input
+                type="text"
+                value={blockReason}
+                onChange={(e) => setBlockReason(e.target.value)}
+                placeholder="Ej. Vacaciones, almuerzo"
+                className="w-full rounded border border-neutral-300 px-3 py-2 text-sm"
+              />
+            </div>
+            <button
+              type="button"
+              disabled={blockSubmitting || !blockDate || (blockType === 'TIME_SLOT' && (!blockStartTime || !blockEndTime))}
+              onClick={handleCreateBlock}
+              className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-2 text-sm font-medium text-amber-800 hover:bg-amber-100 disabled:opacity-50"
+            >
+              {blockSubmitting ? 'Bloqueando...' : 'Bloquear'}
+            </button>
+          </div>
+          <div>
+            <h3 className="text-sm font-medium text-neutral-700">Bloqueos próximos (60 días)</h3>
+            {loadingBlockedSlots ? (
+              <p className="mt-2 text-sm text-neutral-500">Cargando...</p>
+            ) : blockedSlots.length === 0 ? (
+              <p className="mt-2 text-sm text-neutral-500">No hay bloqueos en los próximos 60 días.</p>
+            ) : (
+              <ul className="mt-2 space-y-2">
+                {blockedSlots.map((b) => (
+                  <li
+                    key={b.id}
+                    className="flex flex-col gap-2 rounded-lg border border-neutral-200 bg-white px-3 py-2.5 text-sm sm:flex-row sm:flex-wrap sm:items-center sm:justify-between"
+                  >
+                    <div className="flex min-w-0 flex-wrap items-baseline gap-x-2 gap-y-1 text-neutral-700">
+                      <span className="font-medium text-neutral-900">
+                        {format(new Date(b.date + 'T12:00:00'), 'd MMM yyyy', { locale: es })}
+                      </span>
+                      <span aria-hidden className="text-neutral-400">·</span>
+                      <span>
+                        {b.type === 'FULL_DAY'
+                          ? 'Día completo'
+                          : `${b.startTime ?? ''} – ${b.endTime ?? ''}`}
+                      </span>
+                      {b.reason && (
+                        <>
+                          <span aria-hidden className="text-neutral-400">·</span>
+                          <span className="text-neutral-600">{b.reason}</span>
+                        </>
+                      )}
+                    </div>
+                    <button
+                      type="button"
+                      disabled={deletingBlockId === b.id}
+                      onClick={() => handleDeleteBlock(b.id)}
+                      className="shrink-0 rounded border border-red-200 bg-red-50 px-3 py-1.5 text-sm font-medium text-red-700 hover:bg-red-100 disabled:opacity-50"
+                    >
+                      {deletingBlockId === b.id ? 'Eliminando...' : 'Eliminar'}
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        </fieldset>
+
         <fieldset className="rounded-lg border border-neutral-200 p-4">
           <legend className="text-sm font-medium text-neutral-700">
             Credenciales del dueño del negocio
@@ -859,7 +1221,7 @@ export default function AdminBusinessPage() {
           </div>
         </fieldset>
 
-        <div className="flex gap-3">
+        <div className="flex flex-wrap items-center gap-3">
           <button
             type="submit"
             disabled={saving}
@@ -877,12 +1239,58 @@ export default function AdminBusinessPage() {
             href={business ? `/${business.slug}` : '#'}
             target="_blank"
             rel="noopener noreferrer"
-            className="ml-auto rounded-lg border border-neutral-300 px-4 py-2.5 text-sm font-medium text-neutral-700 hover:bg-neutral-50"
+            className="rounded-lg border border-neutral-300 px-4 py-2.5 text-sm font-medium text-neutral-700 hover:bg-neutral-50"
           >
             Ver página de reservas →
           </a>
+          <button
+            type="button"
+            onClick={() => setShowDeleteBusinessConfirm(true)}
+            className="ml-auto rounded-lg border border-red-200 bg-red-50 px-4 py-2.5 text-sm font-medium text-red-700 hover:bg-red-100"
+          >
+            Eliminar negocio
+          </button>
         </div>
       </form>
+
+      {showDeleteBusinessConfirm && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="delete-business-title"
+        >
+          <div className="max-w-md rounded-lg border border-neutral-200 bg-white p-6 shadow-lg">
+            <h2 id="delete-business-title" className="text-lg font-semibold text-neutral-900">
+              Eliminar negocio
+            </h2>
+            <p className="mt-2 text-sm text-neutral-600">
+              Este negocio se eliminará y no podrás volver atrás. Se borrarán todos los datos: servicios, horarios, bloqueos, citas y credenciales del dueño.
+            </p>
+            <p className="mt-1 text-sm font-medium text-neutral-900">
+              ¿Estás seguro?
+            </p>
+            <div className="mt-6 flex gap-3">
+              <button
+                type="button"
+                disabled={deletingBusiness}
+                onClick={handleConfirmDeleteBusiness}
+                className="rounded-lg bg-red-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-red-700 disabled:opacity-50"
+              >
+                {deletingBusiness ? 'Eliminando...' : 'Sí, eliminar'}
+              </button>
+              <button
+                type="button"
+                disabled={deletingBusiness}
+                onClick={() => setShowDeleteBusinessConfirm(false)}
+                className="rounded-lg border border-neutral-300 px-4 py-2.5 text-sm font-medium text-neutral-700 hover:bg-neutral-50"
+              >
+                Cancelar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </main>
   )
 }

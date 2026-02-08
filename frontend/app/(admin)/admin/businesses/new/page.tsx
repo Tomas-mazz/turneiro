@@ -211,7 +211,7 @@ export default function AdminNewBusinessPage() {
             id="description"
             name="description"
             rows={2}
-            value={form.description}
+            value={form.description ?? ''}
             onChange={handleChange}
             className="w-full rounded-lg border border-neutral-300 px-3 py-2 focus:border-neutral-500 focus:ring-1 focus:ring-neutral-500"
           />
@@ -226,7 +226,7 @@ export default function AdminNewBusinessPage() {
               id="phone"
               name="phone"
               type="text"
-              value={form.phone}
+              value={form.phone ?? ''}
               onChange={handleChange}
               className="w-full rounded-lg border border-neutral-300 px-3 py-2 focus:border-neutral-500 focus:ring-1 focus:ring-neutral-500"
             />
@@ -239,7 +239,7 @@ export default function AdminNewBusinessPage() {
               id="email"
               name="email"
               type="email"
-              value={form.email}
+              value={form.email ?? ''}
               onChange={handleChange}
               className="w-full rounded-lg border border-neutral-300 px-3 py-2 focus:border-neutral-500 focus:ring-1 focus:ring-neutral-500"
             />
@@ -254,7 +254,7 @@ export default function AdminNewBusinessPage() {
             id="address"
             name="address"
             type="text"
-            value={form.address}
+            value={form.address ?? ''}
             onChange={handleChange}
             className="w-full rounded-lg border border-neutral-300 px-3 py-2 focus:border-neutral-500 focus:ring-1 focus:ring-neutral-500"
           />

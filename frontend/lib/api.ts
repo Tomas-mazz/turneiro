@@ -8,6 +8,7 @@ import type {
   AdminBusinessDetail,
   CreateBusinessBody,
   UpdateBusinessBody,
+  WorkingHoursItem,
 } from '@/types'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'
@@ -172,6 +173,21 @@ export async function deleteAdminService(serviceId: string): Promise<void> {
   await api.delete(`/admin/services/${serviceId}`)
 }
 
+export async function getAdminWorkingHours(businessId: string): Promise<WorkingHoursItem[]> {
+  const { data } = await api.get<WorkingHoursItem[]>(`/admin/businesses/${businessId}/working-hours`)
+  return data
+}
+
+export async function updateAdminWorkingHours(
+  businessId: string,
+  hours: WorkingHoursItem[]
+): Promise<WorkingHoursItem[]> {
+  const { data } = await api.put<WorkingHoursItem[]>(`/admin/businesses/${businessId}/working-hours`, {
+    hours,
+  })
+  return data
+}
+
 export async function createAdminBusiness(
   body: CreateBusinessBody
 ): Promise<{ id: string; slug: string }> {
@@ -185,6 +201,36 @@ export async function updateAdminBusiness(
 ): Promise<{ ok: boolean }> {
   const { data } = await api.patch<{ ok: boolean }>(`/admin/businesses/${id}`, body)
   return data
+}
+
+export async function deleteAdminBusiness(businessId: string): Promise<void> {
+  await api.delete(`/admin/businesses/${businessId}`)
+}
+
+export async function getAdminBlockedSlots(
+  businessId: string,
+  params?: { from?: string; to?: string }
+): Promise<BlockedSlotListItem[]> {
+  const { data } = await api.get<BlockedSlotListItem[]>(
+    `/admin/businesses/${businessId}/blocked-slots`,
+    { params }
+  )
+  return data
+}
+
+export async function createAdminBlockedSlot(
+  businessId: string,
+  body: CreateBlockedSlotBody
+): Promise<BlockedSlotListItem> {
+  const { data } = await api.post<BlockedSlotListItem>(
+    `/admin/businesses/${businessId}/blocked-slots`,
+    body
+  )
+  return data
+}
+
+export async function deleteAdminBlockedSlot(blockId: string): Promise<void> {
+  await api.delete(`/admin/blocked-slots/${blockId}`)
 }
 
 export async function uploadAdminFile(file: File): Promise<{ url: string }> {

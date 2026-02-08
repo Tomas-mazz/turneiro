@@ -114,3 +114,16 @@ export async function deleteBlockedSlotService(
     where: { id },
   })
 }
+
+/** Admin: delete any block by id (no business scope). */
+export async function deleteBlockedSlotForAdmin(id: string): Promise<void> {
+  const slot = await prisma.blockedSlot.findUnique({
+    where: { id },
+  })
+  if (!slot) {
+    throw new BlockedSlotNotFoundError('Bloqueo no encontrado')
+  }
+  await prisma.blockedSlot.delete({
+    where: { id },
+  })
+}

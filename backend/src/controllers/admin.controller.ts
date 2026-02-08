@@ -12,7 +12,20 @@ import {
   deleteServiceForAdmin,
   ServiceNotFoundError,
 } from '../services/services.service'
+import {
+  getWorkingHoursForBusiness,
+  upsertWorkingHoursForBusiness,
+} from '../services/workingHours.service'
+import {
+  listBlockedSlotsService,
+  createBlockedSlotService,
+  deleteBlockedSlotForAdmin,
+  BlockedSlotNotFoundError,
+} from '../services/blockedSlots.service'
+import { deleteBusinessForAdmin } from '../services/businesses.service'
+import { createBlockedSlotSchema, listBlockedSlotsQuerySchema } from '../lib/schemas'
 import type { AuthRequest } from '../middleware/auth'
+import { ZodError } from 'zod'
 
 export async function getBusinesses(_req: Request, res: Response) {
   const businesses = await getAllBusinessesForAdmin()
@@ -182,6 +195,114 @@ export async function deleteService(req: AuthRequest, res: Response, next: NextF
   } catch (err) {
     if (err instanceof ServiceNotFoundError) {
       res.status(404).json({ error: err.message })
+      return
+    }
+    next(err)
+  }
+}
+
+export async function getWorkingHours(req: Request, res: Response, next: NextFunction) {
+  try {
+    const businessId = req.params.id
+    if (!businessId) {
+      res.status(400).json({ error: 'ID de negocio obligatorio' })
+      return
+    }
+    const hours = await getWorkingHoursForBusiness(businessId)
+    res.json(hours)
+  } catch (err) {
+    next(err)
+  }
+}
+
+export async function updateWorkingHours(req: AuthRequest, res: Response, next: NextFunction) {
+  try {
+    const businessId = req.params.id
+    if (!businessId) {
+      res.status(400).json({ error: 'ID de negocio obligatorio' })
+      return
+    }
+    const { hours } = req.body
+    const updated = await upsertWorkingHoursForBusiness(businessId, hours)
+    res.json(updated)
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Error al guardar horarios'
+    if (message.includes('no encontrado')) {
+      res.status(404).json({ error: message })
+      return
+    }
+    next(err)
+  }
+}
+
+export async function getAdminBlockedSlots(req: Request, res: Response, next: NextFunction) {
+  try {
+    const businessId = req.params.id
+    if (!businessId) {
+      res.status(400).json({ error: 'ID de negocio obligatorio' })
+      return
+    }
+    const parsed = listBlockedSlotsQuerySchema.safeParse(req.query)
+    const query = parsed.success ? parsed.data : {}
+    const slots = await listBlockedSlotsService(businessId, query)
+    res.json(slots)
+  } catch (err) {
+    next(err)
+  }
+}
+
+export async function createAdminBlockedSlot(req: AuthRequest, res: Response, next: NextFunction) {
+  try {
+    const businessId = req.params.id
+    if (!businessId) {
+      res.status(400).json({ error: 'ID de negocio obligatorio' })
+      return
+    }
+    const parsed = createBlockedSlotSchema.safeParse(req.body)
+    if (!parsed.success) {
+      return res.status(400).json({
+        error: 'Error de validación',
+        details: (parsed.error as ZodError).errors,
+      })
+    }
+    const created = await createBlockedSlotService(businessId, parsed.data)
+    res.status(201).json(created)
+  } catch (err) {
+    next(err)
+  }
+}
+
+export async function deleteAdminBlockedSlot(req: AuthRequest, res: Response, next: NextFunction) {
+  try {
+    const id = req.params.id
+    if (!id) {
+      res.status(400).json({ error: 'ID de bloqueo obligatorio' })
+      return
+    }
+    await deleteBlockedSlotForAdmin(id)
+    res.status(204).send()
+  } catch (err) {
+    if (err instanceof BlockedSlotNotFoundError) {
+      res.status(404).json({ error: err.message })
+      return
+    }
+    next(err)
+  }
+}
+
+export async function deleteBusiness(req: AuthRequest, res: Response, next: NextFunction) {
+  try {
+    const businessId = req.params.id
+    if (!businessId) {
+      res.status(400).json({ error: 'ID de negocio obligatorio' })
+      return
+    }
+    await deleteBusinessForAdmin(businessId)
+    res.status(204).send()
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Error al eliminar'
+    if (message.includes('no encontrado')) {
+      res.status(404).json({ error: message })
       return
     }
     next(err)

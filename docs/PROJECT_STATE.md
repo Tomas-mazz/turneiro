@@ -116,15 +116,27 @@ This is the **single source of truth** for the current state of the project. Use
   - Step 1: Create business at `/admin/businesses/new` (datos del negocio). On success, redirect to `/admin/businesses/[id]/setup`.  
   - Step 2: Reglas de pago y cancelación.  
   - Step 3: Servicios (CRUD – add, edit, delete).  
-  - Step 4: Horarios (placeholder – "Configurar después").  
+  - Step 4: Horarios de apertura (configurar por día: abierto/cerrado, apertura/cierre, pausa almuerzo opcional).  
   - Step 5: Empleados (placeholder – "Configurar después").  
   - Progress stepper; "Guardar y configurar después" on each step → redirect to edit page.
+- **Admin – Working hours (done):**  
+  - GET `/api/admin/businesses/:id/working-hours` – list working hours (7 days, 0=Sunday .. 6=Saturday). Missing days returned with defaults.  
+  - PUT `/api/admin/businesses/:id/working-hours` – upsert all 7 days (body: `{ hours: [ { dayOfWeek, startTime, endTime, isClosed, lunchStart?, lunchEnd? } ] }`).  
+  - Admin edit page: section "Horarios de apertura" with table per day and "Guardar horarios". Setup step 4: same form; "Siguiente: Empleados" saves hours then goes to step 5.
 - **Admin – Services CRUD (done):**  
   - GET `/api/admin/businesses/:id/services` – list services for business.  
   - POST `/api/admin/businesses/:id/services` – create service (name, price, duration, isActive).  
   - PATCH `/api/admin/services/:id` – update service (name, price, duration, isActive).  
   - DELETE `/api/admin/services/:id` – delete service.  
   - Admin edit page: section "Servicios" with add form, table (edit inline, delete). Setup step 3: same add form, list, delete.
+- **Admin – Blocks (done):**  
+  - GET `/api/admin/businesses/:id/blocked-slots` – list blocked slots for business (query from/to).  
+  - POST `/api/admin/businesses/:id/blocked-slots` – create block (date, type FULL_DAY or TIME_SLOT, optional start/end, reason).  
+  - DELETE `/api/admin/blocked-slots/:id` – delete any block by id.  
+  - Admin edit page: section "Bloquear días u horarios" with form and list (próximos 60 días), Eliminar por bloqueo.
+- **Admin – Delete business (done):**  
+  - DELETE `/api/admin/businesses/:id` – delete business and all related data (cascade).  
+  - Admin edit page: button "Eliminar negocio"; modal "Este negocio se eliminará y no podrás volver atrás" with Confirmar/Cancelar.
 
 ---
 
@@ -132,22 +144,14 @@ This is the **single source of truth** for the current state of the project. Use
 
 All per ROLES_PERMISSIONS.md and FEATURES_MVP.md. Do not invent; only what is listed here.
 
-1. **Working hours (per business)**  
-   - Configure WorkingHours per day (Mon–Sun): open/closed, start time, end time, optional lunch break.  
-   - One record per day per business.
-
-2. **Blocks (per business)**  
-   - Create, edit, delete BlockedSlot for any business: full day (FULL_DAY) or time slot (TIME_SLOT with start/end). Optional reason.  
-   - Owner already has blocks in dashboard for their own business; admin must be able to manage blocks for any business.
-
-3. **Branding (per business)**  
+1. **Branding (per business)**  
    - Edit: display name, logo, cover photo, theme (DARK/LIGHT), description/texts (as defined in product). Logo/cover already editable in business edit; ensure any extra branding fields are exposed in admin.
 
-4. **Appointments (admin view)**  
+2. **Appointments (admin view)**  
    - View all appointments across all businesses (filters: business, date, status).  
    - Cancel any appointment (with mandatory reason). Change appointment status. Consult cancellation history.
 
-5. **Employees (per business)**  
+3. **Employees (per business)**  
    - Create, edit, delete Employee for a business: name, photo. Used on the public booking page.  
    - Admin creates them; owner cannot add/remove employees in MVP.
 
@@ -189,7 +193,7 @@ Everything else (create/delete services, service names, working hours, blocks, b
 
 ## 8. Key files when continuing
 
-- **Backend:** `backend/src/routes/admin.ts`, `backend/src/routes/upload.ts`, `backend/src/controllers/admin.controller.ts`; `backend/src/routes/businesses.ts`, `backend/src/services/businesses.service.ts`; `backend/src/routes/services.ts`, `backend/src/controllers/services.controller.ts`; `backend/src/routes/appointments.ts`, `backend/src/controllers/appointments.controller.ts`; `backend/src/routes/blockedSlots.ts`; `backend/src/middleware/auth.ts` (requireAdmin); `backend/src/lib/schemas.ts`; `backend/prisma/schema.prisma`; `backend/prisma/seed.ts`.  
+- **Backend:** `backend/src/routes/admin.ts`, `backend/src/routes/upload.ts`, `backend/src/controllers/admin.controller.ts`; `backend/src/services/workingHours.service.ts`; `backend/src/routes/businesses.ts`, `backend/src/services/businesses.service.ts`; `backend/src/routes/services.ts`, `backend/src/controllers/services.controller.ts`; `backend/src/routes/appointments.ts`, `backend/src/controllers/appointments.controller.ts`; `backend/src/routes/blockedSlots.ts`; `backend/src/middleware/auth.ts` (requireAdmin); `backend/src/lib/schemas.ts`; `backend/prisma/schema.prisma`; `backend/prisma/seed.ts`.  
 - **Frontend:** `frontend/app/(admin)/layout.tsx`, `frontend/app/(admin)/admin/page.tsx`, `frontend/app/(admin)/admin/businesses/new/page.tsx`, `frontend/app/(admin)/admin/businesses/[id]/page.tsx`; `frontend/app/(auth)/login/page.tsx`; `frontend/app/(dashboard)/dashboard/page.tsx`; `frontend/app/(public)/[business-slug]/page.tsx` and components; `frontend/lib/api.ts`, `frontend/lib/auth.ts`; `frontend/types/index.ts`.  
 - **Docs:** Update PROJECT_STATE.md when completing pending items.
 - **Setup page:** `frontend/app/(admin)/admin/businesses/[id]/setup/page.tsx` – steps 2–5 after create.
@@ -301,9 +305,9 @@ model Appointment {
 
 ## 12. Recent session (for next chat context)
 
-**Done in last session:** Create-business wizard (steps 1–5), admin Services CRUD, and bugfixes.
+**Done in last session:** Admin Blocks (step 2) and Delete business.
 
-- **Wizard:** Create at `/admin/businesses/new` → redirect to `/admin/businesses/[id]/setup`. Step 2 = payment/cancellation rules (PATCH). Step 3 = services (add/list/delete). Steps 4–5 = placeholders (“Configurar después”).
+- **Working hours:** GET `/api/admin/businesses/:id/working-hours` returns 7 days (0=Sunday .. 6=Saturday); missing days filled with defaults. PUT same path with body `{ hours: [ ...7 items ] }` upserts all days. Admin edit: section "Horarios de apertura" with table and "Guardar horarios"; setup step 4 same form. **Blocks:** GET/POST `/api/admin/businesses/:id/blocked-slots`, DELETE `/api/admin/blocked-slots/:id`; section "Bloquear días u horarios" in edit page (form + list 60 días). **Delete business:** DELETE `/api/admin/businesses/:id`; button "Eliminar negocio" with modal "Este negocio se eliminará y no podrás volver atrás".
 - **Admin Services:** GET/POST `/api/admin/businesses/:id/services`, PATCH/DELETE `/api/admin/services/:id`. Edit page has “Servicios” section (add form, table with inline edit, delete). Setup step 3 reuses same UI.
 - **Fixes applied:** (1) `bcrypt` in `businesses.service.ts`: use static `import bcrypt from 'bcryptjs'` (dynamic import caused “bcrypt.hash is not a function”). (2) `updateBusinessSchema`: `depositPercentage`, `freeCancellationWindow`, `lateCancellationFee`, `bufferTime` are `.optional().nullable()` so PATCH from setup step 2 accepts `null`. (3) `optionalUrl` in schemas: accepts full URL or path starting with `/`. (4) Upload route: fallback `host`/`protocol` to avoid bad URL. (5) In development, 500 responses return real error message; `createBusiness` and `getBusinessServices` log errors to console.
-- **Next pending (in order):** 1) Working hours (admin CRUD). 2) Blocks (admin for any business). 3) Branding. 4) Appointments admin view. 5) Employees (admin CRUD).
+- **Next pending (in order):** 1) Branding. 2) Appointments admin view. 3) Employees (admin CRUD).

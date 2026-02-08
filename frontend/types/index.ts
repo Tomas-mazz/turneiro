@@ -101,3 +101,13 @@ export type CreateBusinessBody = {
 }
 
 export type UpdateBusinessBody = Partial<CreateBusinessBody>
+
+export interface WorkingHoursItem {
+  id?: string
+  dayOfWeek: number
+  startTime: string
+  endTime: string
+  isClosed: boolean
+  lunchStart: string | null
+  lunchEnd: string | null
+}

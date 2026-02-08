@@ -172,3 +172,48 @@ export const updateBusinessSchema = z.object({
 
 export type CreateBusinessInput = z.infer<typeof createBusinessSchema>
 export type UpdateBusinessInput = z.infer<typeof updateBusinessSchema>
+
+// Admin: working hours (one record per day, 0=Sunday .. 6=Saturday)
+const workingHoursItemSchema = z
+  .object({
+    dayOfWeek: z.number().int().min(0).max(6),
+    startTime: z.string().regex(timeRegex, 'Formato HH:MM'),
+    endTime: z.string().regex(timeRegex, 'Formato HH:MM'),
+    isClosed: z.boolean(),
+    lunchStart: z.string().regex(timeRegex).optional().nullable(),
+    lunchEnd: z.string().regex(timeRegex).optional().nullable(),
+  })
+  .refine(
+    (data) => {
+      if (data.isClosed) return true
+      const [sh, sm] = data.startTime.split(':').map(Number)
+      const [eh, em] = data.endTime.split(':').map(Number)
+      return sh * 60 + sm < eh * 60 + em
+    },
+    { message: 'La hora de inicio debe ser anterior a la de cierre', path: ['endTime'] }
+  )
+  .refine(
+    (data) => {
+      if (!data.lunchStart || !data.lunchEnd) return true
+      const [sh, sm] = data.lunchStart.split(':').map(Number)
+      const [eh, em] = data.lunchEnd.split(':').map(Number)
+      return sh * 60 + sm < eh * 60 + em
+    },
+    { message: 'La pausa de almuerzo debe tener inicio anterior al fin', path: ['lunchEnd'] }
+  )
+
+export const updateWorkingHoursSchema = z.object({
+  hours: z
+    .array(workingHoursItemSchema)
+    .length(7, 'Deben enviarse exactamente 7 días (0=Domingo .. 6=Sábado)')
+    .refine(
+      (arr) => {
+        const days = arr.map((h) => h.dayOfWeek).sort((a, b) => a - b)
+        return days[0] === 0 && days[6] === 6 && new Set(days).size === 7
+      },
+      { message: 'Cada dayOfWeek del 0 al 6 debe aparecer una vez' }
+    ),
+})
+
+export type WorkingHoursItemInput = z.infer<typeof workingHoursItemSchema>
+export type UpdateWorkingHoursInput = z.infer<typeof updateWorkingHoursSchema>
