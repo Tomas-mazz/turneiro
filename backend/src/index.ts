@@ -1,3 +1,4 @@
+import path from 'path'
 import express from 'express'
 import cors from 'cors'
 import helmet from 'helmet'
@@ -10,7 +11,7 @@ const PORT = process.env.PORT || 3001
 const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:3000'
 
 // Middleware
-app.use(helmet())
+app.use(helmet({ crossOriginResourcePolicy: { policy: 'cross-origin' } }))
 app.use(cors({
   origin: FRONTEND_URL,
   credentials: true,
@@ -37,7 +38,12 @@ import authRoutes from './routes/auth'
 import paymentsRoutes from './routes/payments'
 import googleCalendarRoutes from './routes/google-calendar'
 import blockedSlotsRoutes from './routes/blockedSlots'
+import adminRoutes from './routes/admin'
+import uploadRoutes from './routes/upload'
 app.use('/api/businesses', businessesRoutes)
+app.use('/api/admin', adminRoutes)
+app.use('/api/admin/upload', uploadRoutes)
+app.use('/uploads', express.static(path.join(process.cwd(), 'uploads')))
 app.use('/api/availability', availabilityRoutes)
 app.use('/api/appointments', appointmentsRoutes)
 app.use('/api/services', servicesRoutes)

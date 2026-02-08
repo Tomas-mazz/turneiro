@@ -34,6 +34,7 @@ type DateStepProps = {
   onContinue: () => void
   onBack: () => void
   primaryColor: string
+  isDarkTheme?: boolean
 }
 
 export function DateStep({
@@ -53,7 +54,9 @@ export function DateStep({
   onContinue,
   onBack,
   primaryColor,
+  isDarkTheme = true,
 }: DateStepProps) {
+  const bgColor = isDarkTheme ? 'hsl(0, 0%, 9%)' : 'rgb(255, 255, 255)'
   const visibleDates = getVisibleDates(calendarMonth)
   const monthLabel = calendarMonth.toLocaleString('es', { month: 'long', year: 'numeric' })
 
@@ -104,7 +107,7 @@ export function DateStep({
   return (
     <section
       className="min-h-screen text-white"
-      style={{ backgroundColor: 'hsl(0, 0%, 9%)' }}
+      style={{ backgroundColor: bgColor }}
     >
       {/* Header: back button + service title */}
       <header className="border-b border-neutral-600 py-4 md:py-5">

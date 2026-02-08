@@ -14,7 +14,10 @@
 - Modify business settings or schedules
 
 ## Platform Admin (Central Admin Panel)
-**Can do (everything the owner cannot):**
+
+**Who:** The admin is the **owner of the platform/project**. They are the one who creates new businesses (shops), assigns login credentials to each business owner, and manages everything. Each business owner only has access to their own shop's dashboard; they cannot create other businesses or access the admin panel.
+
+**Can do (everything the business owner cannot):**
 - **Manage Clients/Businesses:**
   - Create new clients (Business Name, Industry/Rubro, Photo, Colors, Working Hours)
   - Generate credentials (User/Pass) for the Client Panel

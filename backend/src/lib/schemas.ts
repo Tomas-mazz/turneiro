@@ -89,3 +89,58 @@ export const listBlockedSlotsQuerySchema = z.object({
 })
 
 export type ListBlockedSlotsQuery = z.infer<typeof listBlockedSlotsQuerySchema>
+
+// Admin: create business (step 2)
+const slugSchema = z
+  .string()
+  .min(1, 'El slug es obligatorio')
+  .max(100)
+  .regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/, 'Slug solo letras minúsculas, números y guiones')
+  .transform((s) => s.toLowerCase())
+
+const optionalEmail = z.union([z.string().email(), z.literal('')]).transform((s) => (s === '' ? undefined : s))
+const optionalUrl = z.union([z.string().url(), z.literal('')]).transform((s) => (s === '' ? undefined : s))
+
+export const createBusinessSchema = z.object({
+  name: z.string().min(1, 'El nombre es obligatorio').max(200),
+  slug: slugSchema,
+  category: z.string().min(1, 'La categoría es obligatoria').max(100),
+  description: z.string().max(1000).optional().nullable(),
+  phone: z.string().max(50).optional().nullable(),
+  email: optionalEmail.optional(),
+  address: z.string().max(300).optional().nullable(),
+  logo: optionalUrl.optional(),
+  coverPhoto: optionalUrl.optional(),
+  coverVideo: optionalUrl.optional(),
+  theme: z.enum(['DARK', 'LIGHT']).optional().default('DARK'),
+  paymentRequired: z.boolean(),
+  ownerEmail: z.union([z.string().email(), z.literal('')]).optional(),
+  ownerPassword: z.string().optional(),
+}).refine(
+  (data) => {
+    const email = typeof data.ownerEmail === 'string' ? data.ownerEmail.trim() : ''
+    if (!email) return true
+    return !!data.ownerPassword && data.ownerPassword.length >= 6
+  },
+  { message: 'Si indicás email del owner, la contraseña es obligatoria (mín. 6 caracteres)', path: ['ownerPassword'] }
+)
+
+export const updateBusinessSchema = z.object({
+  name: z.string().min(1).max(200).optional(),
+  slug: z.string().min(1).max(100).regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/).transform((s) => s.toLowerCase()).optional(),
+  category: z.string().min(1).max(100).optional(),
+  description: z.string().max(1000).optional().nullable(),
+  phone: z.string().max(50).optional().nullable(),
+  email: optionalEmail.optional(),
+  address: z.string().max(300).optional().nullable(),
+  logo: optionalUrl.optional(),
+  coverPhoto: optionalUrl.optional(),
+  coverVideo: optionalUrl.optional(),
+  theme: z.enum(['DARK', 'LIGHT']).optional(),
+  paymentRequired: z.boolean().optional(),
+  ownerEmail: z.union([z.string().email(), z.literal('')]).optional(),
+  ownerPassword: z.string().optional(),
+})
+
+export type CreateBusinessInput = z.infer<typeof createBusinessSchema>
+export type UpdateBusinessInput = z.infer<typeof updateBusinessSchema>

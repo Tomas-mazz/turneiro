@@ -12,6 +12,7 @@ node_modules/
 # Backend
 /backend/dist/
 /backend/build
+/backend/uploads/
 /backend/.env
 /backend/.env.local
 

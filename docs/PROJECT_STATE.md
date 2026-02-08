@@ -24,6 +24,7 @@ This is the **single source of truth** for the current state of the project. Use
 ## 2. Project summary
 
 - **What it is:** MVP of a multi-tenant appointment booking SaaS (businesses, services, appointments, public booking page, owner dashboard).  
+- **Admin = platform/project owner:** The admin is the owner of the whole project/platform. They use the admin panel to create new businesses (shops), assign credentials to each business owner, and manage all businesses, services, rules, and appointments. Business owners (owners of each shop) only access their own dashboard; they do not create other businesses.  
 - **Stack:** Next.js 14 (frontend, UI only), Express (backend), PostgreSQL + Prisma, JWT auth.  
 - **Repo:** Single repo at root `Appointments/`; `frontend/` and `backend/`; run commands from root (e.g. `npm run dev`, `npm run db:seed`).  
 - **Language:** Code, comments, commits, README in **English**. All user-facing text (UI, errors) in **Spanish**.
@@ -36,9 +37,9 @@ This is the **single source of truth** for the current state of the project. Use
 - Env: `.env.example` in frontend and backend; `.env` / `.env.local` not versioned.  
 - Frontend: Next.js (App Router), Tailwind, ESLint, pages (layout, globals.css, auth, dashboard, public `[business-slug]`), lib (api, auth, utils), types.  
 - Backend: Express, routes/controllers/services, middleware (auth, errorHandler, validation), lib (prisma, utils).  
-- Prisma: full schema (Business, User, Service, Appointment, WorkingHours, BlockedSlot, BusinessSettings, Subscription); **Appointment** has `cancellationReason` (optional) for owner cancel, `googleEventId` for calendar sync.  
-- DB: PostgreSQL local, migrations; **seed** creates demo business, user `owner@demo.com` / `demo123`, service, working hours, demo appointments.  
-- APIs: `GET /api/businesses/:slug`, `GET /api/availability` and `/week`, `POST /api/appointments`, `POST /api/appointments/cancel` (client by token).  
+- Prisma: full schema (Business, User, Service, Appointment, WorkingHours, BlockedSlot, BusinessSettings, Subscription); **Appointment** has `cancellationReason` (optional) for owner cancel, `googleEventId` for calendar sync. **Business** has `address`; **Employee** model (name, photoUrl, businessId) for booking page display (admin creates; used in service step and will be used in calendar step).  
+- DB: PostgreSQL local, migrations; **seed** creates demo business, user `owner@demo.com` / `demo123`, 3 services (Corte, Corte + Barba, Barba), 3 employees, phone/email/address, working hours, demo appointments.  
+- APIs: `GET /api/businesses/:slug` (returns business with services, workingHours, settings, **address**, **employees**); `GET /api/availability` and `/week`, `POST /api/appointments`, `POST /api/appointments/cancel` (client by token).  
 - Auth: JWT, bcrypt, register/login (register only via API); `requireAuth`, `requireBusinessOwner`; frontend login, dashboard layout protected.  
 - **Payment Backend (Stripe + Mercado Pago):**  
   - `POST /api/payments/create-intent` – create payment intent/preference with deposit or full amount based on BusinessSettings.  
@@ -76,24 +77,73 @@ This is the **single source of truth** for the current state of the project. Use
   - Mercado Pago: POST /payments/create-intent (MERCADOPAGO) → redirect to initPoint → return to `/booking/success|failure|pending?appointmentId=`; success page calls confirm and shows "Cita confirmada".  
 - Public page `[business-slug]`: full booking flow **with payment step** (hero, service, calendar, slots, client form, payment when required, confirmation). Stripe Elements and Mercado Pago redirect; return pages: `/booking/success`, `/booking/failure`, `/booking/pending`, `/booking/stripe-return`.  
 - **Public page hero (done):** Full-viewport background with business image/video (coverPhoto/coverVideo from API); default fallback videos for mobile and desktop in `frontend/public/videos`. Business name with typewriter effect (type → delete → repeat). Title centered between top and "Reservar" button; button centered in viewport. Background fixed to viewport so scroll/overscroll does not show white.
-- **Public page refactor (done):** Route `[business-slug]` split into `types.ts`, `utils.ts`, and `components/` (BookingHero, ServiceStep, DateStep, TimeStep, ClientFormStep, PaymentStep, BookingDone, StripePaymentForm + index); page.tsx holds state and composition only.
+- **Public page refactor (done):** Route `[business-slug]` split into `types.ts`, `utils.ts`, `hooks/useTypewriter.ts`, and `components/` (BookingHero, ServiceStep, DateStep, TimeStep, ClientFormStep, PaymentStep, BookingDone, StripePaymentForm + index); page.tsx holds state and composition only.
+- **Service step (done):** Dark background hsl(0,0%,9%); header with business name typewriter; title "Servicios" between header and list (centered on mobile); left column services list (price with space "$ 500", more spacing between items); right column sticky on desktop only (Empleados, Contacto, Horarios Lunes–Domingo "Cerrado" or time range). Body/html same dark background on service step to avoid white on overscroll.
+- **Cart modal (done):** On service select, bottom sheet opens from below (no overlay); bg rgb(41,41,41); side and bottom margins, max-w-xl; "Continuar" button 50% width centered; close with X; slide-up (open) and slide-down (close) 0.15s, unmount on animationEnd.
+- **Date step / calendar (done):** 7-day window from today with prev/next week navigation; content max-w-3xl centered; selected day in white; blocked or unavailable days with strikethrough and clickable (show "Sin turnos disponibles"); previous week button disabled when on current week; clicking a time slot goes directly to form step; past slots for today filtered in frontend using Argentina time; responsive tablet/mobile (3 date columns on mobile without scroll, slot grid 3 cols mobile / 4 desktop).
+- **Service step – tablet and aside:** Tablet layout; aside (Empleados, Contacto, Horarios) with fixed gap between sections; employees grid max 3 columns per row.
+- **Booking page default timezone:** Argentina (frontend `utils.ts`: BOOKING_TIMEZONE, getNowInArgentina(); page and DateStep use Argentina for todayKey and currentTimeStr when filtering past slots for today).
+- **GET /api/availability/week:** Single 7-day window from startDate; hasSlots = slots.length > 0 for each day (no "today" time filter in backend); calendar shows day tachado only when closed or no slots at all.
+- **Fonts:** Roboto (body) and Montserrat (headings) via next/font in layout and globals; Tailwind font-sans (Roboto), font-heading (Montserrat); h1–h6 use Montserrat in globals.
 - Page `/cancel` for client to cancel by token.  
 - UI and API error messages in Spanish.  
 - **Error handling and UX:** Backend returns generic message for 5xx (no internal details to client); frontend shows user-friendly messages for server/technical errors (reservation, payment). Phone input in booking form restricted to digits and `+` only.
-- **Admin panel – login and redirect (done):**  
+- **Admin panel – login, redirect, list businesses (done):**  
   - Single login at `/login` for owners and admin; backend returns JWT with `user.role` (OWNER, ADMIN, STAFF).  
   - Role-based redirect after login: ADMIN → `/admin`; OWNER/STAFF → `/dashboard`.  
   - Frontend stores user (id, email, role, businessId) in localStorage on login for layout checks; `removeAuthToken` clears token and user.  
   - Admin account in seed: `tmazzucco.dev@gmail.com` with role ADMIN (password in seed only).  
   - `/admin` route group with layout: protected; requires auth and role ADMIN, else redirect to /login or /dashboard.  
   - Dashboard layout: if user is ADMIN, redirect to `/admin`.  
-  - Admin page at `/admin`: placeholder "Panel de administración" (first features to be added).
+  - Admin page at `/admin`: list of all businesses (GET /api/admin/businesses, requireAdmin); table with name, slug, category, contact, services count, appointments count; links "Ver reservas" (public page) and "Editar" (placeholder /admin/businesses/[id]).  
+  - Booking flow: browser back and in-app "Volver" sync with history so back goes to previous step; ClientFormStep and PaymentStep have "Volver" buttons.
 
 ---
 
-## 4. Immediate pending (next steps)
+## 4. Pending (to do – in order)
 
-- **Admin panel – first features:** define and implement first admin features (e.g. list businesses, edit business, blocks, etc.) per ROLES_PERMISSIONS.md and FEATURES_MVP.md.
+All per ROLES_PERMISSIONS.md and FEATURES_MVP.md. Do not invent; only what is listed here.
+
+1. **Admin – list and navigation**  
+   - Keep list of businesses at `/admin`. Add navigation/link to "Crear negocio" and ensure "Editar" goes to business detail.
+
+2. **Businesses – create and edit**  
+   - **Create business:** name, slug, category, contact (phone, email), address, branding basics (logo, cover, primary color).  
+   - **Payment option when creating/editing business:** Admin chooses one:  
+     - **Sin pago antes de la reserva:** client only confirms with name and phone; reservation is confirmed without payment.  
+     - **Con pago antes de la reserva:** client must pay a % or the full amount to confirm (detail configured in payment rules below).  
+   - This choice applies in the public booking MVP (flow already uses `settings.paymentRequired`; admin must be able to set it when creating/editing business).  
+   - **Edit business:** same data + payment option.  
+   - **Credentials:** Generate or assign user (email/password) for the business owner so they can log into the owner dashboard.
+
+3. **Payment and cancellation rules (per business)**  
+   - If "con pago antes de la reserva": configure payment type (deposit % or full), deposit percentage if applicable.  
+   - Cancellation rules: free cancellation window (e.g. 24 h), whether late cancellation has a cost, late cancellation fee (%).  
+   - Other BusinessSettings: buffer time between appointments, etc.  
+   - This configuration is what the public booking flow uses (already reads BusinessSettings; admin needs UI/API to read and update).
+
+4. **Services (per business)**  
+   - CRUD: create, edit, delete services. Fields: name, price, duration (15–120 min), active/inactive.  
+   - Owner dashboard only edits price and duration; admin does full CRUD and name/active.
+
+5. **Working hours (per business)**  
+   - Configure WorkingHours per day (Mon–Sun): open/closed, start time, end time, optional lunch break.  
+   - One record per day per business.
+
+6. **Blocks (per business)**  
+   - Create, edit, delete BlockedSlot for any business: full day (FULL_DAY) or time slot (TIME_SLOT with start/end). Optional reason.  
+   - Owner already has blocks in dashboard for their own business; admin must be able to manage blocks for any business.
+
+7. **Branding (per business)**  
+   - Edit: display name, logo, cover photo, primary color, description/texts (as defined in product).
+
+8. **Appointments (admin view)**  
+   - View all appointments across all businesses (filters: business, date, status).  
+   - Cancel any appointment (with mandatory reason). Change appointment status. Consult cancellation history.
+
+9. **Employees (per business)**  
+   - Create, edit, delete Employee for a business: name, photo. Used on the public booking page.  
+   - Admin creates them; owner cannot add/remove employees in MVP.
 
 ---
 
@@ -131,45 +181,29 @@ Everything else (create/delete services, service names, working hours, blocks, b
 
 ---
 
-## 8. Key files to touch when continuing
+## 8. Key files when continuing
 
-- **Backend:** `backend/src/routes/services.ts`, `backend/src/controllers/services.controller.ts`, `backend/src/services/services.service.ts`; `backend/src/routes/appointments.ts`, `backend/src/controllers/appointments.controller.ts`, `backend/src/services/appointments.service.ts`; `backend/src/routes/auth.ts`, `backend/src/controllers/auth.controller.ts`; `backend/src/lib/schemas.ts`; `backend/prisma/schema.prisma`; `backend/prisma/seed.ts` (admin user).  
-- **Frontend:** `frontend/app/(auth)/login/page.tsx` (redirect by role); `frontend/app/(dashboard)/layout.tsx`; `frontend/app/(dashboard)/dashboard/page.tsx`; `frontend/app/(admin)/layout.tsx` and `frontend/app/(admin)/admin/page.tsx` (admin panel, when added); `frontend/app/(public)/[business-slug]/page.tsx`; `frontend/lib/api.ts`, `frontend/lib/auth.ts`; `frontend/types/index.ts`.  
+- **Backend:** `backend/src/routes/admin.ts`, `backend/src/controllers/admin.controller.ts`; `backend/src/routes/businesses.ts`, `backend/src/services/businesses.service.ts`; `backend/src/routes/services.ts`, `backend/src/controllers/services.controller.ts`; `backend/src/routes/appointments.ts`, `backend/src/controllers/appointments.controller.ts`; `backend/src/routes/blockedSlots.ts`; `backend/src/middleware/auth.ts` (requireAdmin); `backend/src/lib/schemas.ts`; `backend/prisma/schema.prisma`; `backend/prisma/seed.ts`.  
+- **Frontend:** `frontend/app/(admin)/layout.tsx`, `frontend/app/(admin)/admin/page.tsx`, `frontend/app/(admin)/admin/businesses/[id]/page.tsx`; `frontend/app/(auth)/login/page.tsx`; `frontend/app/(dashboard)/dashboard/page.tsx`; `frontend/app/(public)/[business-slug]/page.tsx` and components; `frontend/lib/api.ts`, `frontend/lib/auth.ts`; `frontend/types/index.ts`.  
 - **Docs:** Update PROJECT_STATE.md when completing pending items.
 
 ---
 
-## 9. How to run (for you or the new chat)
+## 9. How to run
 
 - From repo root: `npm run dev` (frontend :3000, backend :3001).  
 - Seed (demo user + business + services + appointments): `npm run db:seed` from root.  
 - **Owner login:** `owner@demo.com` / `demo123` → redirects to `/dashboard`.  
 - **Admin login:** `tmazzucco.dev@gmail.com` (password set in seed; see seed or env) → redirects to `/admin`.  
 - Dashboard: http://localhost:3000/dashboard .  
-- Admin panel: http://localhost:3000/admin (after implementation).  
+- Admin panel: http://localhost:3000/admin .  
 - Public booking: http://localhost:3000/barberia-demo .  
 - Migrations: `backend/prisma/migrations/` is in `.gitignore`; apply with `cd backend && npx prisma migrate dev` when schema changes.  
 - Commits: **English** only (see AI_RULES_FOR_CURSOR.md, CODING_RULES.md).
 
 ---
 
-## 10. Last commits (context for new chat)
-
-- **feat: payment backend - Stripe + Mercado Pago with webhooks and refunds**  
-  - Backend: payment intent/preference creation, webhook handlers, automatic refunds on cancellation.  
-  - Prisma: payment fields (provider, intentId, amount, refund); BusinessSettings with payment config.  
-  - Docs: `backend/PAYMENT_SETUP.md` with full setup and testing instructions.  
-  
-- **feat: Google Calendar integration - OAuth + one-way sync**  
-  - Backend: OAuth flow, automatic event creation/deletion on appointment create/cancel.  
-  - Prisma: User fields (googleRefreshToken, googleCalendarId); Appointment field (googleEventId).  
-  - Docs: `backend/GOOGLE_CALENDAR_SETUP.md` with OAuth setup and testing.  
-  
-- **Note:** Frontend payment step and Google Calendar OAuth UI are pending (backend ready).
-
----
-
-## 11. Multi-Employee Google Calendar (Post-MVP Architecture)
+## 10. Multi-Employee Google Calendar (Post-MVP – do not implement in MVP)
 
 **Note:** "Multi-employee" refers to businesses with multiple staff members (barbers, manicurists, masseuses, etc.) across all business categories (rubros), not just barbershops.
 
@@ -250,7 +284,7 @@ model Appointment {
 
 ---
 
-## 12. Documentation Files
+## 11. Documentation files
 
 - `backend/PAYMENT_SETUP.md` – Complete payment setup (Stripe/Mercado Pago, webhooks, testing).
 - `backend/GOOGLE_CALENDAR_SETUP.md` – Complete Google Calendar setup (OAuth, sync, testing).

@@ -1,6 +1,7 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
+import { usePathname } from 'next/navigation'
 import { api } from '@/lib/api'
 import type { Business, Step, ServiceOption, CreatedAppointment } from './types'
 import { formatDateKey, getNowInArgentina } from './utils'
@@ -17,17 +18,24 @@ function isTechnicalError(msg: unknown): boolean {
   return typeof msg === 'string' && /prisma|invocation|column|database|ECONNREFUSED/i.test(msg)
 }
 
+function getStepFromHistory(): Step {
+  if (typeof window === 'undefined') return 'hero'
+  const s = window.history.state?.step
+  return s && ['hero', 'service', 'date', 'form', 'payment', 'done'].includes(s) ? s : 'hero'
+}
+
 export default function BusinessBookingPage({
   params,
 }: {
   params: { 'business-slug': string }
 }) {
   const slug = params['business-slug']
+  const pathname = usePathname()
   const [business, setBusiness] = useState<Business | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
-  const [step, setStep] = useState<Step>('hero')
+  const [step, setStep] = useState<Step>(getStepFromHistory)
   const [selectedService, setSelectedService] = useState<ServiceOption | null>(null)
   const [calendarMonth, setCalendarMonth] = useState(() => new Date())
   const [weekAvailability, setWeekAvailability] = useState<Record<string, boolean>>({})
@@ -47,6 +55,37 @@ export default function BusinessBookingPage({
   const [paymentError, setPaymentError] = useState<string | null>(null)
   const [paymentProvider, setPaymentProvider] = useState<'STRIPE' | 'MERCADOPAGO' | null>(null)
 
+  const theme = business?.theme === 'LIGHT' ? 'LIGHT' : 'DARK'
+  const isDarkTheme = theme === 'DARK'
+
+  const goToStep = useCallback(
+    (nextStep: Step) => {
+      setStep(nextStep)
+      if (typeof window !== 'undefined') {
+        window.history.pushState({ step: nextStep }, '', pathname ?? `/${slug}`)
+      }
+    },
+    [pathname, slug]
+  )
+
+  const handleBack = useCallback(() => {
+    if (typeof window !== 'undefined') window.history.back()
+  }, [])
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    window.history.replaceState({ step }, '', pathname ?? `/${slug}`)
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps -- only set initial history entry once
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    const onPopState = (e: PopStateEvent) => {
+      setStep(e.state?.step ?? 'hero')
+    }
+    window.addEventListener('popstate', onPopState)
+    return () => window.removeEventListener('popstate', onPopState)
+  }, [])
+
   useEffect(() => {
     api
       .get<Business>(`/businesses/${slug}`)
@@ -61,18 +100,19 @@ export default function BusinessBookingPage({
       .finally(() => setLoading(false))
   }, [slug])
 
-  // Dark background for service and date steps so overscroll/scroll edges don't show white
+  // Background for service and date steps (dark or light theme)
   useEffect(() => {
     if (step !== 'service' && step !== 'date') return
     const prevHtml = document.documentElement.style.backgroundColor
     const prevBody = document.body.style.backgroundColor
-    document.documentElement.style.backgroundColor = 'hsl(0, 0%, 9%)'
-    document.body.style.backgroundColor = 'hsl(0, 0%, 9%)'
+    const bg = isDarkTheme ? 'hsl(0, 0%, 9%)' : 'rgb(255, 255, 255)'
+    document.documentElement.style.backgroundColor = bg
+    document.body.style.backgroundColor = bg
     return () => {
       document.documentElement.style.backgroundColor = prevHtml
       document.body.style.backgroundColor = prevBody
     }
-  }, [step])
+  }, [step, isDarkTheme])
 
   useEffect(() => {
     if (step !== 'date' || !business || !selectedService) return
@@ -130,14 +170,14 @@ export default function BusinessBookingPage({
       .then((res) => {
         setCreatedAppointment(res.data)
         if (business.settings?.paymentRequired) {
-          setStep('payment')
+          goToStep('payment')
           setPaymentError(null)
           setPaymentProvider(null)
           setPaymentClientSecret(null)
           setPaymentIntentId(null)
           setPaymentAmount(null)
         } else {
-          setStep('done')
+          goToStep('done')
         }
       })
       .catch((err) => {
@@ -218,13 +258,13 @@ export default function BusinessBookingPage({
   }
 
   const handleStripePaymentSuccess = () => {
-    setStep('done')
+    goToStep('done')
     setPaymentClientSecret(null)
     setPaymentIntentId(null)
     setPaymentProvider(null)
   }
 
-  const primaryColor = business?.primaryColor || '#000000'
+  const primaryColor = business?.primaryColor || '#f5f5f5'
   const { dateKey: todayKey, timeStr: currentTimeArgentina } = getNowInArgentina()
 
   if (loading) {
@@ -254,7 +294,11 @@ export default function BusinessBookingPage({
           ? 'min-h-screen h-screen overflow-hidden bg-neutral-100'
           : 'min-h-screen bg-neutral-100'
       }
-      style={step === 'service' || step === 'date' ? { backgroundColor: 'hsl(0, 0%, 9%)' } : undefined}
+      style={
+        step === 'service' || step === 'date'
+          ? { backgroundColor: isDarkTheme ? 'hsl(0, 0%, 9%)' : 'rgb(255, 255, 255)' }
+          : undefined
+      }
     >
       {step === 'hero' && (
         <BookingHero
@@ -262,7 +306,7 @@ export default function BusinessBookingPage({
           coverPhoto={business.coverPhoto}
           coverVideo={business.coverVideo ?? null}
           primaryColor={primaryColor}
-          onReservar={() => setStep('service')}
+          onReservar={() => goToStep('service')}
         />
       )}
 
@@ -271,8 +315,9 @@ export default function BusinessBookingPage({
           business={business}
           selectedService={selectedService}
           onSelectService={setSelectedService}
-          onContinue={() => setStep('date')}
+          onContinue={() => goToStep('date')}
           primaryColor={primaryColor}
+          isDarkTheme={isDarkTheme}
         />
       )}
 
@@ -291,9 +336,10 @@ export default function BusinessBookingPage({
           slotsLoading={slotsLoading}
           selectedSlot={selectedSlot}
           onSelectedSlot={setSelectedSlot}
-          onContinue={() => setStep('form')}
-          onBack={() => setStep('service')}
+          onContinue={() => goToStep('form')}
+          onBack={handleBack}
           primaryColor={primaryColor}
+          isDarkTheme={isDarkTheme}
         />
       )}
 
@@ -309,6 +355,17 @@ export default function BusinessBookingPage({
           onSubmit={handleSubmit}
           submitLoading={submitLoading}
           submitError={submitError}
+          createdAppointment={createdAppointment}
+          onContinueToPayment={createdAppointment ? () => goToStep('payment') : undefined}
+          onBack={handleBack}
+          onBackToCalendar={
+            createdAppointment
+              ? () => {
+                  setCreatedAppointment(null)
+                  goToStep('date')
+                }
+              : undefined
+          }
           primaryColor={primaryColor}
         />
       )}
@@ -331,6 +388,7 @@ export default function BusinessBookingPage({
             onMercadoPagoIntent={handleCreateMercadoPagoIntent}
             onStripeSuccess={handleStripePaymentSuccess}
             onPaymentError={setPaymentError}
+            onBack={handleBack}
             primaryColor={primaryColor}
           />
         )}

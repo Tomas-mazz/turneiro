@@ -1,6 +1,14 @@
 import axios from 'axios'
 import { getAuthToken } from './auth'
-import type { ServiceListItem, AppointmentListItem, BlockedSlotListItem } from '@/types'
+import type {
+  ServiceListItem,
+  AppointmentListItem,
+  BlockedSlotListItem,
+  AdminBusinessListItem,
+  AdminBusinessDetail,
+  CreateBusinessBody,
+  UpdateBusinessBody,
+} from '@/types'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'
 
@@ -113,4 +121,38 @@ export async function createBlockedSlot(
 
 export async function deleteBlockedSlot(id: string): Promise<void> {
   await api.delete(`/blocked-slots/${id}`)
+}
+
+export async function getAdminBusinesses(): Promise<AdminBusinessListItem[]> {
+  const { data } = await api.get<AdminBusinessListItem[]>('/admin/businesses')
+  return data
+}
+
+export async function getAdminBusiness(id: string): Promise<AdminBusinessDetail> {
+  const { data } = await api.get<AdminBusinessDetail>(`/admin/businesses/${id}`)
+  return data
+}
+
+export async function createAdminBusiness(
+  body: CreateBusinessBody
+): Promise<{ id: string; slug: string }> {
+  const { data } = await api.post<{ id: string; slug: string }>('/admin/businesses', body)
+  return data
+}
+
+export async function updateAdminBusiness(
+  id: string,
+  body: UpdateBusinessBody
+): Promise<{ ok: boolean }> {
+  const { data } = await api.patch<{ ok: boolean }>(`/admin/businesses/${id}`, body)
+  return data
+}
+
+export async function uploadAdminFile(file: File): Promise<{ url: string }> {
+  const formData = new FormData()
+  formData.append('file', file)
+  const { data } = await api.post<{ url: string }>('/admin/upload', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  })
+  return data
 }

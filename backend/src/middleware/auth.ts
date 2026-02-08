@@ -46,3 +46,17 @@ export function requireBusinessOwner(
     next()
   })
 }
+
+export function requireAdmin(
+  req: AuthRequest,
+  res: Response,
+  next: NextFunction
+): void {
+  requireAuth(req, res, () => {
+    if (!req.user || req.user.role !== 'ADMIN') {
+      res.status(403).json({ error: 'Acceso denegado. Solo administradores.' })
+      return
+    }
+    next()
+  })
+}

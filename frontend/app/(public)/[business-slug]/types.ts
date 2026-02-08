@@ -11,6 +11,7 @@ export type Business = {
   description: string | null
   coverPhoto: string | null
   coverVideo?: string | null
+  theme?: string
   primaryColor: string
   phone: string | null
   email: string | null

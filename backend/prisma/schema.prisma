@@ -16,7 +16,9 @@ model Business {
   category    String   // Business category/rubro (barbershop, salon, spa, etc.)
   logo        String?
   coverPhoto  String?
-  primaryColor String  @default("#000000")
+  coverVideo  String?
+  theme       String  @default("DARK")   // DARK = fondo oscuro, LIGHT = fondo blanco
+  primaryColor String  @default("#000000")  // derived from theme for buttons (set on save)
   phone       String?
   email       String?
   address     String?

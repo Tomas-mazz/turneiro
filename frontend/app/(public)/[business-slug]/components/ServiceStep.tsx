@@ -16,6 +16,7 @@ type ServiceStepProps = {
   onSelectService: (s: ServiceOption | null) => void
   onContinue: () => void
   primaryColor: string
+  isDarkTheme?: boolean
 }
 
 export function ServiceStep({
@@ -23,7 +24,14 @@ export function ServiceStep({
   selectedService,
   onSelectService,
   onContinue,
+  primaryColor,
+  isDarkTheme = true,
 }: ServiceStepProps) {
+  const bgColor = isDarkTheme ? 'hsl(0, 0%, 9%)' : 'rgb(255, 255, 255)'
+  const textColor = isDarkTheme ? 'text-white' : 'text-neutral-900'
+  const borderColor = isDarkTheme ? 'border-neutral-600' : 'border-neutral-200'
+  const cartBg = isDarkTheme ? 'rgb(41, 41, 41)' : 'rgb(243, 244, 246)'
+  const titleColor = isDarkTheme ? 'text-neutral-300' : 'text-neutral-600'
   const workingHoursByDay = (business.workingHours ?? []).reduce(
     (acc, wh) => {
       acc[wh.dayOfWeek] = wh
@@ -51,11 +59,11 @@ export function ServiceStep({
   }
 
   return (
-    <section className="min-h-screen text-white" style={{ backgroundColor: 'hsl(0, 0%, 9%)' }}>
+    <section className={`min-h-screen ${textColor}`} style={{ backgroundColor: bgColor }}>
       {/* Header: business name with typewriter */}
-      <header className="border-b border-neutral-600 py-6 md:py-8">
+      <header className={`border-b ${borderColor} py-6 md:py-8`}>
         <div className="mx-auto max-w-4xl px-4 text-center md:max-w-4xl md:px-6 md:text-left lg:max-w-6xl lg:px-8">
-          <h1 className="text-2xl font-bold text-white md:text-3xl">
+          <h1 className={`text-2xl font-bold md:text-3xl ${isDarkTheme ? 'text-white' : 'text-neutral-900'}`}>
             {displayName}
             <span className="animate-pulse">|</span>
           </h1>
@@ -65,10 +73,10 @@ export function ServiceStep({
       <div className="mx-auto flex max-w-4xl flex-col gap-8 px-4 py-8 md:max-w-4xl md:flex-row md:gap-10 md:px-6 md:py-10 lg:max-w-6xl lg:gap-12 lg:px-8">
         {/* Left: services list */}
         <div className="min-w-0 flex-1">
-          <h2 className="mb-4 text-center text-lg font-semibold text-neutral-300 md:mb-5 md:text-left md:text-xl">
+          <h2 className={`mb-4 text-center text-lg font-semibold md:mb-5 md:text-left md:text-xl ${titleColor}`}>
             Servicios
           </h2>
-          <ul className="divide-y divide-neutral-600">
+          <ul className={`divide-y ${isDarkTheme ? 'divide-neutral-600' : 'divide-neutral-200'}`}>
             {business.services.map((s) => {
               const isSelected = selectedService?.id === s.id
               return (
@@ -224,10 +232,10 @@ export function ServiceStep({
             ref={panelRef}
             onAnimationEnd={handleSlideDownEnd}
             className={`mx-auto w-full max-w-md rounded-2xl p-6 shadow-[0_-4px_24px_rgba(0,0,0,0.3)] md:max-w-lg md:p-6 ${isClosing ? 'animate-slide-down' : 'animate-slide-up'}`}
-            style={{ backgroundColor: 'rgb(41, 41, 41)' }}
+            style={{ backgroundColor: cartBg }}
           >
             <div className="mb-4 flex items-center justify-between">
-              <h2 id="cart-title" className="text-lg font-semibold text-white">
+              <h2 id="cart-title" className={`text-lg font-semibold ${isDarkTheme ? 'text-white' : 'text-neutral-900'}`}>
                 Tu carrito
               </h2>
               <button
