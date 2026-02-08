@@ -133,6 +133,45 @@ export async function getAdminBusiness(id: string): Promise<AdminBusinessDetail>
   return data
 }
 
+export async function getAdminBusinessServices(businessId: string): Promise<ServiceListItem[]> {
+  const { data } = await api.get<ServiceListItem[]>(`/admin/businesses/${businessId}/services`)
+  return data
+}
+
+export type CreateServiceAdminBody = {
+  name: string
+  price: number
+  duration: number
+  isActive?: boolean
+}
+
+export type UpdateServiceAdminBody = {
+  name?: string
+  price?: number
+  duration?: number
+  isActive?: boolean
+}
+
+export async function createAdminService(
+  businessId: string,
+  body: CreateServiceAdminBody
+): Promise<ServiceListItem> {
+  const { data } = await api.post<ServiceListItem>(`/admin/businesses/${businessId}/services`, body)
+  return data
+}
+
+export async function updateAdminService(
+  serviceId: string,
+  body: UpdateServiceAdminBody
+): Promise<ServiceListItem> {
+  const { data } = await api.patch<ServiceListItem>(`/admin/services/${serviceId}`, body)
+  return data
+}
+
+export async function deleteAdminService(serviceId: string): Promise<void> {
+  await api.delete(`/admin/services/${serviceId}`)
+}
+
 export async function createAdminBusiness(
   body: CreateBusinessBody
 ): Promise<{ id: string; slug: string }> {

@@ -7,8 +7,24 @@ import {
   getAdminBusiness,
   updateAdminBusiness,
   uploadAdminFile,
+  getAdminBusinessServices,
+  createAdminService,
+  updateAdminService,
+  deleteAdminService,
 } from '@/lib/api'
-import type { AdminBusinessDetail, UpdateBusinessBody } from '@/types'
+import type { AdminBusinessDetail, UpdateBusinessBody, ServiceListItem } from '@/types'
+
+type FormState = Omit<
+  UpdateBusinessBody,
+  'depositPercentage' | 'freeCancellationWindow' | 'lateCancellationFee' | 'bufferTime' | 'paymentType' | 'cancellationHasCost'
+> & {
+  paymentType: 'PERCENTAGE' | 'FULL'
+  depositPercentage: number | ''
+  freeCancellationWindow: number | ''
+  cancellationHasCost: boolean
+  lateCancellationFee: number | ''
+  bufferTime: number | ''
+}
 
 export default function AdminBusinessPage() {
   const params = useParams()
@@ -18,7 +34,7 @@ export default function AdminBusinessPage() {
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [form, setForm] = useState<UpdateBusinessBody>({
+  const [form, setForm] = useState<FormState>({
     name: '',
     slug: '',
     category: 'barbershop',
@@ -31,12 +47,23 @@ export default function AdminBusinessPage() {
     coverVideo: '',
     theme: 'DARK',
     paymentRequired: false,
+    paymentType: 'FULL',
+    depositPercentage: '',
+    freeCancellationWindow: 24,
+    cancellationHasCost: false,
+    lateCancellationFee: '',
+    bufferTime: '',
     ownerEmail: '',
     ownerPassword: '',
   })
   const [logoUploading, setLogoUploading] = useState(false)
   const [coverUploading, setCoverUploading] = useState(false)
   const [coverUploadError, setCoverUploadError] = useState<string | null>(null)
+  const [services, setServices] = useState<ServiceListItem[]>([])
+  const [servicesLoading, setServicesLoading] = useState(false)
+  const [newService, setNewService] = useState({ name: '', price: '', duration: '30', isActive: true })
+  const [creatingService, setCreatingService] = useState(false)
+  const [editingService, setEditingService] = useState<ServiceListItem | null>(null)
 
   useEffect(() => {
     if (!id) return
@@ -56,6 +83,12 @@ export default function AdminBusinessPage() {
           coverVideo: b.coverVideo ?? '',
           theme: (b.theme === 'LIGHT' ? 'LIGHT' : 'DARK') as 'DARK' | 'LIGHT',
           paymentRequired: b.settings?.paymentRequired ?? false,
+          paymentType: b.settings?.paymentType === 'PERCENTAGE' ? 'PERCENTAGE' : 'FULL',
+          depositPercentage: b.settings?.depositPercentage ?? '',
+          freeCancellationWindow: b.settings?.freeCancellationWindow ?? 24,
+          cancellationHasCost: b.settings?.cancellationHasCost ?? false,
+          lateCancellationFee: b.settings?.lateCancellationFee ?? '',
+          bufferTime: b.settings?.bufferTime ?? '',
           ownerEmail: b.owner?.email ?? '',
           ownerPassword: '',
         })
@@ -64,11 +97,93 @@ export default function AdminBusinessPage() {
       .finally(() => setLoading(false))
   }, [id])
 
+  const loadServices = () => {
+    if (!id) return
+    setServicesLoading(true)
+    getAdminBusinessServices(id)
+      .then(setServices)
+      .catch(() => setError('Error al cargar servicios'))
+      .finally(() => setServicesLoading(false))
+  }
+
+  useEffect(() => {
+    if (id && business) {
+      setServicesLoading(true)
+      getAdminBusinessServices(id)
+        .then(setServices)
+        .catch(() => setError('Error al cargar servicios'))
+        .finally(() => setServicesLoading(false))
+    }
+  }, [id, business?.id])
+
+  const handleAddService = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!id || !newService.name.trim() || !newService.price || !newService.duration) return
+    setCreatingService(true)
+    try {
+      const service = await createAdminService(id, {
+        name: newService.name.trim(),
+        price: Number(newService.price),
+        duration: Math.min(120, Math.max(15, Number(newService.duration))),
+        isActive: newService.isActive,
+      })
+      setServices((prev) => [...prev, service])
+      setNewService({ name: '', price: '', duration: '30', isActive: true })
+    } catch (err: unknown) {
+      const msg =
+        err && typeof err === 'object' && 'response' in err
+          ? (err as { response?: { data?: { error?: string } } }).response?.data?.error
+          : null
+      setError(msg || 'Error al crear servicio')
+    } finally {
+      setCreatingService(false)
+    }
+  }
+
+  const handleUpdateService = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!editingService) return
+    try {
+      const updated = await updateAdminService(editingService.id, {
+        name: editingService.name,
+        price: editingService.price,
+        duration: editingService.duration,
+        isActive: editingService.isActive,
+      })
+      setServices((prev) => prev.map((s) => (s.id === updated.id ? updated : s)))
+      setEditingService(null)
+    } catch (err: unknown) {
+      const msg =
+        err && typeof err === 'object' && 'response' in err
+          ? (err as { response?: { data?: { error?: string } } }).response?.data?.error
+          : null
+      setError(msg || 'Error al actualizar servicio')
+    }
+  }
+
+  const handleDeleteService = async (serviceId: string) => {
+    if (!confirm('¿Eliminar este servicio?')) return
+    try {
+      await deleteAdminService(serviceId)
+      setServices((prev) => prev.filter((s) => s.id !== serviceId))
+    } catch (err: unknown) {
+      const msg =
+        err && typeof err === 'object' && 'response' in err
+          ? (err as { response?: { data?: { error?: string } } }).response?.data?.error
+          : null
+      setError(msg || 'Error al eliminar servicio')
+    }
+  }
+
   const handleChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>
   ) => {
     const { name, value } = e.target
-    setForm((prev) => ({ ...prev, [name]: value }))
+    const numFields = ['depositPercentage', 'freeCancellationWindow', 'lateCancellationFee', 'bufferTime']
+    const parsed = numFields.includes(name)
+      ? (value === '' ? '' : (Number(value) || 0))
+      : value
+    setForm((prev) => ({ ...prev, [name]: parsed }))
   }
 
   const handleLogoFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -123,6 +238,7 @@ export default function AdminBusinessPage() {
         slug: form.slug?.trim(),
         category: form.category?.trim(),
         paymentRequired: form.paymentRequired,
+        paymentType: form.paymentType,
         theme: form.theme,
       }
       if (form.description !== undefined) body.description = (form.description ?? '').toString().trim() || null
@@ -132,6 +248,16 @@ export default function AdminBusinessPage() {
       if (form.logo !== undefined) body.logo = form.logo?.trim() || null
       if (form.coverPhoto !== undefined) body.coverPhoto = form.coverPhoto?.trim() || null
       if (form.coverVideo !== undefined) body.coverVideo = form.coverVideo?.trim() || null
+      if (form.paymentRequired) {
+        body.paymentType = form.paymentType
+        body.depositPercentage = form.depositPercentage === '' ? null : Number(form.depositPercentage)
+      }
+      body.freeCancellationWindow = form.freeCancellationWindow === '' ? null : Number(form.freeCancellationWindow)
+      body.cancellationHasCost = form.cancellationHasCost
+      body.lateCancellationFee = form.cancellationHasCost && form.lateCancellationFee !== ''
+        ? Number(form.lateCancellationFee)
+        : null
+      body.bufferTime = form.bufferTime === '' ? null : Number(form.bufferTime)
       if (form.ownerEmail !== undefined) body.ownerEmail = form.ownerEmail.trim() || undefined
       if (form.ownerPassword?.trim()) body.ownerPassword = form.ownerPassword
 
@@ -371,30 +497,326 @@ export default function AdminBusinessPage() {
 
         <fieldset className="rounded-lg border border-neutral-200 p-4">
           <legend className="text-sm font-medium text-neutral-700">
-            Reserva con pago antes de confirmar
+            Reglas de pago y cancelación
           </legend>
-          <div className="flex gap-6">
-            <label className="flex items-center gap-2">
-              <input
-                type="radio"
-                name="paymentRequired"
-                checked={!form.paymentRequired}
-                onChange={() => setForm((p) => ({ ...p, paymentRequired: false }))}
-                className="text-neutral-900"
-              />
-              <span>Sin pago antes de la reserva</span>
-            </label>
-            <label className="flex items-center gap-2">
-              <input
-                type="radio"
-                name="paymentRequired"
-                checked={form.paymentRequired}
-                onChange={() => setForm((p) => ({ ...p, paymentRequired: true }))}
-                className="text-neutral-900"
-              />
-              <span>Con pago antes de la reserva</span>
-            </label>
+
+          <div className="mb-4">
+            <p className="mb-2 text-sm font-medium text-neutral-700">Reserva con pago antes de confirmar</p>
+            <div className="flex gap-6">
+              <label className="flex items-center gap-2">
+                <input
+                  type="radio"
+                  name="paymentRequired"
+                  checked={!form.paymentRequired}
+                  onChange={() => setForm((p) => ({ ...p, paymentRequired: false }))}
+                  className="text-neutral-900"
+                />
+                <span>Sin pago antes de la reserva</span>
+              </label>
+              <label className="flex items-center gap-2">
+                <input
+                  type="radio"
+                  name="paymentRequired"
+                  checked={form.paymentRequired}
+                  onChange={() => setForm((p) => ({ ...p, paymentRequired: true }))}
+                  className="text-neutral-900"
+                />
+                <span>Con pago antes de la reserva</span>
+              </label>
+            </div>
           </div>
+
+          {form.paymentRequired && (
+            <div className="mb-4 space-y-3">
+              <p className="text-sm font-medium text-neutral-700">Tipo de pago</p>
+              <div className="flex gap-6">
+                <label className="flex items-center gap-2">
+                  <input
+                    type="radio"
+                    name="paymentType"
+                    checked={form.paymentType === 'FULL'}
+                    onChange={() => setForm((p) => ({ ...p, paymentType: 'FULL' as const }))}
+                    className="text-neutral-900"
+                  />
+                  <span>Pago completo</span>
+                </label>
+                <label className="flex items-center gap-2">
+                  <input
+                    type="radio"
+                    name="paymentType"
+                    checked={form.paymentType === 'PERCENTAGE'}
+                    onChange={() => setForm((p) => ({ ...p, paymentType: 'PERCENTAGE' as const }))}
+                    className="text-neutral-900"
+                  />
+                  <span>Depósito (% del total)</span>
+                </label>
+              </div>
+              {form.paymentType === 'PERCENTAGE' && (
+                <div className="w-40">
+                  <label htmlFor="depositPercentage" className="mb-1 block text-sm text-neutral-600">
+                    Porcentaje de depósito (%)
+                  </label>
+                  <input
+                    id="depositPercentage"
+                    name="depositPercentage"
+                    type="number"
+                    min={1}
+                    max={100}
+                    value={form.depositPercentage === '' ? '' : form.depositPercentage}
+                    onChange={handleChange}
+                    placeholder="ej. 50"
+                    className="w-full rounded-lg border border-neutral-300 px-3 py-2 focus:border-neutral-500 focus:ring-1 focus:ring-neutral-500"
+                  />
+                </div>
+              )}
+            </div>
+          )}
+
+          <div className="mb-4 space-y-3">
+            <p className="text-sm font-medium text-neutral-700">Reglas de cancelación</p>
+            <div className="flex flex-wrap gap-6">
+              <div className="w-32">
+                <label htmlFor="freeCancellationWindow" className="mb-1 block text-sm text-neutral-600">
+                  Ventana gratuita (horas antes)
+                </label>
+                <input
+                  id="freeCancellationWindow"
+                  name="freeCancellationWindow"
+                  type="number"
+                  min={0}
+                  value={form.freeCancellationWindow === '' ? '' : form.freeCancellationWindow}
+                  onChange={handleChange}
+                  placeholder="24"
+                  className="w-full rounded-lg border border-neutral-300 px-3 py-2 focus:border-neutral-500 focus:ring-1 focus:ring-neutral-500"
+                />
+              </div>
+              <div className="flex items-end gap-4">
+                <label className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    checked={form.cancellationHasCost}
+                    onChange={(e) => setForm((p) => ({ ...p, cancellationHasCost: e.target.checked }))}
+                    className="rounded border-neutral-300 text-neutral-900"
+                  />
+                  <span className="text-sm text-neutral-600">Cancelación tardía tiene costo</span>
+                </label>
+                {form.cancellationHasCost && (
+                  <div className="w-24">
+                    <label htmlFor="lateCancellationFee" className="mb-1 block text-sm text-neutral-600">
+                      Penalización (%)
+                    </label>
+                    <input
+                      id="lateCancellationFee"
+                      name="lateCancellationFee"
+                      type="number"
+                      min={0}
+                      max={100}
+                      value={form.lateCancellationFee === '' ? '' : form.lateCancellationFee}
+                      onChange={handleChange}
+                      placeholder="10"
+                      className="w-full rounded-lg border border-neutral-300 px-3 py-2 focus:border-neutral-500 focus:ring-1 focus:ring-neutral-500"
+                    />
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+
+          <div className="w-40">
+            <label htmlFor="bufferTime" className="mb-1 block text-sm font-medium text-neutral-700">
+              Buffer entre citas (minutos)
+            </label>
+            <input
+              id="bufferTime"
+              name="bufferTime"
+              type="number"
+              min={0}
+              value={form.bufferTime === '' ? '' : form.bufferTime}
+              onChange={handleChange}
+              placeholder="0"
+              className="w-full rounded-lg border border-neutral-300 px-3 py-2 focus:border-neutral-500 focus:ring-1 focus:ring-neutral-500"
+            />
+            <p className="mt-0.5 text-xs text-neutral-500">
+              Tiempo mínimo entre una cita y la siguiente
+            </p>
+          </div>
+        </fieldset>
+
+        <fieldset id="servicios" className="rounded-lg border border-neutral-200 p-4">
+          <legend className="text-sm font-medium text-neutral-700">
+            Servicios
+          </legend>
+          <p className="mb-4 text-xs text-neutral-500">
+            Creá, editá o eliminá servicios. El owner solo puede editar precio y duración.
+          </p>
+
+          <form onSubmit={handleAddService} className="mb-4 flex flex-wrap items-end gap-3">
+            <div className="w-40">
+              <label htmlFor="newServiceName" className="mb-1 block text-xs text-neutral-600">
+                Nombre *
+              </label>
+              <input
+                id="newServiceName"
+                type="text"
+                required
+                value={newService.name}
+                onChange={(e) => setNewService((p) => ({ ...p, name: e.target.value }))}
+                placeholder="ej. Corte"
+                className="w-full rounded-lg border border-neutral-300 px-3 py-2 text-sm"
+              />
+            </div>
+            <div className="w-24">
+              <label htmlFor="newServicePrice" className="mb-1 block text-xs text-neutral-600">
+                Precio *
+              </label>
+              <input
+                id="newServicePrice"
+                type="number"
+                required
+                min={0}
+                step={0.01}
+                value={newService.price}
+                onChange={(e) => setNewService((p) => ({ ...p, price: e.target.value }))}
+                placeholder="500"
+                className="w-full rounded-lg border border-neutral-300 px-3 py-2 text-sm"
+              />
+            </div>
+            <div className="w-24">
+              <label htmlFor="newServiceDuration" className="mb-1 block text-xs text-neutral-600">
+                Duración (min) *
+              </label>
+              <input
+                id="newServiceDuration"
+                type="number"
+                required
+                min={15}
+                max={120}
+                value={newService.duration}
+                onChange={(e) => setNewService((p) => ({ ...p, duration: e.target.value }))}
+                className="w-full rounded-lg border border-neutral-300 px-3 py-2 text-sm"
+              />
+            </div>
+            <label className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                checked={newService.isActive}
+                onChange={(e) => setNewService((p) => ({ ...p, isActive: e.target.checked }))}
+                className="rounded border-neutral-300"
+              />
+              <span className="text-xs text-neutral-600">Activo</span>
+            </label>
+            <button
+              type="submit"
+              disabled={creatingService}
+              className="rounded-lg bg-neutral-900 px-4 py-2 text-sm font-medium text-white hover:bg-neutral-800 disabled:opacity-50"
+            >
+              {creatingService ? 'Agregando...' : 'Agregar'}
+            </button>
+          </form>
+
+          {servicesLoading ? (
+            <p className="text-sm text-neutral-500">Cargando servicios...</p>
+          ) : services.length === 0 ? (
+            <p className="text-sm text-neutral-500">No hay servicios. Agregá uno arriba.</p>
+          ) : (
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-neutral-200 text-left text-neutral-600">
+                  <th className="py-2">Nombre</th>
+                  <th className="py-2">Precio</th>
+                  <th className="py-2">Duración</th>
+                  <th className="py-2">Activo</th>
+                  <th className="py-2"></th>
+                </tr>
+              </thead>
+              <tbody>
+                {services.map((s) =>
+                  editingService?.id === s.id ? (
+                    <tr key={s.id} className="border-b border-neutral-100 bg-neutral-50">
+                      <td colSpan={5} className="py-3">
+                        <form
+                          onSubmit={handleUpdateService}
+                          className="flex flex-wrap items-center gap-3"
+                        >
+                          <input
+                            type="text"
+                            value={editingService.name}
+                            onChange={(e) => setEditingService((p) => (p ? { ...p, name: e.target.value } : null))}
+                            className="w-32 rounded border border-neutral-300 px-2 py-1 text-sm"
+                            required
+                          />
+                          <input
+                            type="number"
+                            min={0}
+                            step={0.01}
+                            value={editingService.price}
+                            onChange={(e) => setEditingService((p) => (p ? { ...p, price: Number(e.target.value) } : null))}
+                            className="w-20 rounded border border-neutral-300 px-2 py-1 text-sm"
+                            required
+                          />
+                          <input
+                            type="number"
+                            min={15}
+                            max={120}
+                            value={editingService.duration}
+                            onChange={(e) => setEditingService((p) => (p ? { ...p, duration: Number(e.target.value) } : null))}
+                            className="w-16 rounded border border-neutral-300 px-2 py-1 text-sm"
+                            required
+                          />
+                          <label className="flex items-center gap-1 text-sm">
+                            <input
+                              type="checkbox"
+                              checked={editingService.isActive}
+                              onChange={(e) => setEditingService((p) => (p ? { ...p, isActive: e.target.checked } : null))}
+                              className="rounded"
+                            />
+                            Activo
+                          </label>
+                          <button
+                            type="submit"
+                            className="rounded bg-neutral-900 px-2 py-1 text-xs text-white hover:bg-neutral-800"
+                          >
+                            Guardar
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setEditingService(null)}
+                            className="rounded border border-neutral-300 px-2 py-1 text-xs text-neutral-600 hover:bg-neutral-100"
+                          >
+                            Cancelar
+                          </button>
+                        </form>
+                      </td>
+                    </tr>
+                  ) : (
+                    <tr key={s.id} className="border-b border-neutral-100">
+                      <td className="py-2">{s.name}</td>
+                      <td className="py-2">$ {s.price}</td>
+                      <td className="py-2">{s.duration} min</td>
+                      <td className="py-2">{s.isActive ? 'Sí' : 'No'}</td>
+                      <td className="py-2">
+                        <button
+                          type="button"
+                          onClick={() => setEditingService(s)}
+                          className="text-neutral-600 underline hover:text-neutral-900"
+                        >
+                          Editar
+                        </button>
+                        {' · '}
+                        <button
+                          type="button"
+                          onClick={() => handleDeleteService(s.id)}
+                          className="text-red-600 underline hover:text-red-800"
+                        >
+                          Eliminar
+                        </button>
+                      </td>
+                    </tr>
+                  )
+                )}
+              </tbody>
+            </table>
+          )}
         </fieldset>
 
         <fieldset className="rounded-lg border border-neutral-200 p-4">

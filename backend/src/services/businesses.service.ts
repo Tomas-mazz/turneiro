@@ -1,3 +1,4 @@
+import bcrypt from 'bcryptjs'
 import { prisma } from '../lib/prisma'
 import type { Prisma } from '@prisma/client'
 
@@ -139,6 +140,10 @@ export interface AdminBusinessDetail {
     paymentRequired: boolean
     paymentType: string | null
     depositPercentage: number | null
+    freeCancellationWindow: number | null
+    cancellationHasCost: boolean
+    lateCancellationFee: number | null
+    bufferTime: number | null
   } | null
   owner: { id: string; email: string } | null
 }
@@ -160,7 +165,15 @@ type BusinessByIdAdminRow = {
   address: string | null
   createdAt: Date
   updatedAt: Date
-  settings: { paymentRequired: boolean; paymentType: string | null; depositPercentage: number | null } | null
+  settings: {
+    paymentRequired: boolean
+    paymentType: string | null
+    depositPercentage: number | null
+    freeCancellationWindow: number | null
+    cancellationHasCost: boolean
+    lateCancellationFee: number | null
+    bufferTime: number | null
+  } | null
   users: { id: string; email: string }[]
 }
 
@@ -193,6 +206,10 @@ export async function getBusinessByIdForAdmin(
           paymentRequired: true,
           paymentType: true,
           depositPercentage: true,
+          freeCancellationWindow: true,
+          cancellationHasCost: true,
+          lateCancellationFee: true,
+          bufferTime: true,
         },
       },
       users: {
@@ -308,7 +325,6 @@ export async function createBusinessForAdmin(
       input.ownerPassword &&
       input.ownerPassword.length >= 6
     ) {
-      const bcrypt = await import('bcryptjs')
       const hashed = await bcrypt.hash(input.ownerPassword, 10)
       const existingUser = await tx.user.findUnique({
         where: { email: input.ownerEmail.trim().toLowerCase() },
@@ -353,6 +369,12 @@ export interface UpdateBusinessForAdminInput {
   coverVideo?: string | null
   theme?: 'DARK' | 'LIGHT'
   paymentRequired?: boolean
+  paymentType?: 'PERCENTAGE' | 'FULL'
+  depositPercentage?: number | null
+  freeCancellationWindow?: number | null
+  cancellationHasCost?: boolean
+  lateCancellationFee?: number | null
+  bufferTime?: number | null
   ownerEmail?: string
   ownerPassword?: string
 }
@@ -405,17 +427,63 @@ export async function updateBusinessForAdmin(
       })
     }
 
-    if (input.paymentRequired !== undefined) {
+    const hasSettingsInput =
+      input.paymentRequired !== undefined ||
+      input.paymentType !== undefined ||
+      input.depositPercentage !== undefined ||
+      input.freeCancellationWindow !== undefined ||
+      input.cancellationHasCost !== undefined ||
+      input.lateCancellationFee !== undefined ||
+      input.bufferTime !== undefined
+
+    if (hasSettingsInput) {
+      const existingSettings = existing.settings
+      const paymentRequired =
+        input.paymentRequired ?? existingSettings?.paymentRequired ?? false
+      const paymentType =
+        input.paymentType ??
+        existingSettings?.paymentType ??
+        (paymentRequired ? 'FULL' : null)
+      const depositPercentage =
+        input.depositPercentage !== undefined
+          ? input.depositPercentage
+          : existingSettings?.depositPercentage ?? null
+      const freeCancellationWindow =
+        input.freeCancellationWindow !== undefined
+          ? input.freeCancellationWindow
+          : existingSettings?.freeCancellationWindow ?? 24
+      const cancellationHasCost =
+        input.cancellationHasCost ?? existingSettings?.cancellationHasCost ?? false
+      const lateCancellationFee =
+        input.lateCancellationFee !== undefined
+          ? input.lateCancellationFee
+          : existingSettings?.lateCancellationFee ?? null
+      const bufferTime =
+        input.bufferTime !== undefined
+          ? input.bufferTime
+          : existingSettings?.bufferTime ?? null
+
       await tx.businessSettings.upsert({
         where: { businessId },
         create: {
           businessId,
-          paymentRequired: input.paymentRequired,
-          paymentType: input.paymentRequired ? 'FULL' : null,
+          paymentRequired,
+          paymentType: paymentRequired ? paymentType : null,
+          depositPercentage: paymentType === 'PERCENTAGE' ? depositPercentage : null,
+          requireRegistrationBeforePayment: true,
+          freeCancellationWindow,
+          cancellationHasCost,
+          lateCancellationFee,
+          bufferTime,
         },
         update: {
-          paymentRequired: input.paymentRequired,
-          paymentType: input.paymentRequired ? 'FULL' : null,
+          paymentRequired,
+          paymentType: paymentRequired ? paymentType : null,
+          depositPercentage: paymentType === 'PERCENTAGE' ? depositPercentage : null,
+          freeCancellationWindow,
+          cancellationHasCost,
+          lateCancellationFee,
+          bufferTime,
         },
       })
     }
@@ -427,7 +495,6 @@ export async function updateBusinessForAdmin(
     const ownerPassword = input.ownerPassword && input.ownerPassword.length >= 6 ? input.ownerPassword : null
 
     if (ownerEmail || ownerPassword) {
-      const bcrypt = await import('bcryptjs')
       const owner = existing.users[0]
       if (owner) {
         const updateUser: { password?: string; email?: string } = {}

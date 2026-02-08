@@ -95,8 +95,36 @@ This is the **single source of truth** for the current state of the project. Use
   - Admin account in seed: `tmazzucco.dev@gmail.com` with role ADMIN (password in seed only).  
   - `/admin` route group with layout: protected; requires auth and role ADMIN, else redirect to /login or /dashboard.  
   - Dashboard layout: if user is ADMIN, redirect to `/admin`.  
-  - Admin page at `/admin`: list of all businesses (GET /api/admin/businesses, requireAdmin); table with name, slug, category, contact, services count, appointments count; links "Ver reservas" (public page) and "Editar" (placeholder /admin/businesses/[id]).  
+  - Admin page at `/admin`: list of all businesses (GET /api/admin/businesses, requireAdmin); table with name, slug, category, contact, services count, appointments count; links "Ver reservas" (public page) and "Editar" → `/admin/businesses/[id]`; link "Crear negocio" → `/admin/businesses/new`.  
   - Booking flow: browser back and in-app "Volver" sync with history so back goes to previous step; ClientFormStep and PaymentStep have "Volver" buttons.
+- **Admin – businesses CRUD (done):**  
+  - **List and navigation:** `/admin` shows all businesses; "Crear negocio" goes to `/admin/businesses/new`; "Editar" goes to `/admin/businesses/[id]`.  
+  - **Create business:** Form with name, slug, category, contact (phone, email), address; **branding:** logo and cover via **file upload** (not URL): backend `POST /api/admin/upload`, multer, files saved under `backend/uploads/`, served at `/uploads`. Logo = image; cover = image or video.  
+  - **Theme (replaces primary color picker):** Business has `theme` in schema: **DARK** (fondo oscuro) or **LIGHT** (fondo blanco). Admin form has selector "Tema oscuro" / "Tema claro". Backend sets `primaryColor` from theme (botón claro/oscuro). No color picker.  
+  - **Payment option:** When creating/editing business, admin chooses "Pago antes de la reserva" (sí/no). Stored in BusinessSettings (`paymentRequired`).  
+  - **Owner credentials:** When creating business, admin can set owner email and password (optional). When editing, can update owner email/password. Backend creates or updates User with role OWNER and links to business.  
+  - **Edit business:** Same fields as create (name, slug, category, contact, address, logo, cover, theme, pago antes de reserva, owner credentials).  
+  - **Backend:** GET/POST/PATCH under `/api/admin/businesses` (requireAdmin); schemas Zod; services in `businesses.service.ts` (createBusinessForAdmin, updateBusinessForAdmin, getBusinessByIdForAdmin). Types/assertions in service for `theme` and `coverVideo` (Prisma client may need `npx prisma generate` to match schema).  
+  - **Public page:** Uses `business.theme` for background and button styling; `isDarkTheme` derived from theme; ServiceStep and DateStep receive `isDarkTheme`. Hero uses coverPhoto/coverVideo from API.
+- **Admin – payment and cancellation rules (done):**  
+  - Section "Reglas de pago y cancelación" in admin business edit form (`/admin/businesses/[id]`).  
+  - When "con pago antes de la reserva": type of payment (deposit % or full), deposit percentage if PERCENTAGE.  
+  - Cancellation rules: free cancellation window (hours before), late cancellation has cost (checkbox), late cancellation fee (%).  
+  - Buffer time between appointments (minutes).  
+  - Backend: GET `/api/admin/businesses/:id` returns all settings; PATCH accepts and persists `paymentType`, `depositPercentage`, `freeCancellationWindow`, `cancellationHasCost`, `lateCancellationFee`, `bufferTime`.
+- **Admin – create business wizard (done):**  
+  - Step 1: Create business at `/admin/businesses/new` (datos del negocio). On success, redirect to `/admin/businesses/[id]/setup`.  
+  - Step 2: Reglas de pago y cancelación.  
+  - Step 3: Servicios (CRUD – add, edit, delete).  
+  - Step 4: Horarios (placeholder – "Configurar después").  
+  - Step 5: Empleados (placeholder – "Configurar después").  
+  - Progress stepper; "Guardar y configurar después" on each step → redirect to edit page.
+- **Admin – Services CRUD (done):**  
+  - GET `/api/admin/businesses/:id/services` – list services for business.  
+  - POST `/api/admin/businesses/:id/services` – create service (name, price, duration, isActive).  
+  - PATCH `/api/admin/services/:id` – update service (name, price, duration, isActive).  
+  - DELETE `/api/admin/services/:id` – delete service.  
+  - Admin edit page: section "Servicios" with add form, table (edit inline, delete). Setup step 3: same add form, list, delete.
 
 ---
 
@@ -104,44 +132,22 @@ This is the **single source of truth** for the current state of the project. Use
 
 All per ROLES_PERMISSIONS.md and FEATURES_MVP.md. Do not invent; only what is listed here.
 
-1. **Admin – list and navigation**  
-   - Keep list of businesses at `/admin`. Add navigation/link to "Crear negocio" and ensure "Editar" goes to business detail.
-
-2. **Businesses – create and edit**  
-   - **Create business:** name, slug, category, contact (phone, email), address, branding basics (logo, cover, primary color).  
-   - **Payment option when creating/editing business:** Admin chooses one:  
-     - **Sin pago antes de la reserva:** client only confirms with name and phone; reservation is confirmed without payment.  
-     - **Con pago antes de la reserva:** client must pay a % or the full amount to confirm (detail configured in payment rules below).  
-   - This choice applies in the public booking MVP (flow already uses `settings.paymentRequired`; admin must be able to set it when creating/editing business).  
-   - **Edit business:** same data + payment option.  
-   - **Credentials:** Generate or assign user (email/password) for the business owner so they can log into the owner dashboard.
-
-3. **Payment and cancellation rules (per business)**  
-   - If "con pago antes de la reserva": configure payment type (deposit % or full), deposit percentage if applicable.  
-   - Cancellation rules: free cancellation window (e.g. 24 h), whether late cancellation has a cost, late cancellation fee (%).  
-   - Other BusinessSettings: buffer time between appointments, etc.  
-   - This configuration is what the public booking flow uses (already reads BusinessSettings; admin needs UI/API to read and update).
-
-4. **Services (per business)**  
-   - CRUD: create, edit, delete services. Fields: name, price, duration (15–120 min), active/inactive.  
-   - Owner dashboard only edits price and duration; admin does full CRUD and name/active.
-
-5. **Working hours (per business)**  
+1. **Working hours (per business)**  
    - Configure WorkingHours per day (Mon–Sun): open/closed, start time, end time, optional lunch break.  
    - One record per day per business.
 
-6. **Blocks (per business)**  
+2. **Blocks (per business)**  
    - Create, edit, delete BlockedSlot for any business: full day (FULL_DAY) or time slot (TIME_SLOT with start/end). Optional reason.  
    - Owner already has blocks in dashboard for their own business; admin must be able to manage blocks for any business.
 
-7. **Branding (per business)**  
-   - Edit: display name, logo, cover photo, primary color, description/texts (as defined in product).
+3. **Branding (per business)**  
+   - Edit: display name, logo, cover photo, theme (DARK/LIGHT), description/texts (as defined in product). Logo/cover already editable in business edit; ensure any extra branding fields are exposed in admin.
 
-8. **Appointments (admin view)**  
+4. **Appointments (admin view)**  
    - View all appointments across all businesses (filters: business, date, status).  
    - Cancel any appointment (with mandatory reason). Change appointment status. Consult cancellation history.
 
-9. **Employees (per business)**  
+5. **Employees (per business)**  
    - Create, edit, delete Employee for a business: name, photo. Used on the public booking page.  
    - Admin creates them; owner cannot add/remove employees in MVP.
 
@@ -183,9 +189,10 @@ Everything else (create/delete services, service names, working hours, blocks, b
 
 ## 8. Key files when continuing
 
-- **Backend:** `backend/src/routes/admin.ts`, `backend/src/controllers/admin.controller.ts`; `backend/src/routes/businesses.ts`, `backend/src/services/businesses.service.ts`; `backend/src/routes/services.ts`, `backend/src/controllers/services.controller.ts`; `backend/src/routes/appointments.ts`, `backend/src/controllers/appointments.controller.ts`; `backend/src/routes/blockedSlots.ts`; `backend/src/middleware/auth.ts` (requireAdmin); `backend/src/lib/schemas.ts`; `backend/prisma/schema.prisma`; `backend/prisma/seed.ts`.  
-- **Frontend:** `frontend/app/(admin)/layout.tsx`, `frontend/app/(admin)/admin/page.tsx`, `frontend/app/(admin)/admin/businesses/[id]/page.tsx`; `frontend/app/(auth)/login/page.tsx`; `frontend/app/(dashboard)/dashboard/page.tsx`; `frontend/app/(public)/[business-slug]/page.tsx` and components; `frontend/lib/api.ts`, `frontend/lib/auth.ts`; `frontend/types/index.ts`.  
+- **Backend:** `backend/src/routes/admin.ts`, `backend/src/routes/upload.ts`, `backend/src/controllers/admin.controller.ts`; `backend/src/routes/businesses.ts`, `backend/src/services/businesses.service.ts`; `backend/src/routes/services.ts`, `backend/src/controllers/services.controller.ts`; `backend/src/routes/appointments.ts`, `backend/src/controllers/appointments.controller.ts`; `backend/src/routes/blockedSlots.ts`; `backend/src/middleware/auth.ts` (requireAdmin); `backend/src/lib/schemas.ts`; `backend/prisma/schema.prisma`; `backend/prisma/seed.ts`.  
+- **Frontend:** `frontend/app/(admin)/layout.tsx`, `frontend/app/(admin)/admin/page.tsx`, `frontend/app/(admin)/admin/businesses/new/page.tsx`, `frontend/app/(admin)/admin/businesses/[id]/page.tsx`; `frontend/app/(auth)/login/page.tsx`; `frontend/app/(dashboard)/dashboard/page.tsx`; `frontend/app/(public)/[business-slug]/page.tsx` and components; `frontend/lib/api.ts`, `frontend/lib/auth.ts`; `frontend/types/index.ts`.  
 - **Docs:** Update PROJECT_STATE.md when completing pending items.
+- **Setup page:** `frontend/app/(admin)/admin/businesses/[id]/setup/page.tsx` – steps 2–5 after create.
 
 ---
 
@@ -286,6 +293,17 @@ model Appointment {
 
 ## 11. Documentation files
 
-- `backend/PAYMENT_SETUP.md` – Complete payment setup (Stripe/Mercado Pago, webhooks, testing).
-- `backend/GOOGLE_CALENDAR_SETUP.md` – Complete Google Calendar setup (OAuth, sync, testing).
-- All docs in `docs/` – Project architecture, features, roles, flows, rules.
+- `backend/PAYMENT_SETUP.md` – Payment setup (Stripe/Mercado Pago, webhooks).
+- `backend/GOOGLE_CALENDAR_SETUP.md` – Google Calendar setup (OAuth, sync).
+- All docs in `docs/` – Architecture, features, roles, flows, rules.
+
+---
+
+## 12. Recent session (for next chat context)
+
+**Done in last session:** Create-business wizard (steps 1–5), admin Services CRUD, and bugfixes.
+
+- **Wizard:** Create at `/admin/businesses/new` → redirect to `/admin/businesses/[id]/setup`. Step 2 = payment/cancellation rules (PATCH). Step 3 = services (add/list/delete). Steps 4–5 = placeholders (“Configurar después”).
+- **Admin Services:** GET/POST `/api/admin/businesses/:id/services`, PATCH/DELETE `/api/admin/services/:id`. Edit page has “Servicios” section (add form, table with inline edit, delete). Setup step 3 reuses same UI.
+- **Fixes applied:** (1) `bcrypt` in `businesses.service.ts`: use static `import bcrypt from 'bcryptjs'` (dynamic import caused “bcrypt.hash is not a function”). (2) `updateBusinessSchema`: `depositPercentage`, `freeCancellationWindow`, `lateCancellationFee`, `bufferTime` are `.optional().nullable()` so PATCH from setup step 2 accepts `null`. (3) `optionalUrl` in schemas: accepts full URL or path starting with `/`. (4) Upload route: fallback `host`/`protocol` to avoid bad URL. (5) In development, 500 responses return real error message; `createBusiness` and `getBusinessServices` log errors to console.
+- **Next pending (in order):** 1) Working hours (admin CRUD). 2) Blocks (admin for any business). 3) Branding. 4) Appointments admin view. 5) Employees (admin CRUD).

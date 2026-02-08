@@ -1,5 +1,5 @@
 import { prisma } from '../lib/prisma'
-import type { UpdateServiceInput } from '../lib/schemas'
+import type { UpdateServiceInput, CreateServiceAdminInput, UpdateServiceAdminInput } from '../lib/schemas'
 
 export interface ServiceListItem {
   id: string
@@ -59,4 +59,68 @@ export async function updateServicePriceAndDurationService(
     },
   })
   return updated
+}
+
+export async function createServiceForAdmin(
+  businessId: string,
+  data: CreateServiceAdminInput
+): Promise<ServiceListItem> {
+  const service = await prisma.service.create({
+    data: {
+      businessId,
+      name: data.name.trim(),
+      price: data.price,
+      duration: data.duration,
+      isActive: data.isActive ?? true,
+    },
+    select: {
+      id: true,
+      name: true,
+      price: true,
+      duration: true,
+      isActive: true,
+    },
+  })
+  return service
+}
+
+export async function updateServiceForAdmin(
+  serviceId: string,
+  data: UpdateServiceAdminInput
+): Promise<ServiceListItem> {
+  const existing = await prisma.service.findUnique({
+    where: { id: serviceId },
+  })
+  if (!existing) {
+    throw new ServiceNotFoundError('Servicio no encontrado')
+  }
+  const updated = await prisma.service.update({
+    where: { id: serviceId },
+    data: {
+      ...(data.name !== undefined && { name: data.name.trim() }),
+      ...(data.price !== undefined && { price: data.price }),
+      ...(data.duration !== undefined && { duration: data.duration }),
+      ...(data.isActive !== undefined && { isActive: data.isActive }),
+    },
+    select: {
+      id: true,
+      name: true,
+      price: true,
+      duration: true,
+      isActive: true,
+    },
+  })
+  return updated
+}
+
+export async function deleteServiceForAdmin(serviceId: string): Promise<void> {
+  const existing = await prisma.service.findUnique({
+    where: { id: serviceId },
+  })
+  if (!existing) {
+    throw new ServiceNotFoundError('Servicio no encontrado')
+  }
+  await prisma.service.delete({
+    where: { id: serviceId },
+  })
 }

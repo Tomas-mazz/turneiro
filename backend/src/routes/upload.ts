@@ -53,7 +53,9 @@ router.post(
       res.status(400).json({ error: 'No se envió ningún archivo' })
       return
     }
-    const baseUrl = `${req.protocol}://${req.get('host')}`
+    const host = req.get('host') || 'localhost:3001'
+    const protocol = req.protocol || 'http'
+    const baseUrl = `${protocol}://${host}`
     const url = `${baseUrl}/uploads/${file.filename}`
     res.json({ url })
   }

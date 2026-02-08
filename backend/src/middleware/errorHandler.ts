@@ -13,9 +13,11 @@ export function errorHandler(
   next: NextFunction
 ) {
   const statusCode = err.statusCode || 500
-  // Never send internal error details to the client for 500
+  // In development, show actual error for 500 to help debug
   const message =
-    statusCode >= 500 ? 'Algo salió mal' : (err.message || 'Algo salió mal')
+    statusCode >= 500
+      ? (process.env.NODE_ENV === 'development' ? (err.message || 'Algo salió mal') : 'Algo salió mal')
+      : (err.message || 'Algo salió mal')
 
   console.error('Error:', {
     statusCode,

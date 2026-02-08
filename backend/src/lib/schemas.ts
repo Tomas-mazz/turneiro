@@ -33,6 +33,25 @@ export const ownerCancelAppointmentSchema = z.object({
 })
 
 export type UpdateServiceInput = z.infer<typeof updateServiceSchema>
+
+// Admin: full service CRUD
+export const createServiceAdminSchema = z.object({
+  name: z.string().min(1, 'El nombre es obligatorio').max(200),
+  price: z.number().positive('El precio debe ser positivo'),
+  duration: z.number().int().min(15, 'Duración mínima 15 min').max(120, 'Duración máxima 120 min'),
+  isActive: z.boolean().optional().default(true),
+})
+
+export const updateServiceAdminSchema = z.object({
+  name: z.string().min(1).max(200).optional(),
+  price: z.number().positive().optional(),
+  duration: z.number().int().min(15).max(120).optional(),
+  isActive: z.boolean().optional(),
+})
+
+export type CreateServiceAdminInput = z.infer<typeof createServiceAdminSchema>
+export type UpdateServiceAdminInput = z.infer<typeof updateServiceAdminSchema>
+
 export type OwnerCancelAppointmentInput = z.infer<typeof ownerCancelAppointmentSchema>
 
 const emailSchema = z.string().email('Email inválido').min(1, 'El email es obligatorio')
@@ -99,7 +118,10 @@ const slugSchema = z
   .transform((s) => s.toLowerCase())
 
 const optionalEmail = z.union([z.string().email(), z.literal('')]).transform((s) => (s === '' ? undefined : s))
-const optionalUrl = z.union([z.string().url(), z.literal('')]).transform((s) => (s === '' ? undefined : s))
+// Accept full URL (http/https) or relative path (/uploads/...) - upload may return either
+const optionalUrl = z
+  .union([z.string().url(), z.string().regex(/^\/[^\s]*$/, 'Debe ser URL o ruta'), z.literal('')])
+  .transform((s) => (s === '' ? undefined : s))
 
 export const createBusinessSchema = z.object({
   name: z.string().min(1, 'El nombre es obligatorio').max(200),
@@ -138,6 +160,12 @@ export const updateBusinessSchema = z.object({
   coverVideo: optionalUrl.optional(),
   theme: z.enum(['DARK', 'LIGHT']).optional(),
   paymentRequired: z.boolean().optional(),
+  paymentType: z.enum(['PERCENTAGE', 'FULL']).optional(),
+  depositPercentage: z.number().min(1, 'Mínimo 1%').max(100, 'Máximo 100%').optional().nullable(),
+  freeCancellationWindow: z.number().int().min(0, 'Mínimo 0 horas').optional().nullable(),
+  cancellationHasCost: z.boolean().optional(),
+  lateCancellationFee: z.number().min(0, 'Mínimo 0%').max(100, 'Máximo 100%').optional().nullable(),
+  bufferTime: z.number().int().min(0, 'Mínimo 0 minutos').optional().nullable(),
   ownerEmail: z.union([z.string().email(), z.literal('')]).optional(),
   ownerPassword: z.string().optional(),
 })

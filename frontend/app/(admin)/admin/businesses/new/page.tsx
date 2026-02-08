@@ -114,7 +114,7 @@ export default function AdminNewBusinessPage() {
       if (form.ownerPassword?.trim()) body.ownerPassword = form.ownerPassword
 
       const result = await createAdminBusiness(body)
-      router.push(`/admin/businesses/${result.id}`)
+      router.push(`/admin/businesses/${result.id}/setup`)
     } catch (err: unknown) {
       const msg =
         err && typeof err === 'object' && 'response' in err
@@ -138,6 +138,7 @@ export default function AdminNewBusinessPage() {
         <h1 className="mt-2 text-xl font-bold text-neutral-900 sm:text-2xl">
           Crear negocio
         </h1>
+        <p className="mt-1 text-sm text-neutral-500">Paso 1 de 5 · Datos del negocio</p>
       </header>
 
       <form

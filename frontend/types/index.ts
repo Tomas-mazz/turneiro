@@ -68,6 +68,10 @@ export interface AdminBusinessDetail {
     paymentRequired: boolean
     paymentType: string | null
     depositPercentage: number | null
+    freeCancellationWindow: number | null
+    cancellationHasCost: boolean
+    lateCancellationFee: number | null
+    bufferTime: number | null
   } | null
   owner: { id: string; email: string } | null
 }
@@ -86,6 +90,12 @@ export type CreateBusinessBody = {
   theme?: 'DARK' | 'LIGHT'
   primaryColor?: string
   paymentRequired: boolean
+  paymentType?: 'PERCENTAGE' | 'FULL'
+  depositPercentage?: number | null
+  freeCancellationWindow?: number | null
+  cancellationHasCost?: boolean
+  lateCancellationFee?: number | null
+  bufferTime?: number | null
   ownerEmail?: string
   ownerPassword?: string
 }
