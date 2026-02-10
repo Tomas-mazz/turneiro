@@ -137,6 +137,8 @@ This is the **single source of truth** for the current state of the project. Use
 - **Admin – Delete business (done):**  
   - DELETE `/api/admin/businesses/:id` – delete business and all related data (cascade).  
   - Admin edit page: button "Eliminar negocio"; modal "Este negocio se eliminará y no podrás volver atrás" with Confirmar/Cancelar.
+- **Admin – Branding (per business) (done):**  
+  - Create and edit business forms include section "Marca y presentación" with: display name (nombre del negocio), description, logo (file upload), cover photo/video (file upload), theme (DARK/LIGHT). All fields persisted via existing backend; public page uses theme, cover, logo, name, description.
 
 ---
 
@@ -144,14 +146,11 @@ This is the **single source of truth** for the current state of the project. Use
 
 All per ROLES_PERMISSIONS.md and FEATURES_MVP.md. Do not invent; only what is listed here.
 
-1. **Branding (per business)**  
-   - Edit: display name, logo, cover photo, theme (DARK/LIGHT), description/texts (as defined in product). Logo/cover already editable in business edit; ensure any extra branding fields are exposed in admin.
-
-2. **Appointments (admin view)**  
+1. **Appointments (admin view)**  
    - View all appointments across all businesses (filters: business, date, status).  
    - Cancel any appointment (with mandatory reason). Change appointment status. Consult cancellation history.
 
-3. **Employees (per business)**  
+2. **Employees (per business)**  
    - Create, edit, delete Employee for a business: name, photo. Used on the public booking page.  
    - Admin creates them; owner cannot add/remove employees in MVP.
 
@@ -303,11 +302,27 @@ model Appointment {
 
 ---
 
-## 12. Recent session (for next chat context)
+## 12. Context for next chat
 
-**Done in last session:** Admin Blocks (step 2) and Delete business.
+Use this section in a new chat to know what was just implemented and what to do next.
 
-- **Working hours:** GET `/api/admin/businesses/:id/working-hours` returns 7 days (0=Sunday .. 6=Saturday); missing days filled with defaults. PUT same path with body `{ hours: [ ...7 items ] }` upserts all days. Admin edit: section "Horarios de apertura" with table and "Guardar horarios"; setup step 4 same form. **Blocks:** GET/POST `/api/admin/businesses/:id/blocked-slots`, DELETE `/api/admin/blocked-slots/:id`; section "Bloquear días u horarios" in edit page (form + list 60 días). **Delete business:** DELETE `/api/admin/businesses/:id`; button "Eliminar negocio" with modal "Este negocio se eliminará y no podrás volver atrás".
-- **Admin Services:** GET/POST `/api/admin/businesses/:id/services`, PATCH/DELETE `/api/admin/services/:id`. Edit page has “Servicios” section (add form, table with inline edit, delete). Setup step 3 reuses same UI.
-- **Fixes applied:** (1) `bcrypt` in `businesses.service.ts`: use static `import bcrypt from 'bcryptjs'` (dynamic import caused “bcrypt.hash is not a function”). (2) `updateBusinessSchema`: `depositPercentage`, `freeCancellationWindow`, `lateCancellationFee`, `bufferTime` are `.optional().nullable()` so PATCH from setup step 2 accepts `null`. (3) `optionalUrl` in schemas: accepts full URL or path starting with `/`. (4) Upload route: fallback `host`/`protocol` to avoid bad URL. (5) In development, 500 responses return real error message; `createBusiness` and `getBusinessServices` log errors to console.
-- **Next pending (in order):** 1) Branding. 2) Appointments admin view. 3) Employees (admin CRUD).
+**What was done in the last session:**
+
+1. **Admin – Branding (per business)**  
+   Section "Marca y presentación" in create (`/admin/businesses/new`) and edit (`/admin/businesses/[id]`) forms: nombre del negocio, descripción, logo, imagen o video de portada, tema (DARK/LIGHT). All fields already in schema and backend; no API changes.
+
+2. **Admin – Working hours** (previous session)  
+   Backend: `workingHours.service.ts` (getWorkingHoursForBusiness, upsertWorkingHoursForBusiness), GET/PUT `/api/admin/businesses/:id/working-hours` (Zod: updateWorkingHoursSchema). Frontend: section "Horarios de apertura" in edit page (table 7 days, Guardar horarios); setup step 4 same form (Siguiente guarda y va a paso 5, Omitir y seguir sin guardar).
+
+3. **Admin – Blocks** (previous session)  
+   Backend: deleteBlockedSlotForAdmin in blockedSlots.service; GET/POST `/api/admin/businesses/:id/blocked-slots`, DELETE `/api/admin/blocked-slots/:id`. Frontend: section "Bloquear días u horarios" in edit page (form + list próximos 60 días, Eliminar por bloqueo).
+
+4. **Admin – Delete business** (previous session)  
+   Backend: deleteBusinessForAdmin in businesses.service (cascade), DELETE `/api/admin/businesses/:id`. Frontend: button "Eliminar negocio" + modal "Este negocio se eliminará y no podrás volver atrás" (Sí, eliminar / Cancelar).
+
+5. **Fix new business form** (previous session)  
+   `frontend/app/(admin)/admin/businesses/new/page.tsx`: `value={form.description ?? ''}` (and phone, email, address) so controlled inputs accept optional string | null.
+
+**What was done in this session:** Admin – Branding (per business): section "Marca y presentación" added to create and edit business forms (name, description, logo, cover, theme); PROJECT_STATE updated.
+
+**Next steps (in order):** 1. Appointments (admin view). 2. Employees (admin CRUD).

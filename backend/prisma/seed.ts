@@ -71,26 +71,27 @@ async function main() {
     console.log('Usuario de demo actualizado:', DEMO_OWNER_EMAIL)
   }
 
+  const adminEmail = ADMIN_EMAIL.toLowerCase().trim()
   const adminHashedPassword = await bcrypt.hash(ADMIN_PASSWORD, 10)
   const adminUser = await prisma.user.findUnique({
-    where: { email: ADMIN_EMAIL },
+    where: { email: adminEmail },
   })
   if (!adminUser) {
     await prisma.user.create({
       data: {
-        email: ADMIN_EMAIL,
+        email: adminEmail,
         password: adminHashedPassword,
         role: 'ADMIN',
         businessId: null,
       },
     })
-    console.log('Usuario admin creado:', ADMIN_EMAIL)
+    console.log('Usuario admin creado:', adminEmail)
   } else {
     await prisma.user.update({
       where: { id: adminUser.id },
       data: { password: adminHashedPassword, role: 'ADMIN', businessId: null },
     })
-    console.log('Usuario admin actualizado:', ADMIN_EMAIL)
+    console.log('Usuario admin actualizado:', adminEmail)
   }
 
   const demoServiceNames = ['Corte', 'Corte + Barba', 'Barba']

@@ -11,8 +11,17 @@ import {
   deleteAdminService,
   getAdminWorkingHours,
   updateAdminWorkingHours,
+  getAdminEmployees,
+  createAdminEmployee,
+  deleteAdminEmployee,
 } from '@/lib/api'
-import type { AdminBusinessDetail, UpdateBusinessBody, ServiceListItem, WorkingHoursItem } from '@/types'
+import type {
+  AdminBusinessDetail,
+  UpdateBusinessBody,
+  ServiceListItem,
+  WorkingHoursItem,
+  AdminEmployeeListItem,
+} from '@/types'
 
 const STEPS = [
   { num: 2, title: 'Reglas de pago y cancelación', slug: 'pago' },
@@ -60,6 +69,11 @@ export default function AdminBusinessSetupPage() {
   const [workingHoursLoading, setWorkingHoursLoading] = useState(false)
   const [workingHoursSaving, setWorkingHoursSaving] = useState(false)
   const [workingHoursError, setWorkingHoursError] = useState<string | null>(null)
+  const [employees, setEmployees] = useState<AdminEmployeeListItem[]>([])
+  const [employeesLoading, setEmployeesLoading] = useState(false)
+  const [newEmployeeName, setNewEmployeeName] = useState('')
+  const [newEmployeePhotoUrl, setNewEmployeePhotoUrl] = useState<string | null>(null)
+  const [employeePhotoUploading, setEmployeePhotoUploading] = useState(false)
 
   const DAY_NAMES = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado']
 
@@ -197,6 +211,65 @@ export default function AdminBusinessSetupPage() {
       setError(msg || 'Error al guardar')
     } finally {
       setSaving(false)
+    }
+  }
+
+  useEffect(() => {
+    if (!id || !business || currentStep !== 5) return
+    setEmployeesLoading(true)
+    getAdminEmployees(id)
+      .then(setEmployees)
+      .catch(() => setEmployees([]))
+      .finally(() => setEmployeesLoading(false))
+  }, [id, business?.id, currentStep])
+
+  const handleNewEmployeePhoto = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file || !file.type.startsWith('image/')) return
+    setEmployeePhotoUploading(true)
+    try {
+      const { url } = await uploadAdminFile(file)
+      setNewEmployeePhotoUrl(url)
+    } catch {
+      setError('Error al subir la foto del empleado')
+    } finally {
+      setEmployeePhotoUploading(false)
+      e.target.value = ''
+    }
+  }
+
+  const handleAddEmployee = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!id || !newEmployeeName.trim()) return
+    try {
+      const created = await createAdminEmployee(id, {
+        name: newEmployeeName.trim(),
+        ...(newEmployeePhotoUrl ? { photoUrl: newEmployeePhotoUrl } : {}),
+      })
+      setEmployees((prev) => [...prev, created])
+      setNewEmployeeName('')
+      setNewEmployeePhotoUrl(null)
+    } catch (err: unknown) {
+      const msg =
+        err && typeof err === 'object' && 'response' in err
+          ? (err as { response?: { data?: { error?: string } } }).response?.data?.error
+          : null
+      setError(msg || 'Error al crear empleado')
+    }
+  }
+
+  const handleDeleteEmployee = async (employeeId: string) => {
+    if (!id) return
+    if (!confirm('¿Eliminar este empleado?')) return
+    try {
+      await deleteAdminEmployee(employeeId)
+      setEmployees((prev) => prev.filter((emp) => emp.id !== employeeId))
+    } catch (err: unknown) {
+      const msg =
+        err && typeof err === 'object' && 'response' in err
+          ? (err as { response?: { data?: { error?: string } } }).response?.data?.error
+          : null
+      setError(msg || 'Error al eliminar empleado')
     }
   }
 
@@ -686,22 +759,103 @@ export default function AdminBusinessSetupPage() {
         <div className="rounded-lg border border-neutral-200 bg-white p-6 shadow-sm">
           <h2 className="text-lg font-medium text-neutral-900">Empleados</h2>
           <p className="mt-2 text-sm text-neutral-600">
-            Agregá los empleados del negocio (nombre y foto). Se mostrarán en la página de reservas. Podés configurarlos ahora o más tarde desde la página de edición.
+            Agregá los empleados del negocio (nombre y foto). Se mostrarán en la página de reservas.
           </p>
-          <div className="mt-6 flex flex-wrap gap-3">
-            <Link
-              href={`/admin/businesses/${id}#empleados`}
-              className="rounded-lg bg-neutral-900 px-4 py-2.5 text-sm font-medium text-white hover:bg-neutral-800"
+
+          <form
+            onSubmit={handleAddEmployee}
+            className="mt-4 mb-4 flex flex-wrap items-end gap-3"
+          >
+            <div className="w-40">
+              <label htmlFor="newEmployeeName" className="mb-1 block text-xs text-neutral-600">
+                Nombre *
+              </label>
+              <input
+                id="newEmployeeName"
+                type="text"
+                required
+                value={newEmployeeName}
+                onChange={(e) => setNewEmployeeName(e.target.value)}
+                placeholder="ej. Juan"
+                className="w-full rounded-lg border border-neutral-300 px-3 py-2 text-sm"
+              />
+            </div>
+            <div className="min-w-[180px]">
+              <label className="mb-1 block text-xs text-neutral-600">
+                Foto (opcional)
+              </label>
+              <input
+                type="file"
+                accept="image/*"
+                onChange={handleNewEmployeePhoto}
+                disabled={employeePhotoUploading}
+                className="block w-full text-xs text-neutral-600 file:mr-3 file:rounded-lg file:border-0 file:bg-neutral-100 file:px-3 file:py-1.5 file:text-xs file:font-medium file:text-neutral-700 hover:file:bg-neutral-200"
+              />
+              {employeePhotoUploading && (
+                <p className="mt-1 text-xs text-neutral-500">Subiendo foto...</p>
+              )}
+              {newEmployeePhotoUrl && (
+                <p className="mt-1 text-xs text-green-600">
+                  Foto cargada.{' '}
+                  <button
+                    type="button"
+                    onClick={() => setNewEmployeePhotoUrl(null)}
+                    className="underline"
+                  >
+                    Quitar
+                  </button>
+                </p>
+              )}
+            </div>
+            <button
+              type="submit"
+              disabled={!newEmployeeName.trim()}
+              className="rounded-lg bg-neutral-900 px-4 py-2 text-sm font-medium text-white hover:bg-neutral-800 disabled:opacity-50"
             >
-              Agregar empleados ahora
-            </Link>
+              Agregar empleado
+            </button>
+          </form>
+
+          {employeesLoading ? (
+            <p className="text-sm text-neutral-500">Cargando empleados...</p>
+          ) : employees.length === 0 ? (
+            <p className="text-sm text-neutral-500">
+              No hay empleados cargados. Podés agregarlos arriba.
+            </p>
+          ) : (
+            <ul className="mb-4 space-y-1 text-sm">
+              {employees.map((emp) => (
+                <li
+                  key={emp.id}
+                  className="flex items-center justify-between rounded bg-neutral-50 px-3 py-2"
+                >
+                  <span>{emp.name}</span>
+                  <button
+                    type="button"
+                    onClick={() => handleDeleteEmployee(emp.id)}
+                    className="text-xs font-medium text-red-600 underline hover:text-red-800"
+                  >
+                    Eliminar
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+
+          <div className="mt-4 flex flex-wrap gap-3">
             <button
               type="button"
               onClick={goToEdit}
-              className="rounded-lg border border-neutral-300 px-4 py-2.5 text-sm font-medium text-neutral-700 hover:bg-neutral-50"
+              className="rounded-lg bg-neutral-900 px-4 py-2.5 text-sm font-medium text-white hover:bg-neutral-800"
             >
               Finalizar
             </button>
+            <Link
+              href={`/admin/businesses/${id}`}
+              className="rounded-lg border border-neutral-300 px-4 py-2.5 text-sm font-medium text-neutral-700 hover:bg-neutral-50"
+            >
+              Ir a editar negocio
+            </Link>
           </div>
         </div>
       )}

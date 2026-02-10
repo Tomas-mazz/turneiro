@@ -9,6 +9,8 @@ import type {
   CreateBusinessBody,
   UpdateBusinessBody,
   WorkingHoursItem,
+  AdminAppointmentListItem,
+  AdminEmployeeListItem,
 } from '@/types'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'
@@ -239,5 +241,88 @@ export async function uploadAdminFile(file: File): Promise<{ url: string }> {
   const { data } = await api.post<{ url: string }>('/admin/upload', formData, {
     headers: { 'Content-Type': 'multipart/form-data' },
   })
+  return data
+}
+
+export type CreateEmployeeAdminBody = {
+  name: string
+  photoUrl?: string
+}
+
+export type UpdateEmployeeAdminBody = {
+  name?: string
+  photoUrl?: string | null
+}
+
+export async function getAdminEmployees(
+  businessId: string
+): Promise<AdminEmployeeListItem[]> {
+  const { data } = await api.get<AdminEmployeeListItem[]>(
+    `/admin/businesses/${businessId}/employees`
+  )
+  return data
+}
+
+export async function createAdminEmployee(
+  businessId: string,
+  body: CreateEmployeeAdminBody
+): Promise<AdminEmployeeListItem> {
+  const { data } = await api.post<AdminEmployeeListItem>(
+    `/admin/businesses/${businessId}/employees`,
+    body
+  )
+  return data
+}
+
+export async function updateAdminEmployee(
+  employeeId: string,
+  body: UpdateEmployeeAdminBody
+): Promise<AdminEmployeeListItem> {
+  const { data } = await api.patch<AdminEmployeeListItem>(
+    `/admin/employees/${employeeId}`,
+    body
+  )
+  return data
+}
+
+export async function deleteAdminEmployee(employeeId: string): Promise<void> {
+  await api.delete(`/admin/employees/${employeeId}`)
+}
+
+export type AdminAppointmentsQuery = {
+  businessId?: string
+  dateFrom?: string
+  dateTo?: string
+  status?: 'UPCOMING' | 'COMPLETED' | 'CANCELLED'
+}
+
+export async function getAdminAppointments(
+  params?: AdminAppointmentsQuery
+): Promise<AdminAppointmentListItem[]> {
+  const { data } = await api.get<AdminAppointmentListItem[]>('/admin/appointments', {
+    params,
+  })
+  return data
+}
+
+export async function adminCancelAppointment(
+  id: string,
+  reason: string
+): Promise<{ cancelled: boolean; id: string; refunded: boolean }> {
+  const { data } = await api.post<{ cancelled: boolean; id: string; refunded: boolean }>(
+    `/admin/appointments/${id}/cancel`,
+    { reason }
+  )
+  return data
+}
+
+export async function adminUpdateAppointmentStatus(
+  id: string,
+  status: 'UPCOMING' | 'COMPLETED'
+): Promise<{ id: string; status: string }> {
+  const { data } = await api.patch<{ id: string; status: string }>(
+    `/admin/appointments/${id}/status`,
+    { status }
+  )
   return data
 }

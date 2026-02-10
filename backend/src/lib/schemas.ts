@@ -217,3 +217,43 @@ export const updateWorkingHoursSchema = z.object({
 
 export type WorkingHoursItemInput = z.infer<typeof workingHoursItemSchema>
 export type UpdateWorkingHoursInput = z.infer<typeof updateWorkingHoursSchema>
+
+// Admin: appointments list & actions
+
+const appointmentStatusEnum = z.enum(['UPCOMING', 'COMPLETED', 'CANCELLED'])
+
+export const adminListAppointmentsQuerySchema = z.object({
+  businessId: z.string().cuid().optional(),
+  dateFrom: z.string().regex(dateRegex, 'La fecha debe ser AAAA-MM-DD').optional(),
+  dateTo: z.string().regex(dateRegex, 'La fecha debe ser AAAA-MM-DD').optional(),
+  status: appointmentStatusEnum.optional(),
+})
+
+export type AdminListAppointmentsQuery = z.infer<typeof adminListAppointmentsQuerySchema>
+
+export const adminCancelAppointmentSchema = z.object({
+  reason: z.string().min(1, 'El motivo de cancelación es obligatorio').max(500),
+})
+
+export type AdminCancelAppointmentInput = z.infer<typeof adminCancelAppointmentSchema>
+
+export const adminUpdateAppointmentStatusSchema = z.object({
+  status: appointmentStatusEnum.exclude(['CANCELLED']),
+})
+
+export type AdminUpdateAppointmentStatusInput = z.infer<typeof adminUpdateAppointmentStatusSchema>
+
+// Admin: employees CRUD
+
+export const createEmployeeAdminSchema = z.object({
+  name: z.string().min(1, 'El nombre es obligatorio').max(200),
+  photoUrl: optionalUrl.optional(),
+})
+
+export const updateEmployeeAdminSchema = z.object({
+  name: z.string().min(1).max(200).optional(),
+  photoUrl: optionalUrl.optional(),
+})
+
+export type CreateEmployeeAdminInput = z.infer<typeof createEmployeeAdminSchema>
+export type UpdateEmployeeAdminInput = z.infer<typeof updateEmployeeAdminSchema>

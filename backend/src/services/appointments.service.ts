@@ -144,7 +144,8 @@ export async function createAppointmentService(data: CreateAppointmentInput) {
   const slots = await getAvailabilityService(
     data.businessSlug,
     data.serviceId,
-    date
+    date,
+    data.date
   )
 
   if (!slots.includes(data.slotTime)) {
@@ -329,6 +330,171 @@ export async function getAppointmentsByPhoneService(
   return appointments.filter(
     (a) => normalizePhone(a.clientPhone) === normalizedInput
   )
+}
+
+export interface AdminAppointmentListItem extends AppointmentListItem {
+  businessId: string
+  businessName: string
+  cancellationReason: string | null
+  refundAmount: number | null
+}
+
+export async function getAppointmentsForAdminService(params: {
+  businessId?: string
+  dateFrom?: string
+  dateTo?: string
+  status?: string
+}): Promise<AdminAppointmentListItem[]> {
+  const where: Record<string, unknown> = {}
+
+  if (params.businessId) {
+    where.businessId = params.businessId
+  }
+  if (params.status) {
+    where.status = params.status
+  }
+  if (params.dateFrom || params.dateTo) {
+    const start: Date | undefined = params.dateFrom
+      ? new Date(params.dateFrom + 'T00:00:00')
+      : undefined
+    const end: Date | undefined = params.dateTo
+      ? new Date(params.dateTo + 'T23:59:59.999')
+      : undefined
+    where.startTime = {
+      ...(start ? { gte: start } : {}),
+      ...(end ? { lte: end } : {}),
+    }
+  }
+
+  const appointments = await prisma.appointment.findMany({
+    where,
+    orderBy: { startTime: 'desc' },
+    select: {
+      id: true,
+      startTime: true,
+      endTime: true,
+      serviceName: true,
+      price: true,
+      clientName: true,
+      clientPhone: true,
+      status: true,
+      paymentStatus: true,
+      cancellationReason: true,
+      refundAmount: true,
+      businessId: true,
+      business: {
+        select: {
+          name: true,
+        },
+      },
+    },
+  })
+
+  return appointments.map((a) => ({
+    id: a.id,
+    startTime: a.startTime,
+    endTime: a.endTime,
+    serviceName: a.serviceName,
+    price: a.price,
+    clientName: a.clientName,
+    clientPhone: a.clientPhone,
+    status: a.status,
+    paymentStatus: a.paymentStatus,
+    businessId: a.businessId,
+    businessName: a.business.name,
+    cancellationReason: a.cancellationReason,
+    refundAmount: (a.refundAmount ?? null) as any,
+  }))
+}
+
+export async function adminCancelAppointmentService(
+  appointmentId: string,
+  reason: string
+) {
+  const appointment = await prisma.appointment.findUnique({
+    where: { id: appointmentId },
+    include: { business: { include: { settings: true } } },
+  })
+
+  if (!appointment) {
+    throw new CancellationNotAllowedError('Cita no encontrada')
+  }
+  if (appointment.status === 'CANCELLED') {
+    throw new CancellationNotAllowedError('La cita ya fue cancelada')
+  }
+
+  // For admin cancellation, we mirror owner behaviour: full refund when paid.
+  let refundAmount = 0
+  const aptPaymentIntentId = (appointment as any).paymentIntentId
+  const aptPaymentProvider = (appointment as any).paymentProvider
+
+  if (
+    appointment.paymentStatus === 'PAID' &&
+    aptPaymentIntentId &&
+    aptPaymentProvider
+  ) {
+    try {
+      if (aptPaymentProvider === 'STRIPE') {
+        const refund = await stripeService.processRefund(aptPaymentIntentId)
+        refundAmount = refund.amount
+      } else if (aptPaymentProvider === 'MERCADOPAGO') {
+        const refund = await mercadopagoService.processRefund(
+          aptPaymentIntentId
+        )
+        refundAmount = refund.amount
+      }
+    } catch (error) {
+      console.error('Refund error during admin cancellation:', error)
+      // Continue with cancellation even if refund fails
+    }
+  }
+
+  await prisma.appointment.update({
+    where: { id: appointmentId },
+    data: {
+      status: 'CANCELLED',
+      cancellationReason: reason,
+      paymentStatus: refundAmount > 0 ? 'REFUNDED' : appointment.paymentStatus,
+      refundAmount: refundAmount > 0 ? (refundAmount as any) : undefined,
+    } as any,
+  })
+
+  // Delete from Google Calendar asynchronously
+  deleteFromGoogleCalendar(appointmentId, appointment.businessId).catch(err =>
+    console.error('Failed to delete from Google Calendar (admin):', err)
+  )
+
+  return { cancelled: true, id: appointment.id, refunded: refundAmount > 0 }
+}
+
+export async function adminUpdateAppointmentStatusService(
+  appointmentId: string,
+  status: 'UPCOMING' | 'COMPLETED'
+) {
+  const appointment = await prisma.appointment.findUnique({
+    where: { id: appointmentId },
+  })
+
+  if (!appointment) {
+    throw new CancellationNotAllowedError('Cita no encontrada')
+  }
+  if (appointment.status === 'CANCELLED') {
+    throw new CancellationNotAllowedError(
+      'No se puede cambiar el estado de una cita cancelada'
+    )
+  }
+
+  const updated = await prisma.appointment.update({
+    where: { id: appointmentId },
+    data: {
+      status,
+    },
+  })
+
+  return {
+    id: updated.id,
+    status: updated.status,
+  }
 }
 
 export async function cancelAppointmentByOwnerService(

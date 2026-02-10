@@ -28,12 +28,20 @@ export default function AdminPage() {
             Gestión de negocios, servicios, horarios y reglas de pago.
           </p>
         </div>
-        <Link
-          href="/admin/businesses/new"
-          className="inline-flex shrink-0 items-center justify-center rounded-lg bg-neutral-900 px-4 py-2.5 text-sm font-medium text-white hover:bg-neutral-800"
-        >
-          Crear negocio
-        </Link>
+        <div className="flex flex-wrap gap-3">
+          <Link
+            href="/admin/appointments"
+            className="inline-flex shrink-0 items-center justify-center rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-2.5 text-sm font-medium text-emerald-800 transition-all hover:scale-105 hover:bg-emerald-100 disabled:opacity-50 disabled:hover:scale-100"
+          >
+            Ver citas
+          </Link>
+          <Link
+            href="/admin/businesses/new"
+            className="inline-flex shrink-0 items-center justify-center rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-2.5 text-sm font-medium text-emerald-800 transition-all hover:scale-105 hover:bg-emerald-100 disabled:opacity-50 disabled:hover:scale-100"
+          >
+            Crear negocio
+          </Link>
+        </div>
       </header>
 
       <section className="rounded-lg border border-neutral-200 bg-white shadow-sm">

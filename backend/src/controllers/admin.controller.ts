@@ -22,8 +22,29 @@ import {
   deleteBlockedSlotForAdmin,
   BlockedSlotNotFoundError,
 } from '../services/blockedSlots.service'
+import {
+  getEmployeesForBusinessService,
+  createEmployeeForAdmin,
+  updateEmployeeForAdmin,
+  deleteEmployeeForAdmin,
+  EmployeeNotFoundError,
+} from '../services/employees.service'
+import {
+  getAppointmentsForAdminService,
+  adminCancelAppointmentService,
+  adminUpdateAppointmentStatusService,
+  CancellationNotAllowedError,
+} from '../services/appointments.service'
 import { deleteBusinessForAdmin } from '../services/businesses.service'
-import { createBlockedSlotSchema, listBlockedSlotsQuerySchema } from '../lib/schemas'
+import {
+  createBlockedSlotSchema,
+  listBlockedSlotsQuerySchema,
+  adminListAppointmentsQuerySchema,
+  adminCancelAppointmentSchema,
+  adminUpdateAppointmentStatusSchema,
+  createEmployeeAdminSchema,
+  updateEmployeeAdminSchema,
+} from '../lib/schemas'
 import type { AuthRequest } from '../middleware/auth'
 import { ZodError } from 'zod'
 
@@ -304,6 +325,157 @@ export async function deleteBusiness(req: AuthRequest, res: Response, next: Next
     if (message.includes('no encontrado')) {
       res.status(404).json({ error: message })
       return
+    }
+    next(err)
+  }
+}
+
+export async function getBusinessEmployees(
+  req: Request,
+  res: Response,
+  next: NextFunction
+) {
+  try {
+    const businessId = req.params.id
+    if (!businessId) {
+      return res.status(400).json({ error: 'ID de negocio obligatorio' })
+    }
+    const employees = await getEmployeesForBusinessService(businessId)
+    res.json(employees)
+  } catch (err) {
+    next(err)
+  }
+}
+
+export async function createEmployee(req: AuthRequest, res: Response, next: NextFunction) {
+  try {
+    const businessId = req.params.id
+    if (!businessId) {
+      return res.status(400).json({ error: 'ID de negocio obligatorio' })
+    }
+    const parsed = createEmployeeAdminSchema.safeParse(req.body)
+    if (!parsed.success) {
+      return res.status(400).json({
+        error: 'Error de validación',
+        details: (parsed.error as ZodError).errors,
+      })
+    }
+    const employee = await createEmployeeForAdmin(businessId, parsed.data)
+    res.status(201).json(employee)
+  } catch (err) {
+    next(err)
+  }
+}
+
+export async function updateEmployee(req: AuthRequest, res: Response, next: NextFunction) {
+  try {
+    const employeeId = req.params.id
+    if (!employeeId) {
+      return res.status(400).json({ error: 'ID de empleado obligatorio' })
+    }
+    const parsed = updateEmployeeAdminSchema.safeParse(req.body)
+    if (!parsed.success) {
+      return res.status(400).json({
+        error: 'Error de validación',
+        details: (parsed.error as ZodError).errors,
+      })
+    }
+    const employee = await updateEmployeeForAdmin(employeeId, parsed.data)
+    res.json(employee)
+  } catch (err) {
+    if (err instanceof EmployeeNotFoundError) {
+      return res.status(404).json({ error: err.message })
+    }
+    next(err)
+  }
+}
+
+export async function deleteEmployee(req: AuthRequest, res: Response, next: NextFunction) {
+  try {
+    const employeeId = req.params.id
+    if (!employeeId) {
+      return res.status(400).json({ error: 'ID de empleado obligatorio' })
+    }
+    await deleteEmployeeForAdmin(employeeId)
+    res.status(204).send()
+  } catch (err) {
+    if (err instanceof EmployeeNotFoundError) {
+      return res.status(404).json({ error: err.message })
+    }
+    next(err)
+  }
+}
+
+export async function listAdminAppointments(req: Request, res: Response, next: NextFunction) {
+  try {
+    const parsed = adminListAppointmentsQuerySchema.safeParse(req.query)
+    if (!parsed.success) {
+      return res.status(400).json({
+        error: 'Error de validación',
+        details: (parsed.error as ZodError).errors,
+      })
+    }
+    const { businessId, dateFrom, dateTo, status } = parsed.data
+    const appointments = await getAppointmentsForAdminService({
+      businessId,
+      dateFrom,
+      dateTo,
+      status,
+    })
+    res.json(appointments)
+  } catch (err) {
+    next(err)
+  }
+}
+
+export async function adminCancelAppointment(req: AuthRequest, res: Response, next: NextFunction) {
+  try {
+    const appointmentId = req.params.id
+    if (!appointmentId) {
+      return res.status(400).json({ error: 'ID de cita obligatorio' })
+    }
+    const parsed = adminCancelAppointmentSchema.safeParse(req.body)
+    if (!parsed.success) {
+      return res.status(400).json({
+        error: 'Error de validación',
+        details: (parsed.error as ZodError).errors,
+      })
+    }
+    const result = await adminCancelAppointmentService(appointmentId, parsed.data.reason)
+    res.status(200).json(result)
+  } catch (err) {
+    if (err instanceof CancellationNotAllowedError) {
+      return res.status(400).json({ error: err.message })
+    }
+    next(err)
+  }
+}
+
+export async function adminUpdateAppointmentStatus(
+  req: AuthRequest,
+  res: Response,
+  next: NextFunction
+) {
+  try {
+    const appointmentId = req.params.id
+    if (!appointmentId) {
+      return res.status(400).json({ error: 'ID de cita obligatorio' })
+    }
+    const parsed = adminUpdateAppointmentStatusSchema.safeParse(req.body)
+    if (!parsed.success) {
+      return res.status(400).json({
+        error: 'Error de validación',
+        details: (parsed.error as ZodError).errors,
+      })
+    }
+    const result = await adminUpdateAppointmentStatusService(
+      appointmentId,
+      parsed.data.status
+    )
+    res.status(200).json(result)
+  } catch (err) {
+    if (err instanceof CancellationNotAllowedError) {
+      return res.status(400).json({ error: err.message })
     }
     next(err)
   }

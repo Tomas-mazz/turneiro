@@ -19,6 +19,10 @@ import {
   createAdminBlockedSlot,
   deleteAdminBlockedSlot,
   deleteAdminBusiness,
+  getAdminEmployees,
+  createAdminEmployee,
+  updateAdminEmployee,
+  deleteAdminEmployee,
 } from '@/lib/api'
 import type {
   AdminBusinessDetail,
@@ -26,6 +30,7 @@ import type {
   ServiceListItem,
   WorkingHoursItem,
   BlockedSlotListItem,
+  AdminEmployeeListItem,
 } from '@/types'
 
 type FormState = Omit<
@@ -93,6 +98,13 @@ export default function AdminBusinessPage() {
   const [deletingBlockId, setDeletingBlockId] = useState<string | null>(null)
   const [showDeleteBusinessConfirm, setShowDeleteBusinessConfirm] = useState(false)
   const [deletingBusiness, setDeletingBusiness] = useState(false)
+  const [employees, setEmployees] = useState<AdminEmployeeListItem[]>([])
+  const [employeesLoading, setEmployeesLoading] = useState(false)
+  const [newEmployeeName, setNewEmployeeName] = useState('')
+  const [newEmployeePhotoUrl, setNewEmployeePhotoUrl] = useState<string | null>(null)
+  const [employeePhotoUploading, setEmployeePhotoUploading] = useState(false)
+  const [savingEmployeeId, setSavingEmployeeId] = useState<string | null>(null)
+  const [editingEmployee, setEditingEmployee] = useState<AdminEmployeeListItem | null>(null)
 
   const DAY_NAMES = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado']
 
@@ -128,6 +140,15 @@ export default function AdminBusinessPage() {
       .finally(() => setLoading(false))
   }, [id])
 
+  useEffect(() => {
+    if (!id || !business) return
+    setEmployeesLoading(true)
+    getAdminEmployees(id)
+      .then(setEmployees)
+      .catch(() => setEmployees([]))
+      .finally(() => setEmployeesLoading(false))
+  }, [id, business])
+
   const loadServices = () => {
     if (!id) return
     setServicesLoading(true)
@@ -145,7 +166,7 @@ export default function AdminBusinessPage() {
         .catch(() => setError('Error al cargar servicios'))
         .finally(() => setServicesLoading(false))
     }
-  }, [id, business?.id])
+  }, [id, business])
 
   useEffect(() => {
     if (!id || !business) return
@@ -154,7 +175,7 @@ export default function AdminBusinessPage() {
       .then(setWorkingHours)
       .catch(() => setWorkingHoursError('Error al cargar horarios'))
       .finally(() => setWorkingHoursLoading(false))
-  }, [id, business?.id])
+  }, [id, business])
 
   const handleWorkingHoursChange = (dayOfWeek: number, field: keyof WorkingHoursItem, value: string | boolean | null) => {
     setWorkingHours((prev) =>
@@ -200,7 +221,7 @@ export default function AdminBusinessPage() {
       .then(setBlockedSlots)
       .catch(() => setBlockedSlots([]))
       .finally(() => setLoadingBlockedSlots(false))
-  }, [id, business?.id])
+  }, [id, business])
 
   const handleCreateBlock = async () => {
     if (!id || !blockDate.trim()) return
@@ -257,6 +278,81 @@ export default function AdminBusinessPage() {
       setShowDeleteBusinessConfirm(false)
     } finally {
       setDeletingBusiness(false)
+    }
+  }
+
+  const handleNewEmployeePhoto = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file || !file.type.startsWith('image/')) return
+    setEmployeePhotoUploading(true)
+    try {
+      const { url } = await uploadAdminFile(file)
+      setNewEmployeePhotoUrl(url)
+    } catch {
+      setError('Error al subir la foto del empleado')
+    } finally {
+      setEmployeePhotoUploading(false)
+      e.target.value = ''
+    }
+  }
+
+  const handleCreateEmployee = async () => {
+    if (!id || !newEmployeeName.trim()) return
+    setSavingEmployeeId('new')
+    try {
+      const created = await createAdminEmployee(id, {
+        name: newEmployeeName.trim(),
+        ...(newEmployeePhotoUrl ? { photoUrl: newEmployeePhotoUrl } : {}),
+      })
+      setEmployees((prev) => [...prev, created])
+      setNewEmployeeName('')
+      setNewEmployeePhotoUrl(null)
+    } catch (err: unknown) {
+      const msg =
+        err && typeof err === 'object' && 'response' in err
+          ? (err as { response?: { data?: { error?: string } } }).response?.data?.error
+          : null
+      setError(msg || 'Error al crear empleado')
+    } finally {
+      setSavingEmployeeId(null)
+    }
+  }
+
+  const handleUpdateEmployee = async (employeeId: string) => {
+    if (!editingEmployee || editingEmployee.id !== employeeId) return
+    setSavingEmployeeId(employeeId)
+    try {
+      const updated = await updateAdminEmployee(employeeId, {
+        name: editingEmployee.name,
+        photoUrl: editingEmployee.photoUrl,
+      })
+      setEmployees((prev) => prev.map((emp) => (emp.id === updated.id ? updated : emp)))
+      setEditingEmployee(null)
+    } catch (err: unknown) {
+      const msg =
+        err && typeof err === 'object' && 'response' in err
+          ? (err as { response?: { data?: { error?: string } } }).response?.data?.error
+          : null
+      setError(msg || 'Error al actualizar empleado')
+    } finally {
+      setSavingEmployeeId(null)
+    }
+  }
+
+  const handleDeleteEmployee = async (employeeId: string) => {
+    if (!confirm('¿Eliminar este empleado?')) return
+    setSavingEmployeeId(employeeId)
+    try {
+      await deleteAdminEmployee(employeeId)
+      setEmployees((prev) => prev.filter((emp) => emp.id !== employeeId))
+    } catch (err: unknown) {
+      const msg =
+        err && typeof err === 'object' && 'response' in err
+          ? (err as { response?: { data?: { error?: string } } }).response?.data?.error
+          : null
+      setError(msg || 'Error al eliminar empleado')
+    } finally {
+      setSavingEmployeeId(null)
     }
   }
 
@@ -462,6 +558,13 @@ export default function AdminBusinessPage() {
           <p className="rounded-md bg-red-50 p-3 text-sm text-red-700">{error}</p>
         )}
 
+        <fieldset className="rounded-lg border border-neutral-200 p-4">
+          <legend className="text-sm font-medium text-neutral-700">
+            Marca y presentación
+          </legend>
+          <p className="mb-4 text-xs text-neutral-500">
+            Nombre, descripción, logo, portada y tema se muestran en la página pública de reservas.
+          </p>
         <div className="grid gap-4 sm:grid-cols-2">
           <div>
             <label htmlFor="name" className="mb-1 block text-sm font-medium text-neutral-700">
@@ -638,6 +741,7 @@ export default function AdminBusinessPage() {
             </label>
           </div>
         </div>
+        </fieldset>
 
         <fieldset className="rounded-lg border border-neutral-200 p-4">
           <legend className="text-sm font-medium text-neutral-700">
@@ -1179,6 +1283,160 @@ export default function AdminBusinessPage() {
               </ul>
             )}
           </div>
+        </fieldset>
+
+        <fieldset className="rounded-lg border border-neutral-200 p-4">
+          <legend className="text-sm font-medium text-neutral-700">
+            Empleados
+          </legend>
+          <p className="mb-3 text-xs text-neutral-500">
+            Agregá empleados para mostrar en la página pública (nombre y foto). Las citas siguen siendo del negocio completo en este MVP.
+          </p>
+
+          <div className="mb-4 flex flex-wrap items-end gap-3">
+            <div className="w-48">
+              <label
+                htmlFor="newEmployeeName"
+                className="mb-1 block text-xs text-neutral-600"
+              >
+                Nombre del empleado *
+              </label>
+              <input
+                id="newEmployeeName"
+                type="text"
+                value={newEmployeeName}
+                onChange={(e) => setNewEmployeeName(e.target.value)}
+                className="w-full rounded-lg border border-neutral-300 px-3 py-2 text-sm"
+                placeholder="ej. Juan"
+              />
+            </div>
+            <div className="min-w-[180px]">
+              <label className="mb-1 block text-xs text-neutral-600">
+                Foto (opcional)
+              </label>
+              <input
+                type="file"
+                accept="image/*"
+                onChange={handleNewEmployeePhoto}
+                disabled={employeePhotoUploading}
+                className="block w-full text-xs text-neutral-600 file:mr-3 file:rounded-lg file:border-0 file:bg-neutral-100 file:px-3 file:py-1.5 file:text-xs file:font-medium file:text-neutral-700 hover:file:bg-neutral-200"
+              />
+              {employeePhotoUploading && (
+                <p className="mt-1 text-xs text-neutral-500">Subiendo foto...</p>
+              )}
+              {newEmployeePhotoUrl && (
+                <p className="mt-1 text-xs text-green-600">
+                  Foto cargada.{' '}
+                  <button
+                    type="button"
+                    onClick={() => setNewEmployeePhotoUrl(null)}
+                    className="underline"
+                  >
+                    Quitar
+                  </button>
+                </p>
+              )}
+            </div>
+            <button
+              type="button"
+              onClick={handleCreateEmployee}
+              disabled={savingEmployeeId === 'new' || !newEmployeeName.trim()}
+              className="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-2 text-sm font-medium text-emerald-800 transition-all hover:scale-105 hover:bg-emerald-100 disabled:opacity-50 disabled:hover:scale-100"
+            >
+              {savingEmployeeId === 'new' ? 'Agregando...' : 'Agregar empleado'}
+            </button>
+          </div>
+
+          {employeesLoading ? (
+            <p className="text-sm text-neutral-500">Cargando empleados...</p>
+          ) : employees.length === 0 ? (
+            <p className="text-sm text-neutral-500">
+              No hay empleados cargados. Podés agregarlos arriba.
+            </p>
+          ) : (
+            <ul className="space-y-3">
+              {employees.map((emp) =>
+                editingEmployee?.id === emp.id ? (
+                  <li
+                    key={emp.id}
+                    className="flex flex-wrap items-center gap-3 rounded-lg border border-neutral-200 bg-neutral-50/60 p-3"
+                  >
+                    <div className="flex flex-wrap items-center gap-3">
+                      <span className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-amber-400/20 text-sm font-medium text-amber-500">
+                        {editingEmployee.photoUrl
+                          ? '📷'
+                          : editingEmployee.name.charAt(0).toUpperCase()}
+                      </span>
+                      <input
+                        type="text"
+                        value={editingEmployee.name}
+                        onChange={(e) =>
+                          setEditingEmployee((prev) =>
+                            prev ? { ...prev, name: e.target.value } : prev
+                          )
+                        }
+                        className="w-40 rounded-lg border border-neutral-300 px-3 py-1.5 text-sm"
+                        required
+                      />
+                      <button
+                        type="button"
+                        onClick={() => handleUpdateEmployee(emp.id)}
+                        disabled={savingEmployeeId === emp.id}
+                        className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-xs font-medium text-emerald-800 hover:bg-emerald-100 disabled:opacity-50"
+                      >
+                        {savingEmployeeId === emp.id ? 'Guardando...' : 'Guardar'}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setEditingEmployee(null)}
+                        className="rounded-lg border border-neutral-300 px-3 py-1.5 text-xs font-medium text-neutral-700 hover:bg-neutral-50"
+                      >
+                        Cancelar
+                      </button>
+                    </div>
+                  </li>
+                ) : (
+                  <li
+                    key={emp.id}
+                    className="flex flex-wrap items-center gap-3 rounded-lg border border-neutral-200 bg-white px-3 py-2"
+                  >
+                    <div className="flex h-8 w-8 items-center justify-center overflow-hidden rounded-full bg-amber-400/20 text-xs font-medium text-amber-500">
+                      {emp.photoUrl ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img
+                          src={emp.photoUrl}
+                          alt=""
+                          className="h-full w-full object-cover"
+                        />
+                      ) : (
+                        emp.name.charAt(0).toUpperCase()
+                      )}
+                    </div>
+                    <span className="text-sm font-medium text-neutral-900">
+                      {emp.name}
+                    </span>
+                    <div className="ml-auto flex gap-1">
+                      <button
+                        type="button"
+                        onClick={() => setEditingEmployee(emp)}
+                        className="rounded-full border border-neutral-300 px-2 py-0.5 text-[11px] font-medium text-neutral-700 hover:bg-neutral-50"
+                      >
+                        Editar
+                      </button>
+                      <button
+                        type="button"
+                        disabled={savingEmployeeId === emp.id}
+                        onClick={() => handleDeleteEmployee(emp.id)}
+                        className="rounded-full border border-red-200 bg-red-50 px-2 py-0.5 text-[11px] font-medium text-red-700 hover:bg-red-100 disabled:opacity-50"
+                      >
+                        {savingEmployeeId === emp.id ? 'Elim...' : 'Eliminar'}
+                      </button>
+                    </div>
+                  </li>
+                )
+              )}
+            </ul>
+          )}
         </fieldset>
 
         <fieldset className="rounded-lg border border-neutral-200 p-4">

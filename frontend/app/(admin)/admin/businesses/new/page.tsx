@@ -149,6 +149,13 @@ export default function AdminNewBusinessPage() {
           <p className="rounded-md bg-red-50 p-3 text-sm text-red-700">{error}</p>
         )}
 
+        <fieldset className="rounded-lg border border-neutral-200 p-4">
+          <legend className="text-sm font-medium text-neutral-700">
+            Marca y presentación
+          </legend>
+          <p className="mb-4 text-xs text-neutral-500">
+            Nombre, descripción, logo, portada y tema se muestran en la página pública de reservas.
+          </p>
         <div className="grid gap-4 sm:grid-cols-2">
           <div>
             <label htmlFor="name" className="mb-1 block text-sm font-medium text-neutral-700">
@@ -326,6 +333,7 @@ export default function AdminNewBusinessPage() {
             </label>
           </div>
         </div>
+        </fieldset>
 
         <fieldset className="rounded-lg border border-neutral-200 p-4">
           <legend className="text-sm font-medium text-neutral-700">

@@ -26,6 +26,13 @@ export interface AppointmentListItem {
   paymentStatus: string
 }
 
+export interface AdminAppointmentListItem extends AppointmentListItem {
+  businessId: string
+  businessName: string
+  cancellationReason: string | null
+  refundAmount: number | null
+}
+
 export interface BlockedSlotListItem {
   id: string
   date: string
@@ -110,4 +117,10 @@ export interface WorkingHoursItem {
   isClosed: boolean
   lunchStart: string | null
   lunchEnd: string | null
+}
+
+export interface AdminEmployeeListItem {
+  id: string
+  name: string
+  photoUrl: string | null
 }

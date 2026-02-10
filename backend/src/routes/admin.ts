@@ -23,6 +23,13 @@ import {
   getAdminBlockedSlots,
   createAdminBlockedSlot,
   deleteAdminBlockedSlot,
+  listAdminAppointments,
+  adminCancelAppointment,
+  adminUpdateAppointmentStatus,
+  getBusinessEmployees,
+  createEmployee,
+  updateEmployee,
+  deleteEmployee,
 } from '../controllers/admin.controller'
 
 const router = Router()
@@ -68,5 +75,14 @@ router.patch(
   updateService
 )
 router.delete('/services/:id', requireAdmin, deleteService)
+
+router.get('/appointments', requireAdmin, listAdminAppointments)
+router.post('/appointments/:id/cancel', requireAdmin, adminCancelAppointment)
+router.patch('/appointments/:id/status', requireAdmin, adminUpdateAppointmentStatus)
+
+router.get('/businesses/:id/employees', requireAdmin, getBusinessEmployees)
+router.post('/businesses/:id/employees', requireAdmin, createEmployee)
+router.patch('/employees/:id', requireAdmin, updateEmployee)
+router.delete('/employees/:id', requireAdmin, deleteEmployee)
 
 export default router
