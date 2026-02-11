@@ -105,7 +105,7 @@ export default function AdminBusinessSetupPage() {
         .catch(() => setError('Error al cargar servicios'))
         .finally(() => setServicesLoading(false))
     }
-  }, [id, business?.id])
+  }, [id, business])
 
   useEffect(() => {
     if (!id || !business) return
@@ -115,7 +115,7 @@ export default function AdminBusinessSetupPage() {
       .then(setWorkingHours)
       .catch(() => setWorkingHoursError('Error al cargar horarios'))
       .finally(() => setWorkingHoursLoading(false))
-  }, [id, business?.id, currentStep])
+  }, [id, business, currentStep])
 
   const handleWorkingHoursChange = (dayOfWeek: number, field: keyof WorkingHoursItem, value: string | boolean | null) => {
     setWorkingHours((prev) =>
@@ -222,7 +222,7 @@ export default function AdminBusinessSetupPage() {
       .then(setEmployees)
       .catch(() => setEmployees([]))
       .finally(() => setEmployeesLoading(false))
-  }, [id, business?.id, currentStep])
+  }, [id, business, currentStep])
 
   const handleNewEmployeePhoto = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]

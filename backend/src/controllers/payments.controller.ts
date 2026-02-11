@@ -81,10 +81,10 @@ export async function createPaymentIntent(req: Request, res: Response) {
       await prisma.appointment.update({
         where: { id: appointmentId },
         data: {
-          paymentProvider: 'STRIPE' as any,
-          paymentIntentId: paymentIntentId as any,
-          paymentAmount: paymentAmount as any,
-        } as any,
+          paymentProvider: 'STRIPE',
+          paymentIntentId,
+          paymentAmount,
+        },
       })
 
       return res.json({
@@ -105,10 +105,10 @@ export async function createPaymentIntent(req: Request, res: Response) {
       await prisma.appointment.update({
         where: { id: appointmentId },
         data: {
-          paymentProvider: 'MERCADOPAGO' as any,
-          paymentIntentId: preferenceId as any,
-          paymentAmount: paymentAmount as any,
-        } as any,
+          paymentProvider: 'MERCADOPAGO',
+          paymentIntentId: preferenceId,
+          paymentAmount,
+        },
       })
 
       return res.json({
@@ -145,8 +145,8 @@ export async function confirmPayment(req: Request, res: Response) {
       return res.status(404).json({ error: 'Cita no encontrada' })
     }
 
-    const aptPaymentIntentId = (appointment as any).paymentIntentId
-    const aptPaymentProvider = (appointment as any).paymentProvider
+    const aptPaymentIntentId = appointment.paymentIntentId
+    const aptPaymentProvider = appointment.paymentProvider
 
     if (aptPaymentIntentId !== paymentIntentId) {
       return res.status(400).json({ error: 'Payment Intent ID no coincide' })

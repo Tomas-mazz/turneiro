@@ -38,8 +38,8 @@ async function syncToGoogleCalendar(
 
     if (!owner) return
 
-    const refreshToken = (owner as any)?.googleRefreshToken
-    const calendarId = (owner as any)?.googleCalendarId
+    const refreshToken = owner?.googleRefreshToken
+    const calendarId = owner?.googleCalendarId
 
     if (!refreshToken || !calendarId) {
       console.log('Google Calendar not connected for business:', businessId)
@@ -71,8 +71,8 @@ async function syncToGoogleCalendar(
     await prisma.appointment.update({
       where: { id: appointmentId },
       data: {
-        googleEventId: eventId as any,
-      } as any,
+        googleEventId: eventId,
+      },
     })
 
     console.log(`✅ Appointment ${appointmentId} synced to Google Calendar`)
@@ -94,7 +94,7 @@ async function deleteFromGoogleCalendar(
       where: { id: appointmentId },
     })
 
-    const googleEventId = (appointment as any)?.googleEventId
+    const googleEventId = appointment?.googleEventId
     if (!googleEventId) return
 
     const owner = await prisma.user.findFirst({
@@ -106,8 +106,8 @@ async function deleteFromGoogleCalendar(
 
     if (!owner) return
 
-    const refreshToken = (owner as any)?.googleRefreshToken
-    const calendarId = (owner as any)?.googleCalendarId
+    const refreshToken = owner?.googleRefreshToken
+    const calendarId = owner?.googleCalendarId
 
     if (!refreshToken || !calendarId) return
 
@@ -219,8 +219,8 @@ export async function cancelAppointmentService(token: string) {
 
   // Process refund if payment was made
   let refundAmount = 0
-  const aptPaymentIntentId = (appointment as any).paymentIntentId
-  const aptPaymentProvider = (appointment as any).paymentProvider
+  const aptPaymentIntentId = appointment.paymentIntentId
+  const aptPaymentProvider = appointment.paymentProvider
 
   if (
     appointment.paymentStatus === 'PAID' &&
@@ -251,8 +251,8 @@ export async function cancelAppointmentService(token: string) {
     data: {
       status: 'CANCELLED',
       paymentStatus: refundAmount > 0 ? 'REFUNDED' : appointment.paymentStatus,
-      refundAmount: refundAmount > 0 ? (refundAmount as any) : undefined,
-    } as any,
+      refundAmount: refundAmount > 0 ? refundAmount : undefined,
+    },
   })
 
   // Delete from Google Calendar asynchronously
@@ -403,7 +403,7 @@ export async function getAppointmentsForAdminService(params: {
     businessId: a.businessId,
     businessName: a.business.name,
     cancellationReason: a.cancellationReason,
-    refundAmount: (a.refundAmount ?? null) as any,
+    refundAmount: a.refundAmount ?? null,
   }))
 }
 
@@ -425,8 +425,8 @@ export async function adminCancelAppointmentService(
 
   // For admin cancellation, we mirror owner behaviour: full refund when paid.
   let refundAmount = 0
-  const aptPaymentIntentId = (appointment as any).paymentIntentId
-  const aptPaymentProvider = (appointment as any).paymentProvider
+  const aptPaymentIntentId = appointment.paymentIntentId
+  const aptPaymentProvider = appointment.paymentProvider
 
   if (
     appointment.paymentStatus === 'PAID' &&
@@ -455,8 +455,8 @@ export async function adminCancelAppointmentService(
       status: 'CANCELLED',
       cancellationReason: reason,
       paymentStatus: refundAmount > 0 ? 'REFUNDED' : appointment.paymentStatus,
-      refundAmount: refundAmount > 0 ? (refundAmount as any) : undefined,
-    } as any,
+      refundAmount: refundAmount > 0 ? refundAmount : undefined,
+    },
   })
 
   // Delete from Google Calendar asynchronously
@@ -515,8 +515,8 @@ export async function cancelAppointmentByOwnerService(
 
   // Process full refund when owner cancels (business's responsibility)
   let refundAmount = 0
-  const aptPaymentIntentId = (appointment as any).paymentIntentId
-  const aptPaymentProvider = (appointment as any).paymentProvider
+  const aptPaymentIntentId = appointment.paymentIntentId
+  const aptPaymentProvider = appointment.paymentProvider
 
   if (
     appointment.paymentStatus === 'PAID' &&
@@ -548,8 +548,8 @@ export async function cancelAppointmentByOwnerService(
       status: 'CANCELLED',
       cancellationReason: reason,
       paymentStatus: refundAmount > 0 ? 'REFUNDED' : appointment.paymentStatus,
-      refundAmount: refundAmount > 0 ? (refundAmount as any) : undefined,
-    } as any,
+      refundAmount: refundAmount > 0 ? refundAmount : undefined,
+    },
   })
 
   // Delete from Google Calendar asynchronously

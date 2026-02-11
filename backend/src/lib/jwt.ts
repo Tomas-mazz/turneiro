@@ -1,6 +1,6 @@
 import jwt from 'jsonwebtoken'
 
-const secret = process.env.JWT_SECRET
+const secret: string = process.env.JWT_SECRET || ''
 if (!secret) {
   throw new Error('JWT_SECRET is not set in environment')
 }
@@ -12,13 +12,19 @@ export type JwtPayload = {
   businessId?: string
 }
 
-const DEFAULT_EXPIRES_IN = '7d'
+const DEFAULT_EXPIRES_IN: jwt.SignOptions['expiresIn'] = '7d'
 
-export function signToken(payload: JwtPayload, expiresIn: string = DEFAULT_EXPIRES_IN): string {
+export function signToken(
+  payload: JwtPayload,
+  expiresIn: jwt.SignOptions['expiresIn'] = DEFAULT_EXPIRES_IN
+): string {
   return jwt.sign(payload, secret, { expiresIn })
 }
 
 export function verifyToken(token: string): JwtPayload {
-  const decoded = jwt.verify(token, secret) as JwtPayload
-  return decoded
+  const decoded = jwt.verify(token, secret)
+  if (!decoded || typeof decoded === 'string') {
+    throw new Error('Invalid token payload')
+  }
+  return decoded as JwtPayload
 }

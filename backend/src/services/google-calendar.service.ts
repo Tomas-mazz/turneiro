@@ -1,4 +1,4 @@
-import { google } from 'googleapis'
+import { google, calendar_v3 } from 'googleapis'
 import { OAuth2Client } from 'google-auth-library'
 
 if (!process.env.GOOGLE_CLIENT_ID || !process.env.GOOGLE_CLIENT_SECRET) {
@@ -51,7 +51,7 @@ export async function getTokensFromCode(code: string): Promise<{
     
     return {
       accessToken: tokens.access_token!,
-      refreshToken: tokens.refresh_token,
+      refreshToken: tokens.refresh_token ?? undefined,
     }
   } catch (error) {
     console.error('Error getting tokens from code:', error)
@@ -144,7 +144,7 @@ export async function updateCalendarEvent(
     const auth = createAuthenticatedClient(refreshToken)
     const calendar = google.calendar({ version: 'v3', auth })
 
-    const updateData: any = {}
+    const updateData: calendar_v3.Schema$Event = {}
     if (event.summary) updateData.summary = event.summary
     if (event.description) updateData.description = event.description
     if (event.location) updateData.location = event.location
@@ -201,7 +201,7 @@ export async function getCalendarEvent(
   refreshToken: string,
   calendarId: string,
   eventId: string
-): Promise<any> {
+): Promise<calendar_v3.Schema$Event> {
   try {
     const auth = createAuthenticatedClient(refreshToken)
     const calendar = google.calendar({ version: 'v3', auth })
@@ -221,7 +221,9 @@ export async function getCalendarEvent(
 /**
  * List calendars for user
  */
-export async function listCalendars(refreshToken: string): Promise<any[]> {
+export async function listCalendars(
+  refreshToken: string
+): Promise<calendar_v3.Schema$CalendarListEntry[]> {
   try {
     const auth = createAuthenticatedClient(refreshToken)
     const calendar = google.calendar({ version: 'v3', auth })

@@ -42,7 +42,7 @@ export async function oauthCallback(req: Request, res: Response) {
     const userId = state as string
 
     // Exchange code for tokens
-    const { accessToken, refreshToken } =
+    const { refreshToken } =
       await googleCalendarService.getTokensFromCode(code as string)
 
     if (!refreshToken) {
@@ -53,7 +53,7 @@ export async function oauthCallback(req: Request, res: Response) {
     let calendarId: string = 'primary'
     try {
       const calendars = await googleCalendarService.listCalendars(refreshToken)
-      const primaryCalendar = calendars?.find((cal: any) => cal.primary) || calendars?.[0]
+      const primaryCalendar = calendars?.find((cal) => cal.primary) || calendars?.[0]
       if (primaryCalendar?.id) {
         calendarId = primaryCalendar.id
       }
@@ -65,9 +65,9 @@ export async function oauthCallback(req: Request, res: Response) {
     await prisma.user.update({
       where: { id: userId },
       data: {
-        googleRefreshToken: refreshToken as any,
-        googleCalendarId: calendarId as any,
-      } as any,
+        googleRefreshToken: refreshToken,
+        googleCalendarId: calendarId,
+      },
     })
 
     return res.redirect(`${FRONTEND_URL}/dashboard?google_calendar=connected`)
@@ -89,9 +89,9 @@ export async function disconnectCalendar(req: AuthRequest, res: Response) {
     await prisma.user.update({
       where: { id: req.user.userId },
       data: {
-        googleRefreshToken: null as any,
-        googleCalendarId: null as any,
-      } as any,
+        googleRefreshToken: null,
+        googleCalendarId: null,
+      },
     })
 
     return res.json({
@@ -121,11 +121,11 @@ export async function getConnectionStatus(req: AuthRequest, res: Response) {
       },
     })
 
-    const isConnected = !!(user as any)?.googleRefreshToken
+    const isConnected = !!user?.googleRefreshToken
 
     return res.json({
       connected: isConnected,
-      calendarId: isConnected ? (user as any)?.googleCalendarId : null,
+      calendarId: isConnected ? user?.googleCalendarId : null,
     })
   } catch (error) {
     console.error('getConnectionStatus error:', error)
@@ -153,8 +153,8 @@ export async function syncAppointment(req: AuthRequest, res: Response) {
       where: { id: req.user.userId },
     })
 
-    const refreshToken = (user as any)?.googleRefreshToken
-    const calendarId = (user as any)?.googleCalendarId
+    const refreshToken = user?.googleRefreshToken
+    const calendarId = user?.googleCalendarId
 
     if (!refreshToken || !calendarId) {
       return res.status(400).json({
@@ -178,7 +178,7 @@ export async function syncAppointment(req: AuthRequest, res: Response) {
     }
 
     // Create or update event
-    const existingEventId = (appointment as any).googleEventId
+    const existingEventId = appointment.googleEventId
 
     if (existingEventId) {
       // Update existing event
@@ -211,8 +211,8 @@ export async function syncAppointment(req: AuthRequest, res: Response) {
       await prisma.appointment.update({
         where: { id: appointmentId },
         data: {
-          googleEventId: eventId as any,
-        } as any,
+          googleEventId: eventId,
+        },
       })
     }
 

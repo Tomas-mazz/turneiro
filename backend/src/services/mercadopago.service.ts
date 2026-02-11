@@ -11,6 +11,12 @@ const client = new MercadoPagoConfig({
 const preferenceClient = new Preference(client)
 const paymentClient = new Payment(client)
 
+type MercadoPagoRefundBody = { amount?: number }
+type MercadoPagoRefundResponse = { id?: string | number }
+type RefundCapablePaymentClient = Payment & {
+  refund(args: { id: number; body: MercadoPagoRefundBody }): Promise<MercadoPagoRefundResponse>
+}
+
 /**
  * Create a Mercado Pago Preference for appointment payment
  */
@@ -69,13 +75,14 @@ export async function processRefund(
     const payment = await paymentClient.get({ id: Number(paymentId) })
     
     // Create refund through API using type assertion for refund method
-    const refundBody: any = {}
+    const refundBody: MercadoPagoRefundBody = {}
     if (amount !== undefined) {
       refundBody.amount = amount
     }
 
     // Use type assertion since SDK types might be incomplete
-    const refund = await (paymentClient as any).refund({
+    const refundClient = paymentClient as unknown as RefundCapablePaymentClient
+    const refund = await refundClient.refund({
       id: Number(paymentId),
       body: refundBody,
     })
@@ -107,6 +114,9 @@ export async function verifyWebhookSignature(
     return false
   }
 
+  // Keep parameter for future HMAC payload checks
+  void dataId
+
   // TODO: Implement full HMAC verification when Mercado Pago provides webhook secret
   return true
 }
@@ -114,7 +124,7 @@ export async function verifyWebhookSignature(
 /**
  * Get payment details
  */
-export async function getPayment(paymentId: string): Promise<any> {
+export async function getPayment(paymentId: string): Promise<unknown> {
   try {
     const payment = await paymentClient.get({ id: Number(paymentId) })
     return payment
