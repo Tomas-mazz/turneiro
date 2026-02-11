@@ -14,6 +14,7 @@ import {
   getAdminEmployees,
   createAdminEmployee,
   deleteAdminEmployee,
+  uploadAdminFile,
 } from '@/lib/api'
 import type {
   AdminBusinessDetail,

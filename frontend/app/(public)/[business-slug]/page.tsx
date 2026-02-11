@@ -14,6 +14,8 @@ import {
   ServiceStep,
 } from './components'
 
+type ThemeMode = 'DARK' | 'LIGHT'
+
 function isTechnicalError(msg: unknown): boolean {
   return typeof msg === 'string' && /prisma|invocation|column|database|ECONNREFUSED/i.test(msg)
 }
@@ -54,9 +56,9 @@ export default function BusinessBookingPage({
   const [paymentLoading, setPaymentLoading] = useState(false)
   const [paymentError, setPaymentError] = useState<string | null>(null)
   const [paymentProvider, setPaymentProvider] = useState<'STRIPE' | 'MERCADOPAGO' | null>(null)
+  const [themeMode, setThemeMode] = useState<ThemeMode>('DARK')
 
-  const theme = business?.theme === 'LIGHT' ? 'LIGHT' : 'DARK'
-  const isDarkTheme = theme === 'DARK'
+  const isDarkTheme = themeMode === 'DARK'
 
   const goToStep = useCallback(
     (nextStep: Step) => {
@@ -105,12 +107,18 @@ export default function BusinessBookingPage({
     if (step !== 'service' && step !== 'date') return
     const prevHtml = document.documentElement.style.backgroundColor
     const prevBody = document.body.style.backgroundColor
-    const bg = isDarkTheme ? 'hsl(0, 0%, 9%)' : 'rgb(255, 255, 255)'
+    const prevHtmlTransition = document.documentElement.style.transition
+    const prevBodyTransition = document.body.style.transition
+    const bg = isDarkTheme ? 'hsl(0, 0%, 9%)' : 'rgb(244, 244, 245)'
+    document.documentElement.style.transition = 'background-color 240ms ease-out'
+    document.body.style.transition = 'background-color 240ms ease-out'
     document.documentElement.style.backgroundColor = bg
     document.body.style.backgroundColor = bg
     return () => {
       document.documentElement.style.backgroundColor = prevHtml
       document.body.style.backgroundColor = prevBody
+      document.documentElement.style.transition = prevHtmlTransition
+      document.body.style.transition = prevBodyTransition
     }
   }, [step, isDarkTheme])
 
@@ -291,12 +299,12 @@ export default function BusinessBookingPage({
     <main
       className={
         step === 'hero'
-          ? 'min-h-screen h-screen overflow-hidden bg-neutral-100'
-          : 'min-h-screen bg-neutral-100'
+          ? 'min-h-screen h-screen overflow-hidden bg-neutral-100 transition-colors duration-300 ease-out'
+          : 'min-h-screen bg-neutral-100 transition-colors duration-300 ease-out'
       }
       style={
         step === 'service' || step === 'date'
-          ? { backgroundColor: isDarkTheme ? 'hsl(0, 0%, 9%)' : 'rgb(255, 255, 255)' }
+          ? { backgroundColor: isDarkTheme ? 'hsl(0, 0%, 9%)' : 'rgb(244, 244, 245)' }
           : undefined
       }
     >
@@ -318,6 +326,7 @@ export default function BusinessBookingPage({
           onContinue={() => goToStep('date')}
           primaryColor={primaryColor}
           isDarkTheme={isDarkTheme}
+          onToggleTheme={() => setThemeMode((prev) => (prev === 'DARK' ? 'LIGHT' : 'DARK'))}
         />
       )}
 
@@ -340,6 +349,7 @@ export default function BusinessBookingPage({
           onBack={handleBack}
           primaryColor={primaryColor}
           isDarkTheme={isDarkTheme}
+          onToggleTheme={() => setThemeMode((prev) => (prev === 'DARK' ? 'LIGHT' : 'DARK'))}
         />
       )}
 

@@ -31,7 +31,6 @@ export default function AdminNewBusinessPage() {
     logo: '',
     coverPhoto: '',
     coverVideo: '',
-    theme: 'DARK',
     paymentRequired: false,
     ownerEmail: '',
     ownerPassword: '',
@@ -101,7 +100,7 @@ export default function AdminNewBusinessPage() {
         slug: form.slug.trim() || slugify(form.name),
         category: form.category.trim(),
         paymentRequired: form.paymentRequired,
-        theme: form.theme ?? 'DARK',
+        theme: 'DARK',
       }
       if (form.description?.trim()) body.description = form.description.trim()
       if (form.phone?.trim()) body.phone = form.phone.trim()
@@ -154,7 +153,7 @@ export default function AdminNewBusinessPage() {
             Marca y presentación
           </legend>
           <p className="mb-4 text-xs text-neutral-500">
-            Nombre, descripción, logo, portada y tema se muestran en la página pública de reservas.
+            Nombre, descripción, logo y portada se muestran en la página pública de reservas.
           </p>
         <div className="grid gap-4 sm:grid-cols-2">
           <div>
@@ -306,33 +305,6 @@ export default function AdminNewBusinessPage() {
           )}
         </div>
 
-        <div>
-          <label className="mb-1 block text-sm font-medium text-neutral-700">
-            Tema / fondo de la página
-          </label>
-          <div className="flex gap-6">
-            <label className="flex items-center gap-2">
-              <input
-                type="radio"
-                name="theme"
-                checked={form.theme === 'DARK'}
-                onChange={() => setForm((p) => ({ ...p, theme: 'DARK' }))}
-                className="text-neutral-900"
-              />
-              <span>Tema oscuro</span>
-            </label>
-            <label className="flex items-center gap-2">
-              <input
-                type="radio"
-                name="theme"
-                checked={form.theme === 'LIGHT'}
-                onChange={() => setForm((p) => ({ ...p, theme: 'LIGHT' }))}
-                className="text-neutral-900"
-              />
-              <span>Tema claro (fondo blanco)</span>
-            </label>
-          </div>
-        </div>
         </fieldset>
 
         <fieldset className="rounded-lg border border-neutral-200 p-4">

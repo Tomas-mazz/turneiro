@@ -17,6 +17,7 @@ type ServiceStepProps = {
   onContinue: () => void
   primaryColor: string
   isDarkTheme?: boolean
+  onToggleTheme?: () => void
 }
 
 export function ServiceStep({
@@ -26,12 +27,37 @@ export function ServiceStep({
   onContinue,
   primaryColor,
   isDarkTheme = true,
+  onToggleTheme,
 }: ServiceStepProps) {
   const bgColor = isDarkTheme ? 'hsl(0, 0%, 9%)' : 'rgb(255, 255, 255)'
   const textColor = isDarkTheme ? 'text-white' : 'text-neutral-900'
-  const borderColor = isDarkTheme ? 'border-neutral-600' : 'border-neutral-200'
-  const cartBg = isDarkTheme ? 'rgb(41, 41, 41)' : 'rgb(243, 244, 246)'
-  const titleColor = isDarkTheme ? 'text-neutral-300' : 'text-neutral-600'
+  const borderColor = isDarkTheme ? 'border-neutral-600' : 'border-neutral-300'
+  const titleColor = isDarkTheme ? 'text-neutral-300' : 'text-neutral-800'
+  const serviceNameColor = isDarkTheme ? 'text-white' : 'text-neutral-900'
+  const serviceMetaColor = isDarkTheme ? 'text-neutral-400' : 'text-neutral-700'
+  const serviceRowHover = isDarkTheme ? 'hover:bg-neutral-700/50' : 'hover:bg-neutral-100'
+  const bulletBorder = isDarkTheme ? 'border-neutral-500' : 'border-neutral-500'
+  const bulletFill = isDarkTheme ? 'bg-white' : 'bg-neutral-900'
+  const asideHeadingColor = isDarkTheme ? 'text-neutral-400' : 'text-neutral-700'
+  const asideTextColor = isDarkTheme ? 'text-neutral-300' : 'text-neutral-900'
+  const asideIconColor = isDarkTheme ? 'text-neutral-500' : 'text-neutral-600'
+  const asideLinkHover = isDarkTheme ? 'hover:text-white' : 'hover:text-neutral-900'
+
+  // Cart behavior requested:
+  // - LIGHT page: black cart with white content
+  // - DARK page: keep previous dark appearance
+  const cartBg = isDarkTheme ? 'rgb(41, 41, 41)' : 'rgb(236, 236, 236)'
+  const cartPanelClass = isDarkTheme
+    ? 'border-neutral-700 shadow-[0_-4px_24px_rgba(0,0,0,0.3)]'
+    : 'border-neutral-300 shadow-[0_-4px_24px_rgba(0,0,0,0.12)]'
+  const cartTitleColor = isDarkTheme ? 'text-white' : 'text-neutral-900'
+  const cartTextColor = isDarkTheme ? 'text-neutral-100' : 'text-neutral-800'
+  const cartCloseClass = isDarkTheme
+    ? 'border-neutral-500 text-neutral-400 hover:bg-neutral-600 hover:text-white'
+    : 'border-neutral-400 text-neutral-600 hover:bg-neutral-200 hover:text-neutral-800'
+  const cartCtaClass = isDarkTheme
+    ? 'bg-white text-black hover:opacity-90'
+    : 'border border-neutral-300 bg-white text-black hover:bg-neutral-50'
   const workingHoursByDay = (business.workingHours ?? []).reduce(
     (acc, wh) => {
       acc[wh.dayOfWeek] = wh
@@ -59,14 +85,39 @@ export function ServiceStep({
   }
 
   return (
-    <section className={`min-h-screen ${textColor}`} style={{ backgroundColor: bgColor }}>
+    <section className={`min-h-screen transition-colors duration-300 ease-out ${textColor}`} style={{ backgroundColor: bgColor }}>
       {/* Header: business name with typewriter */}
-      <header className={`border-b ${borderColor} py-6 md:py-8`}>
-        <div className="mx-auto max-w-4xl px-4 text-center md:max-w-4xl md:px-6 md:text-left lg:max-w-6xl lg:px-8">
-          <h1 className={`text-2xl font-bold md:text-3xl ${isDarkTheme ? 'text-white' : 'text-neutral-900'}`}>
+      <header className={`border-b ${borderColor} py-4 md:py-6`}>
+        <div className="mx-auto flex max-w-6xl items-center justify-between gap-3 px-4 md:px-6 lg:px-8">
+          <h1 className={`min-w-0 truncate text-left text-2xl font-bold md:text-3xl ${isDarkTheme ? 'text-white' : 'text-neutral-900'}`}>
             {displayName}
             <span className="animate-pulse">|</span>
           </h1>
+          {onToggleTheme && (
+            <button
+              type="button"
+              onClick={onToggleTheme}
+              className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border-2 transition-all duration-300 ease-out sm:h-11 sm:w-11 md:h-12 md:w-12 ${
+                isDarkTheme
+                  ? 'border-lime-300 bg-neutral-900 text-neutral-100 hover:border-lime-200'
+                  : 'border-indigo-500 bg-white text-neutral-600 hover:border-indigo-400'
+              }`}
+              aria-label={isDarkTheme ? 'Cambiar a modo claro' : 'Cambiar a modo oscuro'}
+              title={isDarkTheme ? 'Modo oscuro' : 'Modo claro'}
+            >
+              {isDarkTheme ? (
+                <svg viewBox="0 0 24 24" className="h-5 w-5 sm:h-6 sm:w-6" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden>
+                  <path d="M21 12.79A9 9 0 1 1 11.21 3a7 7 0 0 0 9.79 9.79Z" />
+                  <path d="M17.5 4.5v2M17.5 9.5v2M15 7h2M20 7h2" />
+                </svg>
+              ) : (
+                <svg viewBox="0 0 24 24" className="h-5 w-5 sm:h-6 sm:w-6" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden>
+                  <circle cx="12" cy="12" r="4" />
+                  <path d="M12 2v2.2M12 19.8V22M4.9 4.9l1.6 1.6M17.5 17.5l1.6 1.6M2 12h2.2M19.8 12H22M4.9 19.1l1.6-1.6M17.5 6.5l1.6-1.6" />
+                </svg>
+              )}
+            </button>
+          )}
         </div>
       </header>
 
@@ -76,7 +127,7 @@ export function ServiceStep({
           <h2 className={`mb-4 text-center text-lg font-semibold md:mb-5 md:text-left md:text-xl ${titleColor}`}>
             Servicios
           </h2>
-          <ul className={`divide-y ${isDarkTheme ? 'divide-neutral-600' : 'divide-neutral-200'}`}>
+          <ul className={`divide-y ${isDarkTheme ? 'divide-neutral-600' : 'divide-neutral-300'}`}>
             {business.services.map((s) => {
               const isSelected = selectedService?.id === s.id
               return (
@@ -84,25 +135,25 @@ export function ServiceStep({
                   <button
                     type="button"
                     onClick={() => onSelectService(s)}
-                    className="flex w-full items-start gap-4 py-5 pl-1 pr-4 text-left transition-colors hover:bg-neutral-700/50 md:py-6 md:gap-5"
+                    className={`flex w-full items-start gap-4 py-5 pl-1 pr-4 text-left transition-colors md:py-6 md:gap-5 ${serviceRowHover}`}
                   >
                     <span
-                      className="mt-1.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full border-2 border-neutral-500"
+                      className={`mt-1.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full border-2 ${bulletBorder}`}
                       aria-hidden
                     >
                       {isSelected && (
-                        <span className="h-2 w-2 rounded-full bg-white" />
+                        <span className={`h-2 w-2 rounded-full ${bulletFill}`} />
                       )}
                     </span>
                     <div className="min-w-0 flex-1">
-                      <span className="text-base font-medium text-white md:text-lg">
+                      <span className={`text-base font-medium md:text-lg ${serviceNameColor}`}>
                         {s.name}
                       </span>
-                      <p className="mt-1 text-sm text-neutral-400 md:text-base">
+                      <p className={`mt-1 text-sm md:text-base ${serviceMetaColor}`}>
                         {s.duration} min
                       </p>
                     </div>
-                    <span className="ml-6 shrink-0 pr-2 text-base font-medium text-white md:text-lg">
+                    <span className={`ml-6 shrink-0 pr-2 text-base font-medium md:text-lg ${serviceNameColor}`}>
                       $ {s.price.toFixed(0)}
                     </span>
                   </button>
@@ -117,7 +168,7 @@ export function ServiceStep({
           <div className="flex flex-col gap-8 py-4 md:gap-9">
             {business.employees && business.employees.length > 0 ? (
               <div>
-                <h3 className="mb-3 text-sm font-semibold uppercase tracking-wide text-neutral-400">
+                <h3 className={`mb-3 text-sm font-semibold uppercase tracking-wide ${asideHeadingColor}`}>
                   Empleados
                 </h3>
                 <div className="grid grid-cols-3 gap-3">
@@ -140,7 +191,7 @@ export function ServiceStep({
                           emp.name.charAt(0).toUpperCase()
                         )}
                       </div>
-                      <span className="text-xs text-neutral-300">{emp.name}</span>
+                      <span className={`text-xs ${asideTextColor}`}>{emp.name}</span>
                     </div>
                   ))}
                 </div>
@@ -150,18 +201,18 @@ export function ServiceStep({
             )}
 
             <div>
-              <h3 className="mb-3 text-sm font-semibold uppercase tracking-wide text-neutral-400">
+              <h3 className={`mb-3 text-sm font-semibold uppercase tracking-wide ${asideHeadingColor}`}>
                 Contacto
               </h3>
-              <ul className="space-y-2 text-sm text-neutral-300">
+              <ul className={`space-y-2 text-sm ${asideTextColor}`}>
                 {business.phone && (
                   <li className="flex items-center gap-2">
-                    <span className="text-neutral-500" aria-hidden>
+                    <span className={asideIconColor} aria-hidden>
                       📞
                     </span>
                     <a
                       href={`tel:${business.phone.replace(/\s/g, '')}`}
-                      className="hover:text-white"
+                      className={asideLinkHover}
                     >
                       {business.phone}
                     </a>
@@ -169,12 +220,12 @@ export function ServiceStep({
                 )}
                 {business.email && (
                   <li className="flex items-center gap-2">
-                    <span className="text-neutral-500" aria-hidden>
+                    <span className={asideIconColor} aria-hidden>
                       ✉️
                     </span>
                     <a
                       href={`mailto:${business.email}`}
-                      className="hover:text-white"
+                      className={asideLinkHover}
                     >
                       {business.email}
                     </a>
@@ -182,7 +233,7 @@ export function ServiceStep({
                 )}
                 {business.address && (
                   <li className="flex items-center gap-2">
-                    <span className="text-neutral-500" aria-hidden>
+                    <span className={asideIconColor} aria-hidden>
                       📍
                     </span>
                     <span>{business.address}</span>
@@ -192,7 +243,7 @@ export function ServiceStep({
             </div>
 
             <div>
-              <h3 className="mb-3 text-sm font-semibold uppercase tracking-wide text-neutral-400">
+              <h3 className={`mb-3 text-sm font-semibold uppercase tracking-wide ${asideHeadingColor}`}>
                 Horarios
               </h3>
               <ul className="space-y-2 text-sm">
@@ -207,7 +258,7 @@ export function ServiceStep({
                   return (
                     <li
                       key={dayOfWeek}
-                      className="flex justify-between gap-4 text-neutral-300"
+                      className={`flex justify-between gap-4 ${asideTextColor}`}
                     >
                       <span>{dayName}</span>
                       <span className="shrink-0">{value}</span>
@@ -231,25 +282,25 @@ export function ServiceStep({
           <div
             ref={panelRef}
             onAnimationEnd={handleSlideDownEnd}
-            className={`mx-auto w-full max-w-md rounded-2xl p-6 shadow-[0_-4px_24px_rgba(0,0,0,0.3)] md:max-w-lg md:p-6 ${isClosing ? 'animate-slide-down' : 'animate-slide-up'}`}
+            className={`mx-auto w-full max-w-lg rounded-2xl border p-6 transition-colors duration-300 ease-out md:max-w-xl md:p-7 ${cartPanelClass} ${isClosing ? 'animate-slide-down' : 'animate-slide-up'}`}
             style={{ backgroundColor: cartBg }}
           >
             <div className="mb-4 flex items-center justify-between">
-              <h2 id="cart-title" className={`text-lg font-semibold ${isDarkTheme ? 'text-white' : 'text-neutral-900'}`}>
+              <h2 id="cart-title" className={`text-lg font-semibold ${cartTitleColor}`}>
                 Tu carrito
               </h2>
               <button
                 type="button"
                 onClick={handleCloseCart}
-                className="flex h-8 w-8 items-center justify-center rounded-full border border-neutral-500 text-neutral-400 transition-colors hover:bg-neutral-600 hover:text-white"
+                className={`flex h-8 w-8 items-center justify-center rounded-full border transition-colors ${cartCloseClass}`}
                 aria-label="Cerrar"
               >
                 <span className="text-xl leading-none">×</span>
               </button>
             </div>
-            <div className="mb-4 flex items-center justify-between py-2">
-              <span className="text-white">{selectedService.name}</span>
-              <span className="font-medium text-white">
+            <div className="mb-5 flex items-center justify-between py-2">
+              <span className={`text-lg ${cartTextColor}`}>{selectedService.name}</span>
+              <span className={`text-lg font-semibold ${cartTextColor}`}>
                 $ {selectedService.price.toFixed(0)}
               </span>
             </div>
@@ -257,7 +308,7 @@ export function ServiceStep({
               <button
                 type="button"
                 onClick={onContinue}
-                className="flex w-1/2 min-w-0 items-center justify-center gap-2 rounded-lg bg-white px-4 py-3 font-medium text-black transition-opacity hover:opacity-90"
+                className={`flex w-2/3 min-w-0 items-center justify-center gap-2 rounded-lg px-4 py-3.5 text-base font-medium transition-opacity ${cartCtaClass}`}
               >
                 Continuar
                 <span aria-hidden>

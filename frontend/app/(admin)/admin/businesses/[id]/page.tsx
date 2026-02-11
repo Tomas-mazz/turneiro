@@ -64,7 +64,6 @@ export default function AdminBusinessPage() {
     logo: '',
     coverPhoto: '',
     coverVideo: '',
-    theme: 'DARK',
     paymentRequired: false,
     paymentType: 'FULL',
     depositPercentage: '',
@@ -86,6 +85,7 @@ export default function AdminBusinessPage() {
   const [workingHours, setWorkingHours] = useState<WorkingHoursItem[]>([])
   const [workingHoursLoading, setWorkingHoursLoading] = useState(false)
   const [workingHoursSaving, setWorkingHoursSaving] = useState(false)
+  const [workingHoursSaved, setWorkingHoursSaved] = useState(false)
   const [workingHoursError, setWorkingHoursError] = useState<string | null>(null)
   const [blockedSlots, setBlockedSlots] = useState<BlockedSlotListItem[]>([])
   const [loadingBlockedSlots, setLoadingBlockedSlots] = useState(false)
@@ -105,6 +105,7 @@ export default function AdminBusinessPage() {
   const [employeePhotoUploading, setEmployeePhotoUploading] = useState(false)
   const [savingEmployeeId, setSavingEmployeeId] = useState<string | null>(null)
   const [editingEmployee, setEditingEmployee] = useState<AdminEmployeeListItem | null>(null)
+  const [businessSaved, setBusinessSaved] = useState(false)
 
   const DAY_NAMES = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado']
 
@@ -124,7 +125,6 @@ export default function AdminBusinessPage() {
           logo: b.logo ?? '',
           coverPhoto: b.coverPhoto ?? '',
           coverVideo: b.coverVideo ?? '',
-          theme: (b.theme === 'LIGHT' ? 'LIGHT' : 'DARK') as 'DARK' | 'LIGHT',
           paymentRequired: b.settings?.paymentRequired ?? false,
           paymentType: b.settings?.paymentType === 'PERCENTAGE' ? 'PERCENTAGE' : 'FULL',
           depositPercentage: b.settings?.depositPercentage ?? '',
@@ -189,6 +189,7 @@ export default function AdminBusinessPage() {
     e.preventDefault()
     if (!id) return
     setWorkingHoursError(null)
+    setWorkingHoursSaved(false)
     setWorkingHoursSaving(true)
     try {
       const payload = workingHours.map(({ dayOfWeek, startTime, endTime, isClosed, lunchStart, lunchEnd }) => ({
@@ -201,6 +202,8 @@ export default function AdminBusinessPage() {
       }))
       const updated = await updateAdminWorkingHours(id, payload)
       setWorkingHours(updated)
+      setWorkingHoursSaved(true)
+      setTimeout(() => setWorkingHoursSaved(false), 1500)
     } catch (err: unknown) {
       const msg =
         err && typeof err === 'object' && 'response' in err
@@ -467,10 +470,10 @@ export default function AdminBusinessPage() {
     }
   }
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
+  const handleSubmit = async () => {
     if (!id) return
     setError(null)
+    setBusinessSaved(false)
     setSaving(true)
     try {
       const body: UpdateBusinessBody = {
@@ -479,7 +482,7 @@ export default function AdminBusinessPage() {
         category: form.category?.trim(),
         paymentRequired: form.paymentRequired,
         paymentType: form.paymentType,
-        theme: form.theme,
+        theme: 'DARK',
       }
       if (form.description !== undefined) body.description = (form.description ?? '').toString().trim() || null
       if (form.phone !== undefined) body.phone = (form.phone ?? '').toString().trim() || null
@@ -502,7 +505,8 @@ export default function AdminBusinessPage() {
       if (form.ownerPassword?.trim()) body.ownerPassword = form.ownerPassword
 
       await updateAdminBusiness(id, body)
-      router.push('/admin')
+      setBusinessSaved(true)
+      setTimeout(() => router.push('/admin'), 450)
     } catch (err: unknown) {
       const msg =
         err && typeof err === 'object' && 'response' in err
@@ -550,8 +554,7 @@ export default function AdminBusinessPage() {
         </p>
       </header>
 
-      <form
-        onSubmit={handleSubmit}
+      <div
         className="space-y-6 rounded-lg border border-neutral-200 bg-white p-6 shadow-sm"
       >
         {error && (
@@ -563,7 +566,7 @@ export default function AdminBusinessPage() {
             Marca y presentación
           </legend>
           <p className="mb-4 text-xs text-neutral-500">
-            Nombre, descripción, logo, portada y tema se muestran en la página pública de reservas.
+            Nombre, descripción, logo y portada se muestran en la página pública de reservas.
           </p>
         <div className="grid gap-4 sm:grid-cols-2">
           <div>
@@ -714,33 +717,6 @@ export default function AdminBusinessPage() {
           )}
         </div>
 
-        <div>
-          <label className="mb-1 block text-sm font-medium text-neutral-700">
-            Tema / fondo de la página
-          </label>
-          <div className="flex gap-6">
-            <label className="flex items-center gap-2">
-              <input
-                type="radio"
-                name="theme"
-                checked={form.theme === 'DARK'}
-                onChange={() => setForm((p) => ({ ...p, theme: 'DARK' }))}
-                className="text-neutral-900"
-              />
-              <span>Tema oscuro</span>
-            </label>
-            <label className="flex items-center gap-2">
-              <input
-                type="radio"
-                name="theme"
-                checked={form.theme === 'LIGHT'}
-                onChange={() => setForm((p) => ({ ...p, theme: 'LIGHT' }))}
-                className="text-neutral-900"
-              />
-              <span>Tema claro (fondo blanco)</span>
-            </label>
-          </div>
-        </div>
         </fieldset>
 
         <fieldset className="rounded-lg border border-neutral-200 p-4">
@@ -1149,9 +1125,9 @@ export default function AdminBusinessPage() {
               <button
                 type="submit"
                 disabled={workingHoursSaving}
-                className="rounded-lg bg-neutral-900 px-4 py-2 text-sm font-medium text-white hover:bg-neutral-800 disabled:opacity-50"
+                className={`inline-flex items-center justify-center rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-2 text-sm font-medium text-emerald-800 transition-all hover:scale-105 hover:bg-emerald-100 disabled:opacity-50 disabled:hover:scale-100 ${workingHoursSaved ? 'animate-pulse' : ''}`}
               >
-                {workingHoursSaving ? 'Guardando...' : 'Guardar horarios'}
+                {workingHoursSaving ? 'Guardando...' : workingHoursSaved ? 'Guardado' : 'Guardar horarios'}
               </button>
             </form>
           )}
@@ -1481,11 +1457,12 @@ export default function AdminBusinessPage() {
 
         <div className="flex flex-wrap items-center gap-3">
           <button
-            type="submit"
+            type="button"
+            onClick={handleSubmit}
             disabled={saving}
-            className="rounded-lg bg-neutral-900 px-4 py-2.5 text-sm font-medium text-white hover:bg-neutral-800 disabled:opacity-50"
+            className={`inline-flex items-center justify-center rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-2.5 text-sm font-medium text-emerald-800 transition-all hover:scale-105 hover:bg-emerald-100 disabled:opacity-50 disabled:hover:scale-100 ${businessSaved ? 'animate-pulse' : ''}`}
           >
-            {saving ? 'Guardando...' : 'Guardar cambios'}
+            {saving ? 'Guardando...' : businessSaved ? 'Guardado' : 'Guardar cambios'}
           </button>
           <Link
             href="/admin"
@@ -1509,7 +1486,7 @@ export default function AdminBusinessPage() {
             Eliminar negocio
           </button>
         </div>
-      </form>
+      </div>
 
       {showDeleteBusinessConfirm && (
         <div
