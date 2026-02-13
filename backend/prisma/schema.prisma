@@ -46,9 +46,13 @@ model Employee {
   businessId String
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
+  isOwner    Boolean  @default(false)
 
   // Relations
   business Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  // In the future, appointments and blocked slots can be scoped per employee
+  appointments Appointment[]
+  blockedSlots BlockedSlot[]
 
   @@index([businessId])
 }
@@ -109,6 +113,7 @@ model Appointment {
   cancellationReason String? // Reason when cancelled by owner (mandatory in UI)
   googleEventId String? // Google Calendar Event ID for syncing
   businessId    String
+  employeeId    String?
   serviceId     String?
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
@@ -116,6 +121,7 @@ model Appointment {
   // Relations
   business Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
   service  Service? @relation(fields: [serviceId], references: [id], onDelete: SetNull)
+  employee Employee? @relation(fields: [employeeId], references: [id], onDelete: SetNull)
 
   @@index([businessId])
   @@index([startTime])
@@ -154,13 +160,17 @@ model BlockedSlot {
   type       String   // TIME_SLOT or FULL_DAY
   reason     String?
   businessId String
+  // Optional: when set, block applies only to that employee's agenda
+  employeeId String?
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
 
   // Relations
   business Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  employee Employee? @relation(fields: [employeeId], references: [id], onDelete: Cascade)
 
   @@index([businessId])
+  @@index([employeeId])
   @@index([date])
 }
 

@@ -2,6 +2,7 @@ export type Employee = {
   id: string
   name: string
   photoUrl: string | null
+  isOwner: boolean
 }
 
 export type Business = {

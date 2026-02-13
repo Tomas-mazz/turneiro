@@ -74,7 +74,15 @@ export default function AdminBusinessSetupPage() {
   const [employeesLoading, setEmployeesLoading] = useState(false)
   const [newEmployeeName, setNewEmployeeName] = useState('')
   const [newEmployeePhotoUrl, setNewEmployeePhotoUrl] = useState<string | null>(null)
+  const [newEmployeeEmail, setNewEmployeeEmail] = useState('')
+  const [newEmployeePassword, setNewEmployeePassword] = useState('')
   const [employeePhotoUploading, setEmployeePhotoUploading] = useState(false)
+  const [ownerSaving, setOwnerSaving] = useState(false)
+  const [ownerSaved, setOwnerSaved] = useState(false)
+  const [ownerAttends, setOwnerAttends] = useState<'YES' | 'NO' | 'UNSET'>('UNSET')
+  const [ownerEmployeeName, setOwnerEmployeeName] = useState('')
+  const [ownerEmployeePhotoUrl, setOwnerEmployeePhotoUrl] = useState<string | null>(null)
+  const [ownerPhotoUploading, setOwnerPhotoUploading] = useState(false)
 
   const DAY_NAMES = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado']
 
@@ -219,7 +227,16 @@ export default function AdminBusinessSetupPage() {
     if (!id || !business || currentStep !== 5) return
     setEmployeesLoading(true)
     getAdminEmployees(id)
-      .then(setEmployees)
+      .then((list) => {
+        setEmployees(list)
+        const ownerEmp = list.find((e) => e.isOwner)
+        if (ownerEmp) {
+          setOwnerAttends('YES')
+          setOwnerEmployeeName(ownerEmp.name)
+        } else {
+          setOwnerAttends('NO')
+        }
+      })
       .catch(() => setEmployees([]))
       .finally(() => setEmployeesLoading(false))
   }, [id, business, currentStep])
@@ -246,10 +263,15 @@ export default function AdminBusinessSetupPage() {
       const created = await createAdminEmployee(id, {
         name: newEmployeeName.trim(),
         ...(newEmployeePhotoUrl ? { photoUrl: newEmployeePhotoUrl } : {}),
+        ...(newEmployeeEmail.trim() && newEmployeePassword.trim()
+          ? { staffEmail: newEmployeeEmail.trim(), staffPassword: newEmployeePassword }
+          : {}),
       })
       setEmployees((prev) => [...prev, created])
       setNewEmployeeName('')
       setNewEmployeePhotoUrl(null)
+      setNewEmployeeEmail('')
+      setNewEmployeePassword('')
     } catch (err: unknown) {
       const msg =
         err && typeof err === 'object' && 'response' in err
@@ -760,7 +782,134 @@ export default function AdminBusinessSetupPage() {
         <div className="rounded-lg border border-neutral-200 bg-white p-6 shadow-sm">
           <h2 className="text-lg font-medium text-neutral-900">Empleados</h2>
           <p className="mt-2 text-sm text-neutral-600">
-            Agregá los empleados del negocio (nombre y foto). Se mostrarán en la página de reservas.
+            Primero definí si el dueño también atiende clientes, y luego agregá otros empleados del negocio.
+          </p>
+
+          {/* Dueño que atiende */}
+          <section className="mt-4 mb-6 rounded-lg border border-neutral-200 p-4">
+            <h3 className="text-sm font-medium text-neutral-800">
+              1. ¿El dueño también atenderá clientes?
+            </h3>
+            <p className="mt-1 text-xs text-neutral-500">
+              Si el dueño atiende, se creará un empleado especial para mostrarlo en la página de reservas.
+              El acceso al panel usará el email y contraseña del dueño configurados en “Credenciales del dueño”.
+            </p>
+            <div className="mt-3 flex flex-wrap gap-4">
+              <label className="flex items-center gap-2 text-sm text-neutral-700">
+                <input
+                  type="radio"
+                  checked={ownerAttends === 'YES'}
+                  onChange={() => setOwnerAttends('YES')}
+                  className="text-neutral-900"
+                />
+                <span>Sí, el dueño también atiende</span>
+              </label>
+              <label className="flex items-center gap-2 text-sm text-neutral-700">
+                <input
+                  type="radio"
+                  checked={ownerAttends === 'NO'}
+                  onChange={() => setOwnerAttends('NO')}
+                  className="text-neutral-900"
+                />
+                <span>No, solo administra</span>
+              </label>
+            </div>
+
+            {ownerAttends === 'YES' && (
+              <div className="mt-4 flex flex-wrap items-end gap-3">
+                <div className="w-40">
+                  <label className="mb-1 block text-xs text-neutral-600">
+                    Nombre del dueño en reservas *
+                  </label>
+                  <input
+                    type="text"
+                    value={ownerEmployeeName}
+                    onChange={(e) => setOwnerEmployeeName(e.target.value)}
+                    placeholder={business?.name ?? 'Ej. Juan (Dueño)'}
+                    className="w-full rounded-lg border border-neutral-300 px-3 py-2 text-sm"
+                  />
+                </div>
+                <div className="min-w-[180px]">
+                  <label className="mb-1 block text-xs text-neutral-600">
+                    Foto del dueño (opcional)
+                  </label>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    disabled={ownerPhotoUploading}
+                    onChange={async (e) => {
+                      const file = e.target.files?.[0]
+                      if (!file || !file.type.startsWith('image/')) return
+                      setOwnerPhotoUploading(true)
+                      try {
+                        const { url } = await uploadAdminFile(file)
+                        setOwnerEmployeePhotoUrl(url)
+                      } catch {
+                        setError('Error al subir la foto del dueño')
+                      } finally {
+                        setOwnerPhotoUploading(false)
+                        e.target.value = ''
+                      }
+                    }}
+                    className="block w-full text-xs text-neutral-600 file:mr-3 file:rounded-lg file:border-0 file:bg-neutral-100 file:px-3 file:py-1.5 file:text-xs file:font-medium file:text-neutral-700 hover:file:bg-neutral-200"
+                  />
+                  {ownerPhotoUploading && (
+                    <p className="mt-1 text-xs text-neutral-500">Subiendo foto...</p>
+                  )}
+                  {ownerEmployeePhotoUrl && (
+                    <p className="mt-1 text-xs text-green-600">
+                      Foto cargada.{' '}
+                      <button
+                        type="button"
+                        onClick={() => setOwnerEmployeePhotoUrl(null)}
+                        className="underline"
+                      >
+                        Quitar
+                      </button>
+                    </p>
+                  )}
+                </div>
+                <button
+                  type="button"
+                  disabled={!ownerEmployeeName.trim() || !id || ownerSaving}
+                  onClick={async () => {
+                    if (!id || !ownerEmployeeName.trim()) return
+                    setOwnerSaving(true)
+                    setOwnerSaved(false)
+                    try {
+                      await createAdminEmployee(id, {
+                        name: ownerEmployeeName.trim(),
+                        ...(ownerEmployeePhotoUrl ? { photoUrl: ownerEmployeePhotoUrl } : {}),
+                        isOwner: true,
+                      })
+                      const list = await getAdminEmployees(id)
+                      setEmployees(list)
+                      setOwnerSaved(true)
+                      setTimeout(() => setOwnerSaved(false), 3000)
+                    } catch (err: unknown) {
+                      const msg =
+                        err && typeof err === 'object' && 'response' in err
+                          ? (err as { response?: { data?: { error?: string } } }).response?.data?.error
+                          : null
+                      setError(msg || 'Error al guardar dueño que atiende')
+                    } finally {
+                      setOwnerSaving(false)
+                    }
+                  }}
+                  className={`rounded-lg px-4 py-2 text-sm font-medium text-white disabled:opacity-50 ${
+                    ownerSaved ? 'bg-emerald-600' : 'bg-neutral-900 hover:bg-neutral-800'
+                  }`}
+                >
+                  {ownerSaving ? 'Guardando...' : ownerSaved ? 'Guardado' : 'Guardar dueño que atiende'}
+                </button>
+              </div>
+            )}
+          </section>
+
+          {/* Otros empleados */}
+          <h3 className="mt-4 text-sm font-medium text-neutral-800">2. Otros empleados</h3>
+          <p className="mt-1 text-xs text-neutral-500">
+            Agregá los empleados del negocio (nombre y foto). Se mostrarán en la página de reservas. Si cargás email y contraseña, también se creará acceso al panel para que gestionen su agenda.
           </p>
 
           <form
@@ -808,6 +957,39 @@ export default function AdminBusinessSetupPage() {
                 </p>
               )}
             </div>
+            <div className="w-40">
+              <label
+                htmlFor="newEmployeeEmail"
+                className="mb-1 block text-xs text-neutral-600"
+              >
+                Email para acceso al panel (opcional)
+              </label>
+              <input
+                id="newEmployeeEmail"
+                type="email"
+                value={newEmployeeEmail}
+                onChange={(e) => setNewEmployeeEmail(e.target.value)}
+                placeholder="empleado@negocio.com"
+                className="w-full rounded-lg border border-neutral-300 px-3 py-2 text-sm"
+              />
+            </div>
+            <div className="w-40">
+              <label
+                htmlFor="newEmployeePassword"
+                className="mb-1 block text-xs text-neutral-600"
+              >
+                Contraseña (mín. 6 caracteres)
+              </label>
+              <input
+                id="newEmployeePassword"
+                type="password"
+                value={newEmployeePassword}
+                onChange={(e) => setNewEmployeePassword(e.target.value)}
+                minLength={6}
+                placeholder="••••••••"
+                className="w-full rounded-lg border border-neutral-300 px-3 py-2 text-sm"
+              />
+            </div>
             <button
               type="submit"
               disabled={!newEmployeeName.trim()}
@@ -830,11 +1012,19 @@ export default function AdminBusinessSetupPage() {
                   key={emp.id}
                   className="flex items-center justify-between rounded bg-neutral-50 px-3 py-2"
                 >
-                  <span>{emp.name}</span>
+                  <span>
+                    {emp.name}
+                    {emp.isOwner && (
+                      <span className="ml-2 rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold uppercase text-amber-700">
+                        Dueño
+                      </span>
+                    )}
+                  </span>
                   <button
                     type="button"
+                    disabled={emp.isOwner}
                     onClick={() => handleDeleteEmployee(emp.id)}
-                    className="text-xs font-medium text-red-600 underline hover:text-red-800"
+                    className="text-xs font-medium text-red-600 underline hover:text-red-800 disabled:cursor-not-allowed disabled:text-neutral-400"
                   >
                     Eliminar
                   </button>

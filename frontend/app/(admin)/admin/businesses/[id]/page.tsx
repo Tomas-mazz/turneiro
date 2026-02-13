@@ -102,6 +102,8 @@ export default function AdminBusinessPage() {
   const [employeesLoading, setEmployeesLoading] = useState(false)
   const [newEmployeeName, setNewEmployeeName] = useState('')
   const [newEmployeePhotoUrl, setNewEmployeePhotoUrl] = useState<string | null>(null)
+  const [newEmployeeEmail, setNewEmployeeEmail] = useState('')
+  const [newEmployeePassword, setNewEmployeePassword] = useState('')
   const [employeePhotoUploading, setEmployeePhotoUploading] = useState(false)
   const [savingEmployeeId, setSavingEmployeeId] = useState<string | null>(null)
   const [editingEmployee, setEditingEmployee] = useState<AdminEmployeeListItem | null>(null)
@@ -306,10 +308,15 @@ export default function AdminBusinessPage() {
       const created = await createAdminEmployee(id, {
         name: newEmployeeName.trim(),
         ...(newEmployeePhotoUrl ? { photoUrl: newEmployeePhotoUrl } : {}),
+        ...(newEmployeeEmail.trim() && newEmployeePassword.trim()
+          ? { staffEmail: newEmployeeEmail.trim(), staffPassword: newEmployeePassword }
+          : {}),
       })
       setEmployees((prev) => [...prev, created])
       setNewEmployeeName('')
       setNewEmployeePhotoUrl(null)
+      setNewEmployeeEmail('')
+      setNewEmployeePassword('')
     } catch (err: unknown) {
       const msg =
         err && typeof err === 'object' && 'response' in err
@@ -1266,7 +1273,7 @@ export default function AdminBusinessPage() {
             Empleados
           </legend>
           <p className="mb-3 text-xs text-neutral-500">
-            Agregá empleados para mostrar en la página pública (nombre y foto). Las citas siguen siendo del negocio completo en este MVP.
+            Agregá empleados para mostrar en la página pública (nombre y foto). Si ves la etiqueta “Dueño” es el empleado que representa al propietario del negocio; no se puede eliminar.
           </p>
 
           <div className="mb-4 flex flex-wrap items-end gap-3">
@@ -1312,6 +1319,39 @@ export default function AdminBusinessPage() {
                   </button>
                 </p>
               )}
+            </div>
+            <div className="w-48">
+              <label
+                htmlFor="newEmployeeEmail"
+                className="mb-1 block text-xs text-neutral-600"
+              >
+                Email para acceso al panel (opcional)
+              </label>
+              <input
+                id="newEmployeeEmail"
+                type="email"
+                value={newEmployeeEmail}
+                onChange={(e) => setNewEmployeeEmail(e.target.value)}
+                placeholder="empleado@negocio.com"
+                className="w-full rounded-lg border border-neutral-300 px-3 py-2 text-sm"
+              />
+            </div>
+            <div className="w-48">
+              <label
+                htmlFor="newEmployeePassword"
+                className="mb-1 block text-xs text-neutral-600"
+              >
+                Contraseña (mín. 6 caracteres)
+              </label>
+              <input
+                id="newEmployeePassword"
+                type="password"
+                value={newEmployeePassword}
+                onChange={(e) => setNewEmployeePassword(e.target.value)}
+                minLength={6}
+                placeholder="••••••••"
+                className="w-full rounded-lg border border-neutral-300 px-3 py-2 text-sm"
+              />
             </div>
             <button
               type="button"
@@ -1376,7 +1416,7 @@ export default function AdminBusinessPage() {
                     key={emp.id}
                     className="flex flex-wrap items-center gap-3 rounded-lg border border-neutral-200 bg-white px-3 py-2"
                   >
-                    <div className="flex h-8 w-8 items-center justify-center overflow-hidden rounded-full bg-amber-400/20 text-xs font-medium text-amber-500">
+                    <div className="relative flex h-8 w-8 items-center justify-center overflow-hidden rounded-full bg-amber-400/20 text-xs font-medium text-amber-500">
                       {emp.photoUrl ? (
                         // eslint-disable-next-line @next/next/no-img-element
                         <img
@@ -1386,6 +1426,11 @@ export default function AdminBusinessPage() {
                         />
                       ) : (
                         emp.name.charAt(0).toUpperCase()
+                      )}
+                      {emp.isOwner && (
+                        <span className="absolute -top-1 -right-1 rounded-full bg-amber-400 px-1.5 py-0.5 text-[9px] font-semibold uppercase text-black">
+                          Dueño
+                        </span>
                       )}
                     </div>
                     <span className="text-sm font-medium text-neutral-900">
@@ -1401,7 +1446,7 @@ export default function AdminBusinessPage() {
                       </button>
                       <button
                         type="button"
-                        disabled={savingEmployeeId === emp.id}
+                        disabled={savingEmployeeId === emp.id || emp.isOwner}
                         onClick={() => handleDeleteEmployee(emp.id)}
                         className="rounded-full border border-red-200 bg-red-50 px-2 py-0.5 text-[11px] font-medium text-red-700 hover:bg-red-100 disabled:opacity-50"
                       >

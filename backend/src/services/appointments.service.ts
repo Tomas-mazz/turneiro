@@ -141,11 +141,15 @@ export async function createAppointmentService(data: CreateAppointmentInput) {
   }
 
   const date = new Date(data.date + 'T12:00:00')
+  const employeeId = data.employeeId ?? undefined
   const slots = await getAvailabilityService(
     data.businessSlug,
     data.serviceId,
     date,
-    data.date
+    data.date,
+    // When multi-employee is enabled on frontend, this will scope availability
+    // to the selected employee. For now, keep it optional for backwards compatibility.
+    employeeId
   )
 
   if (!slots.includes(data.slotTime)) {
@@ -163,6 +167,7 @@ export async function createAppointmentService(data: CreateAppointmentInput) {
     data: {
       businessId: business.id,
       serviceId: service.id,
+      employeeId: employeeId ?? null,
       startTime,
       endTime,
       serviceName: service.name,

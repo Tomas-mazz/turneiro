@@ -61,6 +61,7 @@ export async function getBusinessBySlugService(slug: string) {
           id: true,
           name: true,
           photoUrl: true,
+          isOwner: true,
         },
       },
     },
@@ -326,8 +327,9 @@ export async function createBusinessForAdmin(
       input.ownerPassword.length >= 6
     ) {
       const hashed = await bcrypt.hash(input.ownerPassword, 10)
+      const ownerEmail = input.ownerEmail.trim().toLowerCase()
       const existingUser = await tx.user.findUnique({
-        where: { email: input.ownerEmail.trim().toLowerCase() },
+        where: { email: ownerEmail },
       })
       if (existingUser) {
         await tx.user.update({
@@ -341,7 +343,7 @@ export async function createBusinessForAdmin(
       } else {
         await tx.user.create({
           data: {
-            email: input.ownerEmail.trim().toLowerCase(),
+            email: ownerEmail,
             password: hashed,
             role: 'OWNER',
             businessId: b.id,

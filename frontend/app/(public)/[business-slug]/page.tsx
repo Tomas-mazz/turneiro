@@ -45,6 +45,7 @@ export default function BusinessBookingPage({
   const [slots, setSlots] = useState<string[]>([])
   const [slotsLoading, setSlotsLoading] = useState(false)
   const [selectedSlot, setSelectedSlot] = useState<string | null>(null)
+  const [selectedEmployeeId, setSelectedEmployeeId] = useState<string | null>(null)
   const [clientName, setClientName] = useState('')
   const [clientPhone, setClientPhone] = useState('')
   const [submitLoading, setSubmitLoading] = useState(false)
@@ -151,7 +152,13 @@ export default function BusinessBookingPage({
     setSlotsLoading(true)
     api
       .get<{ slots: string[] }>('/availability', {
-        params: { businessSlug: slug, serviceId: selectedService.id, date: selectedDate },
+        params: {
+          businessSlug: slug,
+          serviceId: selectedService.id,
+          date: selectedDate,
+          // When multi-employee is active, scope availability to the selected employee.
+          employeeId: selectedEmployeeId || undefined,
+        },
       })
       .then((res) => {
         setSlots(res.data.slots)
@@ -159,7 +166,7 @@ export default function BusinessBookingPage({
       })
       .catch(() => setSlots([]))
       .finally(() => setSlotsLoading(false))
-  }, [selectedDate, selectedService, slug])
+  }, [selectedDate, selectedService, slug, selectedEmployeeId])
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
@@ -174,6 +181,7 @@ export default function BusinessBookingPage({
         slotTime: selectedSlot,
         clientName: clientName.trim(),
         clientPhone: clientPhone.trim(),
+        employeeId: selectedEmployeeId,
       })
       .then((res) => {
         setCreatedAppointment(res.data)
@@ -344,7 +352,10 @@ export default function BusinessBookingPage({
           slots={slots}
           slotsLoading={slotsLoading}
           selectedSlot={selectedSlot}
-          onSelectedSlot={setSelectedSlot}
+          onSelectedSlot={(slot, employeeId) => {
+            setSelectedSlot(slot)
+            setSelectedEmployeeId(employeeId)
+          }}
           onContinue={() => goToStep('form')}
           onBack={handleBack}
           primaryColor={primaryColor}

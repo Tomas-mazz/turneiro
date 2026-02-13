@@ -5,10 +5,11 @@ const DATE_REGEX = /^\d{4}-\d{2}-\d{2}$/
 
 export async function getAvailability(req: Request, res: Response, next: NextFunction) {
   try {
-    const { businessSlug, serviceId, date: dateStr } = req.query as {
+    const { businessSlug, serviceId, date: dateStr, employeeId } = req.query as {
       businessSlug?: string
       serviceId?: string
       date?: string
+      employeeId?: string
     }
     if (!businessSlug?.trim() || !serviceId?.trim() || !dateStr?.trim()) {
       res.status(400).json({
@@ -29,7 +30,8 @@ export async function getAvailability(req: Request, res: Response, next: NextFun
       businessSlug.trim(),
       serviceId.trim(),
       date,
-      dateStr
+      dateStr,
+      employeeId?.trim() || undefined
     )
     res.json({ slots })
   } catch (err) {

@@ -30,7 +30,7 @@ type DateStepProps = {
   slots: string[]
   slotsLoading: boolean
   selectedSlot: string | null
-  onSelectedSlot: (slot: string | null) => void
+  onSelectedSlot: (slot: string | null, employeeId: string | null) => void
   onContinue: () => void
   onBack: () => void
   primaryColor: string
@@ -267,19 +267,36 @@ export function DateStep({
                 <div key={emp.id} className="flex flex-col gap-3">
                   {/* Avatar left; name on top, price (min) below — no card background */}
                   <div className="flex items-start gap-3">
-                    <div className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-full bg-amber-400/20 text-lg font-medium text-amber-400">
-                      {emp.photoUrl ? (
-                        <Image
-                          src={emp.photoUrl}
-                          alt=""
-                          width={48}
-                          height={48}
-                          className="h-full w-full object-cover"
-                          unoptimized
-                        />
-                      ) : (
-                        emp.name.charAt(0).toUpperCase()
+                    <div className="relative shrink-0 overflow-visible">
+                      {emp.isOwner && (
+                        <span
+                          className={`absolute left-1/2 -top-2 -translate-x-1/2 text-[9px] font-semibold uppercase leading-none ${
+                            isDarkTheme ? 'text-amber-300' : 'text-amber-700'
+                          }`}
+                        >
+                          Dueño
+                        </span>
                       )}
+                      <div
+                        className={`flex h-12 w-12 items-center justify-center overflow-hidden rounded-full text-lg font-medium text-amber-400 ${
+                          emp.isOwner
+                            ? 'border-2 border-amber-400 bg-amber-400/10'
+                            : 'bg-amber-400/20'
+                        }`}
+                      >
+                        {emp.photoUrl ? (
+                          <Image
+                            src={emp.photoUrl}
+                            alt=""
+                            width={48}
+                            height={48}
+                            className="h-full w-full object-cover"
+                            unoptimized
+                          />
+                        ) : (
+                          emp.name.charAt(0).toUpperCase()
+                        )}
+                      </div>
                     </div>
                     <div>
                       <p className={`font-semibold ${titleText}`}>{emp.name}</p>
@@ -299,7 +316,7 @@ export function DateStep({
                           key={slot}
                           type="button"
                           onClick={() => {
-                            onSelectedSlot(slot)
+                            onSelectedSlot(slot, emp.id)
                             onContinue()
                           }}
                           className={`rounded-lg px-3 py-3 text-sm font-medium transition-colors md:px-4 md:py-3.5 md:text-base lg:px-5 ${slotBtnClass}`}
@@ -330,7 +347,7 @@ export function DateStep({
                         key={slot}
                         type="button"
                         onClick={() => {
-                          onSelectedSlot(slot)
+                          onSelectedSlot(slot, null)
                           onContinue()
                         }}
                         className={`rounded-lg px-3 py-3 text-sm font-medium transition-colors md:px-4 md:py-3.5 md:text-base lg:px-5 ${slotBtnClass}`}

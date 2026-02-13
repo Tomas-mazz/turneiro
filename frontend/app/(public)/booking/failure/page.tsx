@@ -1,23 +1,24 @@
 'use client'
 
-import { useSearchParams } from 'next/navigation'
+import { useEffect, useState } from 'react'
 import Link from 'next/link'
 
 const MP_BOOKING_KEY = 'mp_booking'
 
 export default function BookingFailurePage() {
-  const searchParams = useSearchParams()
-  const appointmentId = searchParams.get('appointmentId')
-  let businessSlug = ''
-  try {
-    const raw = sessionStorage.getItem(MP_BOOKING_KEY)
-    if (raw) {
-      const data = JSON.parse(raw) as { businessSlug?: string }
-      businessSlug = data.businessSlug || ''
+  const [businessSlug, setBusinessSlug] = useState('')
+
+  useEffect(() => {
+    try {
+      const raw = sessionStorage.getItem(MP_BOOKING_KEY)
+      if (raw) {
+        const data = JSON.parse(raw) as { businessSlug?: string }
+        setBusinessSlug(data.businessSlug || '')
+      }
+    } catch {
+      // ignore
     }
-  } catch {
-    // ignore
-  }
+  }, [])
 
   return (
     <main className="min-h-screen bg-neutral-100 py-12 px-4 flex items-center justify-center">

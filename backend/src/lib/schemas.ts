@@ -13,6 +13,9 @@ export const createAppointmentSchema = z.object({
   clientPhone: z.string().regex(phoneRegex, {
     message: 'El teléfono debe ser internacional (+1234567890) o formato local',
   }),
+  // Optional for backwards compatibility; when multi-employee is enabled,
+  // frontend must send the selected employee id.
+  employeeId: z.string().cuid().optional().nullable(),
 })
 
 export type CreateAppointmentInput = z.infer<typeof createAppointmentSchema>
@@ -245,10 +248,29 @@ export type AdminUpdateAppointmentStatusInput = z.infer<typeof adminUpdateAppoin
 
 // Admin: employees CRUD
 
-export const createEmployeeAdminSchema = z.object({
-  name: z.string().min(1, 'El nombre es obligatorio').max(200),
-  photoUrl: optionalUrl.optional(),
-})
+export const createEmployeeAdminSchema = z
+  .object({
+    name: z.string().min(1, 'El nombre es obligatorio').max(200),
+    photoUrl: optionalUrl.optional(),
+    // Optional credentials to create a STAFF user that can log into /dashboard
+    staffEmail: z.union([z.string().email(), z.literal('')]).optional(),
+    staffPassword: z.string().min(6).optional(),
+    // Marca si este empleado representa al dueño (se usa para badge y para flujos especiales)
+    isOwner: z.boolean().optional(),
+  })
+  .refine(
+    (data) => {
+      const hasEmail = !!data.staffEmail && data.staffEmail !== ''
+      const hasPassword = !!data.staffPassword && data.staffPassword.length >= 6
+      // Both empty (no panel access) OR both valid (email+password)
+      return (hasEmail && hasPassword) || (!hasEmail && !hasPassword)
+    },
+    {
+      message:
+        'Si configurás acceso al panel para el empleado, email y contraseña son obligatorios (mín. 6 caracteres).',
+      path: ['staffEmail'],
+    }
+  )
 
 export const updateEmployeeAdminSchema = z.object({
   name: z.string().min(1).max(200).optional(),

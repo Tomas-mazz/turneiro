@@ -123,4 +123,5 @@ export interface AdminEmployeeListItem {
   id: string
   name: string
   photoUrl: string | null
+  isOwner: boolean
 }

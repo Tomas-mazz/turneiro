@@ -15,6 +15,14 @@ function minutesToTime(m: number): string {
 
 /**
  * Available time slots for a single day.
+ *
+ * Multi-employee model (post-MVP):
+ * - Business working hours remain at business level.
+ * - Each employee gets their own agenda.
+ * - If employeeId is provided, we only consider:
+ *   - appointments for that employee (so other employees can book the same time)
+ *   - blocked slots for that employee (plus global business-wide blocks with no employeeId)
+ *
  * Returns array of "HH:MM" strings. Empty if business closed, no service, or full day blocked.
  * dateStr must be YYYY-MM-DD (same as frontend sends) so BlockedSlot query is timezone-safe.
  */
@@ -22,7 +30,8 @@ export async function getAvailabilityService(
   businessSlug: string,
   serviceId: string,
   date: Date,
-  dateStr: string
+  dateStr: string,
+  employeeId?: string
 ): Promise<string[]> {
   const business = await prisma.business.findUnique({
     where: { slug: businessSlug },
@@ -57,20 +66,40 @@ export async function getAvailabilityService(
       status: { not: 'CANCELLED' },
       startTime: { lt: dayEnd },
       endTime: { gt: dayStart },
+      ...(employeeId ? { employeeId } : {}),
     },
     select: { startTime: true, endTime: true },
   })
 
   // Use noon UTC so we match BlockedSlot rows by calendar date in any timezone
   const dateForBlockQuery = new Date(dateStr + 'T12:00:00.000Z')
-  const blockedSlots = await prisma.blockedSlot.findMany({
+  const blockedSlotsRaw = await prisma.blockedSlot.findMany({
     where: {
       businessId: business.id,
       date: dateForBlockQuery,
     },
   })
+  type BlockedSlotRow = {
+    type: string
+    startTime: string | null
+    endTime: string | null
+    employeeId: string | null
+  }
+  const blockedSlots = blockedSlotsRaw as unknown as BlockedSlotRow[]
 
-  if (blockedSlots.some((b) => b.type === 'FULL_DAY')) return []
+  // A full-day block without employeeId blocks the whole business.
+  // A full-day block with employeeId blocks only that employee.
+  if (
+    blockedSlots.some(
+      (b) =>
+        b.type === 'FULL_DAY' &&
+        // If no employee is specified, any full-day block applies.
+        // If an employee is specified, only global (null) or matching employee blocks apply.
+        (!employeeId || b.employeeId === null || b.employeeId === employeeId)
+    )
+  ) {
+    return []
+  }
 
   const slots: string[] = []
   for (let t = startMinutes; t + duration <= endMinutes; t += duration) {
@@ -88,7 +117,12 @@ export async function getAvailabilityService(
     if (overlapsAppointment) continue
 
     const overlapsBlocked = blockedSlots
-      .filter((b) => b.type === 'TIME_SLOT' && b.startTime && b.endTime)
+      .filter((b) => {
+        if (b.type !== 'TIME_SLOT' || !b.startTime || !b.endTime) return false
+        // For per-employee availability, respect only global or matching-employee time blocks.
+        if (employeeId && b.employeeId && b.employeeId !== employeeId) return false
+        return true
+      })
       .some((b) => {
         const bStart = timeToMinutes(b.startTime!)
         const bEnd = timeToMinutes(b.endTime!)
