@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState, useCallback } from 'react'
-import { usePathname } from 'next/navigation'
+import { useParams, usePathname } from 'next/navigation'
 import { api } from '@/lib/api'
 import type { Business, Step, ServiceOption, CreatedAppointment } from './types'
 import { formatDateKey, getNowInArgentina } from './utils'
@@ -26,12 +26,9 @@ function getStepFromHistory(): Step {
   return s && ['hero', 'service', 'date', 'form', 'payment', 'done'].includes(s) ? s : 'hero'
 }
 
-export default function BusinessBookingPage({
-  params,
-}: {
-  params: { 'business-slug': string }
-}) {
-  const slug = params['business-slug']
+export default function BusinessBookingPage() {
+  const params = useParams()
+  const slug = (params['business-slug'] as string | undefined) ?? ''
   const pathname = usePathname()
   const [business, setBusiness] = useState<Business | null>(null)
   const [loading, setLoading] = useState(true)
@@ -43,6 +40,8 @@ export default function BusinessBookingPage({
   const [weekAvailability, setWeekAvailability] = useState<Record<string, boolean>>({})
   const [selectedDate, setSelectedDate] = useState<string | null>(null)
   const [slots, setSlots] = useState<string[]>([])
+  /** When there are employees, slots per employeeId; backend scopes availability per employee. */
+  const [slotsByEmployee, setSlotsByEmployee] = useState<Record<string, string[]>>({})
   const [slotsLoading, setSlotsLoading] = useState(false)
   const [selectedSlot, setSelectedSlot] = useState<string | null>(null)
   const [selectedEmployeeId, setSelectedEmployeeId] = useState<string | null>(null)
@@ -90,6 +89,8 @@ export default function BusinessBookingPage({
   }, [])
 
   useEffect(() => {
+    if (!slug) return
+    setLoading(true)
     api
       .get<Business>(`/businesses/${slug}`)
       .then((res) => {
@@ -149,24 +150,54 @@ export default function BusinessBookingPage({
 
   useEffect(() => {
     if (!selectedDate || !selectedService) return
+    const employees = business?.employees ?? []
     setSlotsLoading(true)
-    api
-      .get<{ slots: string[] }>('/availability', {
-        params: {
-          businessSlug: slug,
-          serviceId: selectedService.id,
-          date: selectedDate,
-          // When multi-employee is active, scope availability to the selected employee.
-          employeeId: selectedEmployeeId || undefined,
-        },
-      })
-      .then((res) => {
-        setSlots(res.data.slots)
-        setSelectedSlot(null)
-      })
-      .catch(() => setSlots([]))
-      .finally(() => setSlotsLoading(false))
-  }, [selectedDate, selectedService, slug, selectedEmployeeId])
+    setSelectedSlot(null)
+    setSelectedEmployeeId(null)
+
+    if (employees.length > 0) {
+      // Per-employee availability: fetch slots for each employee so each has their own agenda.
+      Promise.all(
+        employees.map((emp) =>
+          api
+            .get<{ slots: string[] }>('/availability', {
+              params: {
+                businessSlug: slug,
+                serviceId: selectedService.id,
+                date: selectedDate,
+                employeeId: emp.id,
+              },
+            })
+            .then((res) => ({ employeeId: emp.id, slots: res.data.slots }))
+            .catch(() => ({ employeeId: emp.id, slots: [] as string[] }))
+        )
+      )
+        .then((results) => {
+          const byEmployee: Record<string, string[]> = {}
+          results.forEach(({ employeeId, slots: s }) => {
+            byEmployee[employeeId] = s
+          })
+          setSlotsByEmployee(byEmployee)
+          setSlots([])
+        })
+        .finally(() => setSlotsLoading(false))
+    } else {
+      api
+        .get<{ slots: string[] }>('/availability', {
+          params: {
+            businessSlug: slug,
+            serviceId: selectedService.id,
+            date: selectedDate,
+          },
+        })
+        .then((res) => {
+          setSlots(res.data.slots)
+          setSlotsByEmployee({})
+        })
+        .catch(() => setSlots([]))
+        .finally(() => setSlotsLoading(false))
+    }
+  }, [selectedDate, selectedService, slug, business?.employees])
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
@@ -350,6 +381,7 @@ export default function BusinessBookingPage({
           todayKey={todayKey}
           currentTimeStr={currentTimeArgentina}
           slots={slots}
+          slotsByEmployee={slotsByEmployee}
           slotsLoading={slotsLoading}
           selectedSlot={selectedSlot}
           onSelectedSlot={(slot, employeeId) => {
@@ -388,6 +420,8 @@ export default function BusinessBookingPage({
               : undefined
           }
           primaryColor={primaryColor}
+          isDarkTheme={isDarkTheme}
+          onToggleTheme={() => setThemeMode((prev) => (prev === 'DARK' ? 'LIGHT' : 'DARK'))}
         />
       )}
 

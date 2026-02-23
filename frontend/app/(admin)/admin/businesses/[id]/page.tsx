@@ -513,7 +513,7 @@ export default function AdminBusinessPage() {
 
       await updateAdminBusiness(id, body)
       setBusinessSaved(true)
-      setTimeout(() => router.push('/admin'), 450)
+      setTimeout(() => router.push('/admin'), 1600)
     } catch (err: unknown) {
       const msg =
         err && typeof err === 'object' && 'response' in err
@@ -1273,7 +1273,7 @@ export default function AdminBusinessPage() {
             Empleados
           </legend>
           <p className="mb-3 text-xs text-neutral-500">
-            Agregá empleados para mostrar en la página pública (nombre y foto). Si ves la etiqueta “Dueño” es el empleado que representa al propietario del negocio; no se puede eliminar.
+            Agregá empleados para mostrar en la página pública (nombre y foto). El empleado que representa al propietario del negocio no se puede eliminar.
           </p>
 
           <div className="mb-4 flex flex-wrap items-end gap-3">
@@ -1416,7 +1416,7 @@ export default function AdminBusinessPage() {
                     key={emp.id}
                     className="flex flex-wrap items-center gap-3 rounded-lg border border-neutral-200 bg-white px-3 py-2"
                   >
-                    <div className="relative flex h-8 w-8 items-center justify-center overflow-hidden rounded-full bg-amber-400/20 text-xs font-medium text-amber-500">
+                    <div className="relative flex h-8 w-8 items-center justify-center overflow-hidden rounded-full bg-neutral-200 text-xs font-medium text-neutral-600">
                       {emp.photoUrl ? (
                         // eslint-disable-next-line @next/next/no-img-element
                         <img
@@ -1426,11 +1426,6 @@ export default function AdminBusinessPage() {
                         />
                       ) : (
                         emp.name.charAt(0).toUpperCase()
-                      )}
-                      {emp.isOwner && (
-                        <span className="absolute -top-1 -right-1 rounded-full bg-amber-400 px-1.5 py-0.5 text-[9px] font-semibold uppercase text-black">
-                          Dueño
-                        </span>
                       )}
                     </div>
                     <span className="text-sm font-medium text-neutral-900">
@@ -1505,9 +1500,29 @@ export default function AdminBusinessPage() {
             type="button"
             onClick={handleSubmit}
             disabled={saving}
-            className={`inline-flex items-center justify-center rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-2.5 text-sm font-medium text-emerald-800 transition-all hover:scale-105 hover:bg-emerald-100 disabled:opacity-50 disabled:hover:scale-100 ${businessSaved ? 'animate-pulse' : ''}`}
+            className={`inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2.5 text-sm font-medium transition-all duration-300 disabled:opacity-50 ${
+              businessSaved
+                ? 'scale-105 border-2 border-emerald-500 bg-emerald-500 text-white shadow-lg shadow-emerald-500/30'
+                : 'border border-emerald-200 bg-emerald-50 text-emerald-800 hover:scale-105 hover:bg-emerald-100'
+            } ${saving && !businessSaved ? 'cursor-wait' : ''}`}
           >
-            {saving ? 'Guardando...' : businessSaved ? 'Guardado' : 'Guardar cambios'}
+            {saving && !businessSaved ? (
+              <>
+                <svg className="h-4 w-4 animate-spin shrink-0" viewBox="0 0 24 24" aria-hidden>
+                  <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" fill="none" strokeDasharray="30 70" strokeLinecap="round" />
+                </svg>
+                Guardando...
+              </>
+            ) : businessSaved ? (
+              <>
+                <svg className="h-5 w-5 shrink-0" viewBox="0 0 20 20" fill="currentColor" aria-hidden>
+                  <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                </svg>
+                Guardado
+              </>
+            ) : (
+              'Guardar cambios'
+            )}
           </button>
           <Link
             href="/admin"

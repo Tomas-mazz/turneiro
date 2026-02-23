@@ -51,60 +51,22 @@ Reference only (do not use for code decisions):
 - Delete business (cascade).
 - Create-business wizard (steps 1-5).
 
-### New in this chat
-- **Admin Appointments view (completed):**
-  - Backend:
-    - `GET /api/admin/appointments` (filters: business/date/status)
-    - `POST /api/admin/appointments/:id/cancel` (reason required)
-    - `PATCH /api/admin/appointments/:id/status` (`UPCOMING`/`COMPLETED`)
-  - Frontend:
-    - `/admin/appointments` page with compact filters + table + actions.
-    - Added "Ver citas" navigation from `/admin`.
-- **Admin Employees CRUD (completed):**
-  - Backend:
-    - `GET /api/admin/businesses/:id/employees`
-    - `POST /api/admin/businesses/:id/employees`
-    - `PATCH /api/admin/employees/:id`
-    - `DELETE /api/admin/employees/:id`
-  - Frontend:
-    - Employee section in business edit page (`/admin/businesses/[id]`)
-    - Employee step in setup wizard (`/admin/businesses/[id]/setup?step=5`) now creates/lists/removes employees
-    - Upload photo + name, append to list immediately
-- **UI consistency updates:**
-  - `/admin` and `/admin/appointments` action buttons aligned to dashboard green/red style.
-- **Stability fixes made:**
-  - Removed nested form issue in employees section.
-  - Removed `required` conflict in employee draft input so "Guardar cambios" is not blocked.
-  - Hook dependency warning fixed by using `[id, business]` where relevant.
-- **Admin business edit/create fixes (completed):**
-  - Fixed invalid nested form behavior on `/admin/businesses/[id]` so "Guardar horarios" persists correctly.
-  - Added save feedback state on buttons ("Guardando..." -> "Guardado") and aligned green/red action style with admin/dashboard.
-  - Fixed missing `uploadAdminFile` import in setup step 5 (`/admin/businesses/[id]/setup?step=5`), restoring frontend type-check.
-- **Public booking theme toggle (completed):**
-  - Removed theme selection from admin create/edit business UI.
-  - Public booking page now defaults to dark mode and allows live theme switching from service/date headers.
-  - Added smooth theme transition (non-abrupt) for background and key surfaces.
-  - Light mode visual polish:
-    - Service/date sections with improved contrast and border consistency.
-    - Calendar date cards + slot buttons aligned to the same outlined visual language.
-    - Bottom cart panel restyled with stronger readability and responsive header alignment.
+### Recently completed
+- **Admin Appointments:** `GET/POST/PATCH` admin appointments, `/admin/appointments` with filters and actions; "Ver citas" from `/admin`.
+- **Admin Employees CRUD:** Backend routes + employee section on `/admin/businesses/[id]` and setup wizard step 5 (photo, name, staff credentials optional).
+- **Admin UI:** Button style alignment (green/red), save feedback on "Guardar cambios" (spinner, "Guardado" + checkmark, ~3.2s before redirect), nested form and upload import fixes.
+- **Public booking – per-employee slots:** Slots fetched per employee when there are employees; each employee shows only their available times (backend already supported `employeeId`).
+- **Public booking – UI:** Removed "Dueño" badge and golden border from employees (public + admin). Fixed blank page on reload (`useParams` in `[business-slug]/page.tsx`). Theme toggle (dark/light) on service and date steps; **Confirmar reserva** step (ClientFormStep) redesigned to match: same header, theme toggle, summary card, inputs and buttons (dark/light).
+- **Backend:** `updateBusinessSchema` – `logo`, `coverPhoto`, `coverVideo` accept `null` (fixes validation error on save). Create business: reject owner email if already registered (admin/other business); no longer reassigns existing user.
 
 ---
 
 ## 4) Pending / next work (priority)
 
-### Immediate pending
-- **No major MVP feature pending from previous priority list** (Appointments + Employees are done).
-
-### Next recommended iteration (safe and useful)
-1. QA pass on mobile/desktop:
-   - Admin appointments + employees + wizard step 5
-   - Business edit page save flows (general save + working hours save)
-   - Public booking theme toggle (service/date) with dark/light transitions
-2. Small UI polish if needed:
-   - Employee row actions spacing/placement
-   - Public booking toggle icon sizing/position in extreme viewport widths
-3. Update docs screenshots/flows (especially public booking service/date in both themes).
+### Next steps
+1. **QA** on mobile/desktop: admin (appointments, employees, wizard, business edit save + working hours), public booking (per-employee slots, theme toggle, confirm step).
+2. **UI polish** if needed: employee row actions spacing; theme toggle on extreme viewports.
+3. **Docs:** Update screenshots/flows for public booking (service, date, confirm) in both themes.
 
 ---
 
@@ -138,6 +100,7 @@ Reference only (do not use for code decisions):
 - `frontend/app/(public)/[business-slug]/page.tsx`
 - `frontend/app/(public)/[business-slug]/components/ServiceStep.tsx`
 - `frontend/app/(public)/[business-slug]/components/DateStep.tsx`
+- `frontend/app/(public)/[business-slug]/components/ClientFormStep.tsx`
 - `frontend/lib/api.ts`
 - `frontend/types/index.ts`
 
@@ -154,12 +117,6 @@ Reference only (do not use for code decisions):
 
 ## 8) Context snapshot for next chat
 
-What was just completed:
-- Admin appointments centralized management (filters + cancel + status update).
-- Admin employees CRUD end-to-end (backend + edit page + setup step 5).
-- Admin button style alignment and employee section form/UX fixes.
-- Business edit/save stability + setup import fix (`uploadAdminFile`).
-- Public booking live theme toggle (default dark) with smooth dark/light transitions and light mode UI polish.
+**Last session:** Per-employee slot availability (public booking), removed "Dueño" badge/amber from employees (public + admin), fixed blank page on reload (useParams), Guardar cambios feedback (spinner + Guardado + delay), validation fix (logo/cover null), owner email duplicate rejected on create, ClientFormStep redesigned to match service/date (theme, header, inputs).
 
-What remains next:
-- QA + polish only (no blocked architecture decisions required for current MVP).
+**Next:** QA (admin + public booking), small UI polish, update docs/screenshots. No blocked decisions for current MVP.

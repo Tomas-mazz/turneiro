@@ -332,24 +332,18 @@ export async function createBusinessForAdmin(
         where: { email: ownerEmail },
       })
       if (existingUser) {
-        await tx.user.update({
-          where: { id: existingUser.id },
-          data: {
-            password: hashed,
-            businessId: b.id,
-            role: 'OWNER',
-          },
-        })
-      } else {
-        await tx.user.create({
-          data: {
-            email: ownerEmail,
-            password: hashed,
-            role: 'OWNER',
-            businessId: b.id,
-          },
-        })
+        throw new Error(
+          'Ese email ya está registrado (admin u otro negocio). Usá otro email para el dueño de este negocio.'
+        )
       }
+      await tx.user.create({
+        data: {
+          email: ownerEmail,
+          password: hashed,
+          role: 'OWNER',
+          businessId: b.id,
+        },
+      })
     }
 
     return b

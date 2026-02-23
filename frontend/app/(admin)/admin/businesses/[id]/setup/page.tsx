@@ -1012,14 +1012,7 @@ export default function AdminBusinessSetupPage() {
                   key={emp.id}
                   className="flex items-center justify-between rounded bg-neutral-50 px-3 py-2"
                 >
-                  <span>
-                    {emp.name}
-                    {emp.isOwner && (
-                      <span className="ml-2 rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold uppercase text-amber-700">
-                        Dueño
-                      </span>
-                    )}
-                  </span>
+                  <span>{emp.name}</span>
                   <button
                     type="button"
                     disabled={emp.isOwner}

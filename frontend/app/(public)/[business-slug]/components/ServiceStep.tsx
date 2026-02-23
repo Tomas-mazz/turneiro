@@ -178,20 +178,9 @@ export function ServiceStep({
                       className="flex flex-col items-center gap-1.5"
                     >
                       <div className="relative overflow-visible">
-                        {emp.isOwner && (
-                          <span
-                            className={`absolute left-1/2 -top-2 -translate-x-1/2 text-[9px] font-semibold uppercase leading-none ${
-                              isDarkTheme ? 'text-amber-300' : 'text-amber-700'
-                            }`}
-                          >
-                            Dueño
-                          </span>
-                        )}
                         <div
-                          className={`flex h-12 w-12 items-center justify-center overflow-hidden rounded-full text-lg font-medium text-amber-400 ${
-                            emp.isOwner
-                              ? 'border-2 border-amber-400 bg-amber-400/10'
-                              : 'bg-amber-400/20'
+                          className={`flex h-12 w-12 items-center justify-center overflow-hidden rounded-full text-lg font-medium ${
+                            isDarkTheme ? 'bg-neutral-600 text-neutral-200' : 'bg-neutral-300 text-neutral-700'
                           }`}
                         >
                           {emp.photoUrl ? (

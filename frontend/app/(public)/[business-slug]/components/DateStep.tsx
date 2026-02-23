@@ -27,7 +27,10 @@ type DateStepProps = {
   todayKey: string
   /** Current time HH:MM in booking timezone (e.g. Argentina); used to filter past slots for today */
   currentTimeStr?: string
+  /** Slots when there are no employees (single agenda). */
   slots: string[]
+  /** Slots per employee when there are employees; each employee has their own availability. */
+  slotsByEmployee: Record<string, string[]>
   slotsLoading: boolean
   selectedSlot: string | null
   onSelectedSlot: (slot: string | null, employeeId: string | null) => void
@@ -49,6 +52,7 @@ export function DateStep({
   todayKey,
   currentTimeStr: currentTimeStrProp,
   slots,
+  slotsByEmployee,
   slotsLoading,
   selectedSlot,
   onSelectedSlot,
@@ -87,6 +91,9 @@ export function DateStep({
     `${String(new Date().getHours()).padStart(2, '0')}:${String(new Date().getMinutes()).padStart(2, '0')}`
   const displaySlots =
     selectedDate === todayKey ? slots.filter((slot) => slot > currentTimeStr) : slots
+  /** For a given list of slots, filter out past times when the selected date is today. */
+  const displaySlotsFor = (slotList: string[]) =>
+    selectedDate === todayKey ? slotList.filter((slot) => slot > currentTimeStr) : slotList
 
   const goToToday = () => {
     const today = new Date()
@@ -263,71 +270,64 @@ export function DateStep({
         ) : (
           <div className="space-y-8">
             {employees.length > 0 ? (
-              employees.map((emp) => (
-                <div key={emp.id} className="flex flex-col gap-3">
-                  {/* Avatar left; name on top, price (min) below — no card background */}
-                  <div className="flex items-start gap-3">
-                    <div className="relative shrink-0 overflow-visible">
-                      {emp.isOwner && (
-                        <span
-                          className={`absolute left-1/2 -top-2 -translate-x-1/2 text-[9px] font-semibold uppercase leading-none ${
-                            isDarkTheme ? 'text-amber-300' : 'text-amber-700'
+              employees.map((emp) => {
+                const employeeSlots = slotsByEmployee[emp.id] ?? []
+                const displaySlotsEmp = displaySlotsFor(employeeSlots)
+                return (
+                  <div key={emp.id} className="flex flex-col gap-3">
+                    {/* Avatar left; name on top, price (min) below — no card background */}
+                    <div className="flex items-start gap-3">
+                      <div className="relative shrink-0 overflow-visible">
+                        <div
+                          className={`flex h-12 w-12 items-center justify-center overflow-hidden rounded-full text-lg font-medium ${
+                            isDarkTheme ? 'bg-neutral-600 text-neutral-200' : 'bg-neutral-300 text-neutral-700'
                           }`}
                         >
-                          Dueño
-                        </span>
-                      )}
-                      <div
-                        className={`flex h-12 w-12 items-center justify-center overflow-hidden rounded-full text-lg font-medium text-amber-400 ${
-                          emp.isOwner
-                            ? 'border-2 border-amber-400 bg-amber-400/10'
-                            : 'bg-amber-400/20'
-                        }`}
-                      >
-                        {emp.photoUrl ? (
-                          <Image
-                            src={emp.photoUrl}
-                            alt=""
-                            width={48}
-                            height={48}
-                            className="h-full w-full object-cover"
-                            unoptimized
-                          />
-                        ) : (
-                          emp.name.charAt(0).toUpperCase()
-                        )}
+                          {emp.photoUrl ? (
+                            <Image
+                              src={emp.photoUrl}
+                              alt=""
+                              width={48}
+                              height={48}
+                              className="h-full w-full object-cover"
+                              unoptimized
+                            />
+                          ) : (
+                            emp.name.charAt(0).toUpperCase()
+                          )}
+                        </div>
+                      </div>
+                      <div>
+                        <p className={`font-semibold ${titleText}`}>{emp.name}</p>
+                        <p className={`text-sm ${subText}`}>
+                          $ {selectedService.price.toFixed(0)} ({selectedService.duration} min)
+                        </p>
                       </div>
                     </div>
-                    <div>
-                      <p className={`font-semibold ${titleText}`}>{emp.name}</p>
-                      <p className={`text-sm ${subText}`}>
-                        $ {selectedService.price.toFixed(0)} ({selectedService.duration} min)
-                      </p>
-                    </div>
+                    {displaySlotsEmp.length === 0 ? (
+                      <div className={`rounded-xl py-6 text-center text-sm ${noSlotsCardClass}`}>
+                        Sin turnos disponibles
+                      </div>
+                    ) : (
+                      <div className="grid grid-cols-3 gap-2 md:gap-3 lg:grid-cols-4">
+                        {displaySlotsEmp.map((slot) => (
+                          <button
+                            key={slot}
+                            type="button"
+                            onClick={() => {
+                              onSelectedSlot(slot, emp.id)
+                              onContinue()
+                            }}
+                            className={`rounded-lg px-3 py-3 text-sm font-medium transition-colors md:px-4 md:py-3.5 md:text-base lg:px-5 ${slotBtnClass}`}
+                          >
+                            {slot}
+                          </button>
+                        ))}
+                      </div>
+                    )}
                   </div>
-                  {displaySlots.length === 0 ? (
-                    <div className={`rounded-xl py-6 text-center text-sm ${noSlotsCardClass}`}>
-                      Sin turnos disponibles
-                    </div>
-                  ) : (
-                    <div className="grid grid-cols-3 gap-2 md:gap-3 lg:grid-cols-4">
-                      {displaySlots.map((slot) => (
-                        <button
-                          key={slot}
-                          type="button"
-                          onClick={() => {
-                            onSelectedSlot(slot, emp.id)
-                            onContinue()
-                          }}
-                          className={`rounded-lg px-3 py-3 text-sm font-medium transition-colors md:px-4 md:py-3.5 md:text-base lg:px-5 ${slotBtnClass}`}
-                        >
-                          {slot}
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              ))
+                )
+              })
             ) : (
               <div className="flex flex-col gap-3">
                 <div>
