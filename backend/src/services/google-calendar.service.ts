@@ -83,6 +83,7 @@ export async function createCalendarEvent(
     endTime: Date
     location?: string
     attendees?: string[]
+    colorId?: string // Google Calendar color 1-11; used for owner view (staff events in different color)
   }
 ): Promise<string> {
   try {
@@ -95,6 +96,7 @@ export async function createCalendarEvent(
         summary: event.summary,
         description: event.description,
         location: event.location,
+        ...(event.colorId ? { colorId: event.colorId } : {}),
         start: {
           dateTime: event.startTime.toISOString(),
           timeZone: 'UTC',

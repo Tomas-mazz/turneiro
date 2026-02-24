@@ -13,6 +13,47 @@ function minutesToTime(m: number): string {
   return `${h.toString().padStart(2, '0')}:${mn.toString().padStart(2, '0')}`
 }
 
+const SLOT_GRANULARITY_MINUTES = 15
+
+/** Merge overlapping intervals [start, end] (in minutes). Input sorted by start. */
+function mergeIntervals(intervals: [number, number][]): [number, number][] {
+  if (intervals.length === 0) return []
+  const sorted = [...intervals].sort((a, b) => a[0] - b[0])
+  const merged: [number, number][] = [sorted[0]]
+  for (let i = 1; i < sorted.length; i++) {
+    const [a, b] = merged[merged.length - 1]
+    const [c, d] = sorted[i]
+    if (c <= b) {
+      merged[merged.length - 1] = [a, Math.max(b, d)]
+    } else {
+      merged.push([c, d])
+    }
+  }
+  return merged
+}
+
+/** Subtract busy intervals from [segStart, segEnd]. Returns list of free [start, end] in minutes. */
+function subtractBusyFromSegment(
+  segStart: number,
+  segEnd: number,
+  busy: [number, number][]
+): [number, number][] {
+  let free: [number, number][] = [[segStart, segEnd]]
+  for (const [bStart, bEnd] of busy) {
+    const next: [number, number][] = []
+    for (const [fStart, fEnd] of free) {
+      if (bEnd <= fStart || bStart >= fEnd) {
+        next.push([fStart, fEnd])
+      } else {
+        if (fStart < bStart) next.push([fStart, bStart])
+        if (bEnd < fEnd) next.push([bEnd, fEnd])
+      }
+    }
+    free = next
+  }
+  return free.filter(([a, b]) => b - a >= 0)
+}
+
 /**
  * Available time slots for a single day.
  *
@@ -101,44 +142,55 @@ export async function getAvailabilityService(
     return []
   }
 
-  const slots: string[] = []
-  for (let t = startMinutes; t + duration <= endMinutes; t += duration) {
-    if (lunchStart != null && lunchEnd != null) {
-      const slotEnd = t + duration
-      if (t < lunchEnd && slotEnd > lunchStart) continue
-    }
-    const slotStartDate = new Date(date)
-    slotStartDate.setHours(Math.floor(t / 60), t % 60, 0, 0)
-    const slotEndDate = new Date(slotStartDate.getTime() + duration * 60 * 1000)
+  // Build busy intervals (minutes since midnight) from appointments and TIME_SLOT blocks
+  const busyIntervals: [number, number][] = []
+  for (const a of appointments) {
+    const aStart = new Date(a.startTime)
+    const aEnd = new Date(a.endTime)
+    const dayStartMin = 0
+    const dayEndMin = 24 * 60
+    const startMin = Math.max(dayStartMin, aStart.getHours() * 60 + aStart.getMinutes())
+    const endMin = Math.min(dayEndMin, aEnd.getHours() * 60 + aEnd.getMinutes())
+    if (endMin > startMin) busyIntervals.push([startMin, endMin])
+  }
+  for (const b of blockedSlots) {
+    if (b.type !== 'TIME_SLOT' || !b.startTime || !b.endTime) continue
+    if (employeeId && b.employeeId && b.employeeId !== employeeId) continue
+    busyIntervals.push([timeToMinutes(b.startTime), timeToMinutes(b.endTime)])
+  }
+  const mergedBusy = mergeIntervals(busyIntervals)
 
-    const overlapsAppointment = appointments.some(
-      (a) => slotStartDate < a.endTime && slotEndDate > a.startTime
-    )
-    if (overlapsAppointment) continue
-
-    const overlapsBlocked = blockedSlots
-      .filter((b) => {
-        if (b.type !== 'TIME_SLOT' || !b.startTime || !b.endTime) return false
-        // For per-employee availability, respect only global or matching-employee time blocks.
-        if (employeeId && b.employeeId && b.employeeId !== employeeId) return false
-        return true
-      })
-      .some((b) => {
-        const bStart = timeToMinutes(b.startTime!)
-        const bEnd = timeToMinutes(b.endTime!)
-        return t < bEnd && t + duration > bStart
-      })
-    if (overlapsBlocked) continue
-
-    slots.push(minutesToTime(t))
+  // Working segments: [startMinutes, endMinutes] possibly split by lunch
+  const segments: [number, number][] = []
+  if (lunchStart != null && lunchEnd != null) {
+    if (startMinutes < lunchStart) segments.push([startMinutes, lunchStart])
+    if (lunchEnd < endMinutes) segments.push([lunchEnd, endMinutes])
+  } else {
+    segments.push([startMinutes, endMinutes])
   }
 
+  // Free intervals per segment, then generate slots at granularity within each
+  const slotSet = new Set<string>()
+  for (const [segStart, segEnd] of segments) {
+    const free = subtractBusyFromSegment(segStart, segEnd, mergedBusy)
+    for (const [freeStart, freeEnd] of free) {
+      for (
+        let t = freeStart;
+        t + duration <= freeEnd;
+        t += SLOT_GRANULARITY_MINUTES
+      ) {
+        slotSet.add(minutesToTime(t))
+      }
+    }
+  }
+  const slots = Array.from(slotSet).sort()
   return slots
 }
 
 /**
  * For each day in the week starting at startDate, whether there is at least one available slot.
- * Used by calendar to gray out days: tachado only when closed or no slots at all.
+ * When the business has employees, hasSlots = true if at least one employee has at least one slot that day.
+ * When there are no employees, uses single-resource availability (current behaviour).
  * We do not filter "today" by current time here; the frontend filters past slots when displaying.
  */
 export async function getWeekAvailabilityService(
@@ -146,6 +198,19 @@ export async function getWeekAvailabilityService(
   serviceId: string,
   startDate: Date
 ): Promise<{ date: string; hasSlots: boolean }[]> {
+  const business = await prisma.business.findUnique({
+    where: { slug: businessSlug },
+    select: { id: true },
+  })
+  const employeeIds: string[] = []
+  if (business) {
+    const employees = await prisma.employee.findMany({
+      where: { businessId: business.id },
+      select: { id: true },
+    })
+    employeeIds.push(...employees.map((e) => e.id))
+  }
+
   const result: { date: string; hasSlots: boolean }[] = []
   for (let i = 0; i < 7; i++) {
     const d = new Date(startDate)
@@ -154,8 +219,27 @@ export async function getWeekAvailabilityService(
     const m = String(d.getMonth() + 1).padStart(2, '0')
     const day = String(d.getDate()).padStart(2, '0')
     const dateStr = `${y}-${m}-${day}`
-    const slots = await getAvailabilityService(businessSlug, serviceId, d, dateStr)
-    result.push({ date: dateStr, hasSlots: slots.length > 0 })
+
+    let hasSlots = false
+    if (employeeIds.length > 0) {
+      for (const employeeId of employeeIds) {
+        const slots = await getAvailabilityService(
+          businessSlug,
+          serviceId,
+          d,
+          dateStr,
+          employeeId
+        )
+        if (slots.length > 0) {
+          hasSlots = true
+          break
+        }
+      }
+    } else {
+      const slots = await getAvailabilityService(businessSlug, serviceId, d, dateStr)
+      hasSlots = slots.length > 0
+    }
+    result.push({ date: dateStr, hasSlots })
   }
   return result
 }

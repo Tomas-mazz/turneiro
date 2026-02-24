@@ -2,6 +2,7 @@ import { Request, Response } from 'express'
 import { AuthRequest } from '../middleware/auth'
 import { prisma } from '../lib/prisma'
 import * as googleCalendarService from '../services/google-calendar.service'
+import { resyncStaffUpcomingAppointmentsToOwnCalendar } from '../services/appointments.service'
 
 /**
  * Initiate Google Calendar OAuth flow
@@ -69,6 +70,11 @@ export async function oauthCallback(req: Request, res: Response) {
         googleCalendarId: calendarId,
       },
     })
+
+    // If STAFF, re-sync their UPCOMING appointments to their calendar (don't block redirect)
+    resyncStaffUpcomingAppointmentsToOwnCalendar(userId).catch((err) =>
+      console.error('Resync staff calendar after OAuth:', err)
+    )
 
     return res.redirect(`${FRONTEND_URL}/dashboard?google_calendar=connected`)
   } catch (error) {
@@ -162,7 +168,7 @@ export async function syncAppointment(req: AuthRequest, res: Response) {
       })
     }
 
-    // Get appointment
+    // Get appointment (with employee for "con X" summary when owner)
     const appointment = await prisma.appointment.findFirst({
       where: {
         id: appointmentId,
@@ -170,6 +176,7 @@ export async function syncAppointment(req: AuthRequest, res: Response) {
       },
       include: {
         business: true,
+        employee: true,
       },
     })
 
@@ -177,29 +184,33 @@ export async function syncAppointment(req: AuthRequest, res: Response) {
       return res.status(404).json({ error: 'Cita no encontrada' })
     }
 
+    const isOwner = req.user.role === 'OWNER'
+    const isOwnerSlot = !appointment.employee || appointment.employee.isOwner
+    const summary = isOwner
+      ? `${appointment.serviceName} - ${appointment.clientName} (con ${isOwnerSlot ? 'dueño' : appointment.employee!.name})`
+      : `${appointment.serviceName} - ${appointment.clientName}`
+
     // Create or update event
     const existingEventId = appointment.googleEventId
 
     if (existingEventId) {
-      // Update existing event
       await googleCalendarService.updateCalendarEvent(
         refreshToken,
         calendarId,
         existingEventId,
         {
-          summary: `${appointment.serviceName} - ${appointment.clientName}`,
+          summary,
           description: `Cliente: ${appointment.clientName}\nTeléfono: ${appointment.clientPhone}\nPrecio: $${appointment.price}`,
           startTime: appointment.startTime,
           endTime: appointment.endTime,
         }
       )
     } else {
-      // Create new event
       const eventId = await googleCalendarService.createCalendarEvent(
         refreshToken,
         calendarId,
         {
-          summary: `${appointment.serviceName} - ${appointment.clientName}`,
+          summary,
           description: `Cliente: ${appointment.clientName}\nTeléfono: ${appointment.clientPhone}\nPrecio: $${appointment.price}\nEstado: ${appointment.status}`,
           startTime: appointment.startTime,
           endTime: appointment.endTime,
@@ -207,7 +218,6 @@ export async function syncAppointment(req: AuthRequest, res: Response) {
         }
       )
 
-      // Save event ID to appointment
       await prisma.appointment.update({
         where: { id: appointmentId },
         data: {

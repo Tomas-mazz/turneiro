@@ -73,6 +73,24 @@ Reference only (do not use for code decisions):
 2. **UI polish** (if needed): employee row actions spacing; theme toggle on extreme viewports.
 3. **Docs:** Update screenshots/flows for public booking (service, date, confirm) in both themes.
 
+### Planned steps (calendar + availability) – mark [x] when done
+
+- [x] **Paso 1 – Re-sincronizar citas existentes al conectar Google (staff):** Al conectar Google Calendar con un empleado, re-sincronizar todas sus citas UPCOMING a su calendario (y quitar del dueño si aplica). (Realizado: `resyncStaffUpcomingAppointmentsToOwnCalendar` en oauthCallback.)
+- [x] **Paso 2 – Dashboard staff – Mis próximos turnos:** En el dashboard del staff, sección "Mis próximos turnos" que liste solo sus citas (no depender solo de búsqueda por teléfono). (Realizado solo a nivel backend: `/appointments` filtra por empleado STAFF; la sección \"Tus próximos turnos\" en `/dashboard` se decidió no mostrar en UI.)
+- [x] **Paso 3 – Título en Google Calendar – "con [empleado]" / "con dueño":** En el evento de Google incluir en el título "con Pedro" o "con dueño" según corresponda. (Realizado: summary en staff = normal; en calendario del owner = "con [empleado]" o "con dueño"; sync manual con employee.)
+- [x] **Paso 4 – Owner: otro color en su calendario para reservas del staff:** En el calendario del dueño, reservas propias en color por defecto; reservas del staff en otro color (p. ej. colorId). (Realizado: copia en calendario del owner con colorId "9" para citas de staff; ownerCalendarEventId + delete en cancel.)
+- [x] **Paso 5 – Semana con empleados:** Ajustar disponibilidad de la semana cuando hay empleados: "tiene slots" = al menos un empleado tiene al menos un slot ese día. (Realizado: `getWeekAvailabilityService` obtiene empleados del negocio y por cada día consulta slots por empleado; hasSlots si alguno tiene.)
+- [x] **Paso 6 – Slots por intervalos libres (packing):** Generar slots dentro de intervalos libres con granularidad (ej. cada 15 min) para que servicios de distinta duración aprovechen mejor los huecos. (Realizado: intervalos ocupados por citas y bloques, restar del horario laboral + almuerzo; slots cada 15 min en cada hueco libre donde quepa la duración del servicio.)
+
+### Possible next steps (backlog / after QA)
+
+- **QA** – Run full checklist: admin (appointments, employees, wizard, business edit, working hours), public booking (per-employee slots, theme, confirm step), owner vs staff dashboard and calendar (re-sync, colors, "con dueño" vs "con [staff]").
+- **Re-sync existing events (optional)** – One-off or manual action to update already-created Google Calendar events (e.g. fix "con Juan" duplicates on owner calendar to "con dueño" and default color for owner slots).
+- **UI polish** – Employee row actions spacing; theme toggle on extreme viewports.
+- **Docs** – Update screenshots/flows for public booking (service, date, confirm) in both themes.
+- **Dashboard staff** – Revisit showing "Mis próximos turnos" in UI if needed (backend already supports filtered list).
+- **Availability** – Consider configurable slot granularity (e.g. 5/15/30 min) per business if needed later.
+
 ---
 
 ## 5) Scope guardrails (keep)
@@ -128,6 +146,6 @@ Reference only (do not use for code decisions):
 
 ## 8) Context snapshot for next chat
 
-**Last session:** Owner vs staff (price edit, dashboard copy, cancel/lookup scope); Employee.userId + per-employee Google Calendar; delete employee deletes User; business create/edit inline validation (fieldErrors + backend field). PROJECT_STATE and ROLES_PERMISSIONS updated.
+**Last session:** Calendar + availability: (1) Re-sync staff UPCOMING appointments to their calendar on Google connect; (2) GET /appointments filtered by employee for STAFF; (3) Google event title "con [empleado]" / "con dueño" (owner only); (4) Owner calendar copy for staff events with colorId; isOwner fix so "con Juan" (owner) = default color; (5) Week availability when employees = any employee has slot; (6) Slot packing: free intervals + 15 min granularity. Removed "Tus próximos turnos" UI. PROJECT_STATE: all 6 steps done, possible next steps added.
 
-**Next:** QA (see section 4). No blocked decisions.
+**Next:** QA (see section 4). Possible next steps in section 4. No blocked decisions.

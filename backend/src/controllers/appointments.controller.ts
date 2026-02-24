@@ -47,7 +47,17 @@ export async function getAppointments(req: AuthRequest, res: Response) {
       error: 'No tienes un negocio asignado',
     })
   }
-  const appointments = await getAppointmentsService(businessId)
+  let staffEmployeeId: string | null | undefined
+  if (req.user?.role === 'STAFF' && req.user?.userId) {
+    staffEmployeeId = await getEmployeeIdByUserIdService(req.user.userId, businessId)
+    if (staffEmployeeId === null) {
+      // STAFF sin empleado asociado: no tiene turnos propios
+      return res.json([])
+    }
+  } else {
+    staffEmployeeId = undefined
+  }
+  const appointments = await getAppointmentsService(businessId, staffEmployeeId)
   return res.json(appointments)
 }
 
