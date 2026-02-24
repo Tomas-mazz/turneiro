@@ -3,11 +3,11 @@ import {
   createPaymentIntent,
   confirmPayment,
 } from '../controllers/payments.controller'
+import { createPaymentIntentLimiter } from '../middleware/rateLimit'
 
 const router = Router()
 
-// Create payment intent (Stripe) or preference (Mercado Pago)
-router.post('/create-intent', createPaymentIntent)
+router.post('/create-intent', createPaymentIntentLimiter, createPaymentIntent)
 
 // Confirm payment completion
 router.post('/confirm', confirmPayment)

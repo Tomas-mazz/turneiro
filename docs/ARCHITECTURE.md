@@ -40,24 +40,67 @@ backend/
 **API Route Structure:**
 ```
 /api/businesses
+  GET    /api/businesses/mine           # Get current user's business (owner/staff)
   GET    /api/businesses/:slug          # Get public business profile
-  GET    /api/businesses                # Get businesses (admin)
-
-/api/appointments
-  GET    /api/appointments              # Get appointments
-  POST   /api/appointments               # Create appointment
-  GET    /api/appointments/:id          # Get specific appointment
-  PUT    /api/appointments/:id          # Update appointment
-  DELETE /api/appointments/:id          # Delete appointment
-  POST   /api/appointments/cancel       # Cancel appointment
 
 /api/availability
-  GET    /api/availability               # Get available time slots
-  GET    /api/availability/week         # Get week availability
+  GET    /api/availability              # Get available time slots (query: businessSlug, serviceId, date, employeeId?)
+  GET    /api/availability/week        # Get week availability
+
+/api/appointments
+  POST   /api/appointments              # Create appointment (public, rate limited)
+  POST   /api/appointments/cancel       # Cancel by token (public)
+  GET    /api/appointments              # List appointments (owner/staff, scoped)
+  GET    /api/appointments/lookup       # Lookup by phone (owner/staff, scoped)
+  POST   /api/appointments/:id/cancel   # Cancel by owner/staff (with reason)
+
+/api/services
+  GET    /api/services                  # List services (owner/staff)
+  PATCH  /api/services/:id              # Update price/duration (owner only)
+
+/api/blocked-slots
+  GET    /api/blocked-slots             # List (owner/staff)
+  POST   /api/blocked-slots             # Create (owner/staff)
+  DELETE /api/blocked-slots/:id         # Delete (owner/staff)
+
+/api/auth
+  POST   /api/auth/login                # Login (rate limited)
+
+/api/payments
+  POST   /api/payments/create-intent   # Create Stripe or Mercado Pago intent (rate limited)
+  POST   /api/payments/confirm         # Confirm payment completion
+
+/api/google-calendar
+  GET    /api/google-calendar/auth      # Get OAuth URL (auth)
+  GET    /api/google-calendar/callback  # OAuth callback (public, redirects)
+  GET    /api/google-calendar/status   # Connection status (auth)
+  POST   /api/google-calendar/disconnect  # Disconnect (auth)
+  POST   /api/google-calendar/sync-appointment  # Manual sync (auth)
+
+/api/admin
+  GET    /api/admin/businesses          # List businesses
+  GET    /api/admin/businesses/:id      # Get business detail
+  POST   /api/admin/businesses          # Create business
+  PATCH  /api/admin/businesses/:id     # Update business
+  DELETE /api/admin/businesses/:id     # Delete business
+  GET    /api/admin/businesses/:id/services, working-hours, blocked-slots, employees
+  POST   /api/admin/businesses/:id/services, working-hours, blocked-slots, employees
+  PUT    /api/admin/businesses/:id/working-hours
+  PATCH  /api/admin/services/:id       # Update service (admin)
+  DELETE /api/admin/services/:id
+  DELETE /api/admin/blocked-slots/:id
+  PATCH  /api/admin/employees/:id
+  DELETE /api/admin/employees/:id
+  GET    /api/admin/appointments        # List with filters
+  POST   /api/admin/appointments/:id/cancel
+  PATCH  /api/admin/appointments/:id/status
+
+/api/admin/upload
+  POST   /api/admin/upload              # Upload file (admin)
 
 /api/webhooks
-  POST   /api/webhooks/stripe           # Stripe webhook
-  POST   /api/webhooks/twilio           # Twilio webhook
+  POST   /api/webhooks/stripe           # Stripe webhook (signature verified)
+  POST   /api/webhooks/mercadopago     # Mercado Pago IPN (disabled by default; 501 until HMAC)
 ```
 
 ### Data Flow Architecture
@@ -323,17 +366,15 @@ export async function checkAvailability(
 
 ### Performance and Limits
 - **No**: No appointment limits in MVP
-- **Future**: Rate limiting for bookings
+- **Yes**: Rate limiting on login, appointment creation, and payment create-intent (per IP, 15 min window)
 - **Yes**: Real-time availability updates
 - **Future**: Caching for booking pages
 - **Future**: CDN for static assets
 
 ### Internationalization
-- **Yes**: English and Spanish support in MVP (with language switcher button)
-- **Yes**: Global timezone (single timezone for all barbers, not per-barber)
-- **Future**: Additional languages
-- **Future**: Per-barber timezone configuration
-- **Future**: Currency support (for payments)
+- **Yes (MVP)**: User-facing UI in Spanish only
+- **Future**: Language switcher and English; additional languages; per-barber timezone; currency support
+- **Note**: Global timezone (single for all businesses) is deferred; not implemented in MVP
 
 ## Folder and File Organization
 
@@ -347,9 +388,8 @@ Appointments/                     # Project root (Git repository root)
 ├── README.md                     # Root README
 ├── frontend/                     # Next.js Frontend (UI only)
 │   ├── app/                      # Next.js App Router
-│   │   ├── (auth)/               # Auth route group
+│   │   ├── (auth)/               # Auth route group (no public registration)
 │   │   │   ├── login/
-│   │   │   ├── register/
 │   │   │   └── verify-email/
 │   │   ├── (public)/             # Public routes
 │   │   │   └── [business-slug]/

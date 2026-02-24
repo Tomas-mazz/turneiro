@@ -19,13 +19,14 @@ Read in this order:
 9. `docs/ARCHITECTURE.md`
 
 Reference only (do not use for code decisions):  
-`docs/PROJECT_VISION.md`, `docs/IDEAS_FUTURE.md`, `docs/DESIGN_UX.md`, `docs/OPEN_QUESTIONS.md`.
+`docs/PROJECT_VISION.md`, `docs/IDEAS_FUTURE.md`, `docs/DESIGN_UX.md`, `docs/OPEN_QUESTIONS.md`, `docs/RESOLVED_AMBIGUITIES.md`.
 
 ---
 
 ## 2) Current project summary
 
 - MVP multi-tenant booking SaaS (`frontend` Next.js, `backend` Express + Prisma + Postgres).
+- **No public registration.** Users (OWNER, STAFF, ADMIN) are created only by the platform admin: owner when creating a business, staff when creating an employee with credentials. There is no self-registration or public sign-up endpoint.
 - One login (`/login`) with role-based redirect:
   - `ADMIN` -> `/admin`
   - `OWNER` / `STAFF` -> `/dashboard`
@@ -35,12 +36,31 @@ Reference only (do not use for code decisions):
 
 ---
 
+## 2.1) Estado por feature (IMPLEMENTADO / PARCIAL / DESHABILITADO / POST_MVP)
+
+| Feature | Estado | Notas |
+|--------|--------|-------|
+| Auth (login, roles, JWT) | **IMPLEMENTADO** | Sin registro público. |
+| Booking público (servicio, fecha, hora, empleado, pago Stripe/MP, link cancelación en pantalla) | **IMPLEMENTADO** | |
+| Cancelación por token (ventana libre, reembolsos Stripe) | **IMPLEMENTADO** | |
+| Envío del link de cancelación por WhatsApp/email | **PARCIAL** | El link se muestra en pantalla tras la reserva; envío automático no implementado. |
+| WhatsApp (confirmación, recordatorios) | **DESHABILITADO / POST_MVP** | Servicio stub; no envía mensajes. |
+| Mercado Pago: pago (preference, redirect) | **IMPLEMENTADO** | |
+| Mercado Pago: webhook IPN | **DESHABILITADO** | Responde 501 hasta implementar verificación HMAC. |
+| Verify-email | **POST_MVP** | Solo página stub en frontend; sin backend. |
+| Idioma / i18n | **IMPLEMENTADO (español)** | Language switcher e inglés son POST_MVP. |
+| Rate limiting (login, crear cita, create-intent) | **IMPLEMENTADO** | Por IP, ventana 15 min. |
+
+---
+
 ## 3) Completed (do not redo)
 
 ### Core platform
-- Auth with JWT/bcrypt and role-based access.
+- Auth with JWT/bcrypt and role-based access. No public registration; users created only by admin.
 - Full booking flow on public page with payments (Stripe + Mercado Pago), cancellation token, and Google Calendar owner sync.
 - Owner dashboard scope (MVP): edit service price/duration, blocks, cancel by phone lookup, Google Calendar connect/disconnect.
+- Rate limiting on login, appointment creation, and payment create-intent (per IP).
+- Mercado Pago webhook disabled by default (501 until HMAC verification is implemented).
 
 ### Admin panel (done)
 - Businesses CRUD with branding (name/description/logo/cover/theme), contact data, owner credentials.
@@ -99,6 +119,7 @@ Reference only (do not use for code decisions):
 - Do not implement out-of-scope features without explicit decision:
   - Premium/advanced automations
 - **Calendar model (current):** Appointments sync to the **assigned employee's Google Calendar** when that employee has a linked User with Google connected; otherwise to **owner's calendar**. Each employee can connect their own Google Calendar and see only their appointments.
+- **WhatsApp and cancellation link delivery:** Not implemented in MVP. Link is shown on booking confirmation screen only. Sending via WhatsApp/email is POST_MVP.
 
 ---
 

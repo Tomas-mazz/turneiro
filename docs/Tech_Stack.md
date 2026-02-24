@@ -15,7 +15,7 @@ This document outlines the complete technical architecture, stack choices, and i
 | **Authentication** | JWT (JSON Web Tokens) | Stateless authentication, works with separated architecture |
 | **Database** | PostgreSQL | Relational data, ACID compliance, scalability |
 | **ORM** | Prisma | Type-safe queries, migrations, excellent DX |
-| **Notifications** | Twilio WhatsApp API | Reliable messaging, global reach |
+| **Notifications** | Twilio WhatsApp API (planned) | Not implemented in MVP; dependency present for future use. User-facing cancellation link is shown on booking confirmation screen only. |
 | **Payments** | Stripe + Mercado Pago | Industry standard, comprehensive API, Latin America support |
 | **Frontend Deployment** | Vercel | Optimized for Next.js, automatic scaling |
 | **Backend Deployment** | Railway / Render / AWS | Flexible deployment options for Express.js |
@@ -51,10 +51,9 @@ The project uses a **separated frontend and backend architecture**:
 ```
 frontend/
 ├── app/
-│   ├── (auth)/
+│   ├── (auth)/                   # Login only; no public registration
 │   │   ├── login/
-│   │   ├── register/
-│   │   └── verify-email/
+│   │   └── verify-email/          # Stub page (POST_MVP; no backend)
 │   ├── (public)/
 │   │   └── [business-slug]/
 │   │       └── page.tsx          # Public booking page

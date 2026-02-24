@@ -119,9 +119,13 @@ export async function stripeWebhook(req: Request, res: Response) {
 }
 
 /**
- * Mercado Pago webhook handler (IPN)
+ * Mercado Pago webhook handler (IPN).
+ * Disabled until HMAC verification is implemented. Set MERCADOPAGO_WEBHOOK_ENABLED=true to enable.
  */
 export async function mercadopagoWebhook(req: Request, res: Response) {
+  if (process.env.MERCADOPAGO_WEBHOOK_ENABLED !== 'true') {
+    return res.status(501).json({ error: 'Webhook de Mercado Pago no implementado' })
+  }
   try {
     const { type, data } = req.body
 

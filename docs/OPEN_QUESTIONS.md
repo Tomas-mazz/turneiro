@@ -9,10 +9,9 @@
 
 ### Testing Locally
 1. **Create Test Business Account**
-   - Register via `/register`
-   - Select business category/rubro (e.g., barbershop, beauty salon)
-   - Verify email
-   - Complete profile setup (name, cover photo, logo, description)
+   - Log in as admin and create a business in `/admin` (create-business wizard).
+   - Set owner credentials (email/password) when creating the business; there is no public registration.
+   - Optionally complete profile (name, cover photo, logo, description) in admin business edit.
 
 2. **Configure Working Hours and Services**
    - Log into dashboard

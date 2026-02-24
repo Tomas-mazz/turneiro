@@ -65,15 +65,7 @@ export const loginSchema = z.object({
   password: passwordSchema,
 })
 
-export const registerSchema = z.object({
-  email: emailSchema,
-  password: passwordSchema,
-  role: z.enum(['OWNER', 'ADMIN', 'STAFF']).optional().default('OWNER'),
-  businessId: z.string().cuid().optional().nullable(),
-})
-
 export type LoginInput = z.infer<typeof loginSchema>
-export type RegisterInput = z.infer<typeof registerSchema>
 
 // Blocked slots (owner dashboard)
 const blockedSlotTypeEnum = z.enum(['FULL_DAY', 'TIME_SLOT'])
