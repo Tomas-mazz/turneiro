@@ -3,10 +3,7 @@ import { getBusinessBySlugService, getMyBusinessService } from '../services/busi
 import type { AuthRequest } from '../middleware/auth'
 
 export async function getMyBusiness(req: AuthRequest, res: Response) {
-  const businessId = req.user?.businessId
-  if (!businessId) {
-    return res.status(403).json({ error: 'No tienes un negocio asignado' })
-  }
+  const { businessId } = req.businessContext!
   const business = await getMyBusinessService(businessId)
   if (!business) {
     return res.status(404).json({ error: 'Negocio no encontrado' })

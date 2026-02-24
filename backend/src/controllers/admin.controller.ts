@@ -53,14 +53,9 @@ export async function getBusinesses(_req: Request, res: Response) {
   return res.json(businesses)
 }
 
-export async function getBusinessById(req: Request, res: Response, next: NextFunction) {
+export async function getBusinessById(req: AuthRequest, res: Response, next: NextFunction) {
   try {
-    const id = req.params.id
-    if (!id) {
-      res.status(400).json({ error: 'ID de negocio obligatorio' })
-      return
-    }
-    const business = await getBusinessByIdForAdmin(id)
+    const business = await getBusinessByIdForAdmin(req.businessId!)
     if (!business) {
       res.status(404).json({ error: 'Negocio no encontrado' })
       return
@@ -106,13 +101,8 @@ export async function createBusiness(req: AuthRequest, res: Response, next: Next
 
 export async function updateBusiness(req: AuthRequest, res: Response, next: NextFunction) {
   try {
-    const id = req.params.id
-    if (!id) {
-      res.status(400).json({ error: 'ID de negocio obligatorio' })
-      return
-    }
     const body = req.body
-    await updateBusinessForAdmin(id, {
+    await updateBusinessForAdmin(req.businessId!, {
       name: body.name,
       slug: body.slug,
       category: body.category,
@@ -150,14 +140,9 @@ export async function updateBusiness(req: AuthRequest, res: Response, next: Next
   }
 }
 
-export async function getBusinessServices(req: Request, res: Response, next: NextFunction) {
+export async function getBusinessServices(req: AuthRequest, res: Response, next: NextFunction) {
   try {
-    const businessId = req.params.id
-    if (!businessId) {
-      res.status(400).json({ error: 'ID de negocio obligatorio' })
-      return
-    }
-    const services = await getServicesForBusinessService(businessId)
+    const services = await getServicesForBusinessService(req.businessId!)
     return res.json(services)
   } catch (err) {
     console.error('getBusinessServices error:', err)
@@ -167,13 +152,8 @@ export async function getBusinessServices(req: Request, res: Response, next: Nex
 
 export async function createService(req: AuthRequest, res: Response, next: NextFunction) {
   try {
-    const businessId = req.params.id
-    if (!businessId) {
-      res.status(400).json({ error: 'ID de negocio obligatorio' })
-      return
-    }
     const body = req.body
-    const service = await createServiceForAdmin(businessId, {
+    const service = await createServiceForAdmin(req.businessId!, {
       name: body.name,
       price: body.price,
       duration: body.duration,
@@ -227,14 +207,9 @@ export async function deleteService(req: AuthRequest, res: Response, next: NextF
   }
 }
 
-export async function getWorkingHours(req: Request, res: Response, next: NextFunction) {
+export async function getWorkingHours(req: AuthRequest, res: Response, next: NextFunction) {
   try {
-    const businessId = req.params.id
-    if (!businessId) {
-      res.status(400).json({ error: 'ID de negocio obligatorio' })
-      return
-    }
-    const hours = await getWorkingHoursForBusiness(businessId)
+    const hours = await getWorkingHoursForBusiness(req.businessId!)
     res.json(hours)
   } catch (err) {
     next(err)
@@ -243,13 +218,8 @@ export async function getWorkingHours(req: Request, res: Response, next: NextFun
 
 export async function updateWorkingHours(req: AuthRequest, res: Response, next: NextFunction) {
   try {
-    const businessId = req.params.id
-    if (!businessId) {
-      res.status(400).json({ error: 'ID de negocio obligatorio' })
-      return
-    }
     const { hours } = req.body
-    const updated = await upsertWorkingHoursForBusiness(businessId, hours)
+    const updated = await upsertWorkingHoursForBusiness(req.businessId!, hours)
     res.json(updated)
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Error al guardar horarios'
@@ -261,16 +231,11 @@ export async function updateWorkingHours(req: AuthRequest, res: Response, next: 
   }
 }
 
-export async function getAdminBlockedSlots(req: Request, res: Response, next: NextFunction) {
+export async function getAdminBlockedSlots(req: AuthRequest, res: Response, next: NextFunction) {
   try {
-    const businessId = req.params.id
-    if (!businessId) {
-      res.status(400).json({ error: 'ID de negocio obligatorio' })
-      return
-    }
     const parsed = listBlockedSlotsQuerySchema.safeParse(req.query)
     const query = parsed.success ? parsed.data : {}
-    const slots = await listBlockedSlotsService(businessId, query)
+    const slots = await listBlockedSlotsService(req.businessId!, query)
     res.json(slots)
   } catch (err) {
     next(err)
@@ -279,11 +244,6 @@ export async function getAdminBlockedSlots(req: Request, res: Response, next: Ne
 
 export async function createAdminBlockedSlot(req: AuthRequest, res: Response, next: NextFunction) {
   try {
-    const businessId = req.params.id
-    if (!businessId) {
-      res.status(400).json({ error: 'ID de negocio obligatorio' })
-      return
-    }
     const parsed = createBlockedSlotSchema.safeParse(req.body)
     if (!parsed.success) {
       return res.status(400).json({
@@ -291,7 +251,7 @@ export async function createAdminBlockedSlot(req: AuthRequest, res: Response, ne
         details: (parsed.error as ZodError).errors,
       })
     }
-    const created = await createBlockedSlotService(businessId, parsed.data)
+    const created = await createBlockedSlotService(req.businessId!, parsed.data)
     res.status(201).json(created)
   } catch (err) {
     next(err)
@@ -318,12 +278,7 @@ export async function deleteAdminBlockedSlot(req: AuthRequest, res: Response, ne
 
 export async function deleteBusiness(req: AuthRequest, res: Response, next: NextFunction) {
   try {
-    const businessId = req.params.id
-    if (!businessId) {
-      res.status(400).json({ error: 'ID de negocio obligatorio' })
-      return
-    }
-    await deleteBusinessForAdmin(businessId)
+    await deleteBusinessForAdmin(req.businessId!)
     res.status(204).send()
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Error al eliminar'
@@ -336,16 +291,12 @@ export async function deleteBusiness(req: AuthRequest, res: Response, next: Next
 }
 
 export async function getBusinessEmployees(
-  req: Request,
+  req: AuthRequest,
   res: Response,
   next: NextFunction
 ) {
   try {
-    const businessId = req.params.id
-    if (!businessId) {
-      return res.status(400).json({ error: 'ID de negocio obligatorio' })
-    }
-    const employees = await getEmployeesForBusinessService(businessId)
+    const employees = await getEmployeesForBusinessService(req.businessId!)
     res.json(employees)
   } catch (err) {
     next(err)
@@ -354,10 +305,6 @@ export async function getBusinessEmployees(
 
 export async function createEmployee(req: AuthRequest, res: Response, next: NextFunction) {
   try {
-    const businessId = req.params.id
-    if (!businessId) {
-      return res.status(400).json({ error: 'ID de negocio obligatorio' })
-    }
     const parsed = createEmployeeAdminSchema.safeParse(req.body)
     if (!parsed.success) {
       return res.status(400).json({
@@ -365,7 +312,7 @@ export async function createEmployee(req: AuthRequest, res: Response, next: Next
         details: (parsed.error as ZodError).errors,
       })
     }
-    const employee = await createEmployeeForAdmin(businessId, parsed.data)
+    const employee = await createEmployeeForAdmin(req.businessId!, parsed.data)
     res.status(201).json(employee)
   } catch (err) {
     next(err)

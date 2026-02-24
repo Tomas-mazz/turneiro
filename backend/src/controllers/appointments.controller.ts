@@ -9,7 +9,6 @@ import {
   SlotUnavailableError,
   CancellationNotAllowedError,
 } from '../services/appointments.service'
-import { getEmployeeIdByUserIdService } from '../services/employees.service'
 import {
   createAppointmentSchema,
   cancelAppointmentSchema,
@@ -41,21 +40,9 @@ export async function createAppointment(
 }
 
 export async function getAppointments(req: AuthRequest, res: Response) {
-  const businessId = req.user?.businessId
-  if (!businessId) {
-    return res.status(403).json({
-      error: 'No tienes un negocio asignado',
-    })
-  }
-  let staffEmployeeId: string | null | undefined
-  if (req.user?.role === 'STAFF' && req.user?.userId) {
-    staffEmployeeId = await getEmployeeIdByUserIdService(req.user.userId, businessId)
-    if (staffEmployeeId === null) {
-      // STAFF sin empleado asociado: no tiene turnos propios
-      return res.json([])
-    }
-  } else {
-    staffEmployeeId = undefined
+  const { businessId, staffEmployeeId } = req.businessContext!
+  if (staffEmployeeId === null) {
+    return res.json([])
   }
   const appointments = await getAppointmentsService(businessId, staffEmployeeId)
   return res.json(appointments)
@@ -65,26 +52,15 @@ export async function getAppointmentLookup(
   req: AuthRequest,
   res: Response
 ) {
-  const businessId = req.user?.businessId
-  if (!businessId) {
-    return res.status(403).json({
-      error: 'No tienes un negocio asignado',
-    })
-  }
+  const { businessId, staffEmployeeId } = req.businessContext!
   const phone = typeof req.query.phone === 'string' ? req.query.phone : ''
   if (!phone.trim()) {
     return res.status(400).json({
       error: 'Falta el teléfono del cliente',
     })
   }
-  let staffEmployeeId: string | null | undefined
-  if (req.user?.role === 'STAFF' && req.user?.userId) {
-    staffEmployeeId = await getEmployeeIdByUserIdService(req.user.userId, businessId)
-    if (staffEmployeeId === null) {
-      return res.json([])
-    }
-  } else {
-    staffEmployeeId = undefined
+  if (staffEmployeeId === null) {
+    return res.json([])
   }
   const appointments = await getAppointmentsByPhoneService(
     businessId,
@@ -105,12 +81,7 @@ export async function cancelAppointmentByOwner(
   next: NextFunction
 ) {
   try {
-    const businessId = req.user?.businessId
-    if (!businessId) {
-      return res.status(403).json({
-        error: 'No tienes un negocio asignado',
-      })
-    }
+    const { businessId, staffEmployeeId } = req.businessContext!
     const parsed = ownerCancelAppointmentSchema.safeParse(req.body)
     if (!parsed.success) {
       return res.status(400).json({
@@ -119,12 +90,6 @@ export async function cancelAppointmentByOwner(
       })
     }
     const appointmentId = req.params.id
-    let staffEmployeeId: string | null | undefined
-    if (req.user?.role === 'STAFF' && req.user?.userId) {
-      staffEmployeeId = await getEmployeeIdByUserIdService(req.user.userId, businessId)
-    } else {
-      staffEmployeeId = undefined
-    }
     const result = await cancelAppointmentByOwnerService(
       appointmentId,
       businessId,
