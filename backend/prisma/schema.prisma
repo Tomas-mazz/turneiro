@@ -47,14 +47,17 @@ model Employee {
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
   isOwner    Boolean  @default(false)
+  userId     String?  @unique // optional link to User (STAFF) for dashboard / per-employee flows
 
   // Relations
   business Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  user     User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
   // In the future, appointments and blocked slots can be scoped per employee
   appointments Appointment[]
   blockedSlots BlockedSlot[]
 
   @@index([businessId])
+  @@index([userId])
 }
 
 // User model - authentication for business owners/staff
@@ -71,6 +74,8 @@ model User {
 
   // Relations
   business Business? @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  employee Employee? // STAFF user linked to one employee for dashboard / calendar
+  appointmentsSyncedTo Appointment[] // appointments whose GC event was created on this user's calendar
 
   @@index([email])
   @@index([businessId])
@@ -112,6 +117,7 @@ model Appointment {
   cancellationToken String? @unique
   cancellationReason String? // Reason when cancelled by owner (mandatory in UI)
   googleEventId String? // Google Calendar Event ID for syncing
+  syncedToUserId String? // User whose Google Calendar the event was created in (for per-employee sync)
   businessId    String
   employeeId    String?
   serviceId     String?
@@ -122,6 +128,7 @@ model Appointment {
   business Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
   service  Service? @relation(fields: [serviceId], references: [id], onDelete: SetNull)
   employee Employee? @relation(fields: [employeeId], references: [id], onDelete: SetNull)
+  syncedToUser User? @relation(fields: [syncedToUserId], references: [id], onDelete: SetNull)
 
   @@index([businessId])
   @@index([startTime])
@@ -129,6 +136,7 @@ model Appointment {
   @@index([cancellationToken])
   @@index([paymentIntentId])
   @@index([googleEventId])
+  @@index([syncedToUserId])
 }
 
 // WorkingHours model - business working hours per day

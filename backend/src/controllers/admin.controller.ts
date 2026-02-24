@@ -94,7 +94,8 @@ export async function createBusiness(req: AuthRequest, res: Response, next: Next
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Error al crear el negocio'
     if (message.includes('slug') || message.includes('email')) {
-      res.status(400).json({ error: message })
+      const field = message.toLowerCase().includes('slug') ? 'slug' : 'ownerEmail'
+      res.status(400).json({ error: message, field })
       return
     }
     // Log full error for debugging 500s
@@ -138,7 +139,11 @@ export async function updateBusiness(req: AuthRequest, res: Response, next: Next
     const message = err instanceof Error ? err.message : 'Error al actualizar el negocio'
     if (message.includes('slug') || message.includes('email') || message.includes('no encontrado')) {
       const status = message.includes('no encontrado') ? 404 : 400
-      res.status(status).json({ error: message })
+      const field =
+        message.includes('no encontrado') ? undefined
+        : message.toLowerCase().includes('slug') ? 'slug'
+        : 'ownerEmail'
+      res.status(status).json({ error: message, ...(field && { field }) })
       return
     }
     next(err)

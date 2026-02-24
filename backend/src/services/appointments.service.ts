@@ -21,43 +21,64 @@ export class CancellationNotAllowedError extends Error {
 }
 
 /**
- * Helper: Sync appointment to owner's Google Calendar
+ * Helper: Sync appointment to the appropriate Google Calendar.
+ * If the appointment is assigned to an employee with a linked User who has Google Calendar connected, use that calendar.
+ * Otherwise fall back to the business owner's calendar.
  */
 async function syncToGoogleCalendar(
   appointmentId: string,
   businessId: string
 ): Promise<void> {
   try {
-    // Get business owner with Google Calendar credentials
-    const owner = await prisma.user.findFirst({
-      where: {
-        businessId,
-        role: 'OWNER',
-      },
-    })
-
-    if (!owner) return
-
-    const refreshToken = owner?.googleRefreshToken
-    const calendarId = owner?.googleCalendarId
-
-    if (!refreshToken || !calendarId) {
-      console.log('Google Calendar not connected for business:', businessId)
-      return
-    }
-
-    // Get appointment details
     const appointment = await prisma.appointment.findUnique({
       where: { id: appointmentId },
-      include: { business: true },
+      include: {
+        business: true,
+        employee: { include: { user: true } },
+      },
     })
 
     if (!appointment) return
 
-    // Create event in Google Calendar
+    let targetUser: { id: string; googleRefreshToken: string | null; googleCalendarId: string | null } | null = null
+
+    if (appointment.employeeId && appointment.employee?.user) {
+      const staffUser = appointment.employee.user
+      if (staffUser.googleRefreshToken && staffUser.googleCalendarId) {
+        targetUser = {
+          id: staffUser.id,
+          googleRefreshToken: staffUser.googleRefreshToken,
+          googleCalendarId: staffUser.googleCalendarId,
+        }
+      }
+    }
+
+    if (!targetUser) {
+      const owner = await prisma.user.findFirst({
+        where: { businessId, role: 'OWNER' },
+        select: {
+          id: true,
+          googleRefreshToken: true,
+          googleCalendarId: true,
+        },
+      })
+      if (owner?.googleRefreshToken && owner?.googleCalendarId) {
+        targetUser = {
+          id: owner.id,
+          googleRefreshToken: owner.googleRefreshToken,
+          googleCalendarId: owner.googleCalendarId,
+        }
+      }
+    }
+
+    if (!targetUser?.googleRefreshToken || !targetUser?.googleCalendarId) {
+      console.log('Google Calendar not connected for business or assigned employee:', businessId)
+      return
+    }
+
     const eventId = await googleCalendarService.createCalendarEvent(
-      refreshToken,
-      calendarId,
+      targetUser.googleRefreshToken,
+      targetUser.googleCalendarId,
       {
         summary: `${appointment.serviceName} - ${appointment.clientName}`,
         description: `Cliente: ${appointment.clientName}\nTeléfono: ${appointment.clientPhone}\nPrecio: $${appointment.price}\nEstado: ${appointment.status}`,
@@ -67,15 +88,15 @@ async function syncToGoogleCalendar(
       }
     )
 
-    // Save Google Event ID to appointment
     await prisma.appointment.update({
       where: { id: appointmentId },
       data: {
         googleEventId: eventId,
+        syncedToUserId: targetUser.id,
       },
     })
 
-    console.log(`✅ Appointment ${appointmentId} synced to Google Calendar`)
+    console.log(`✅ Appointment ${appointmentId} synced to Google Calendar (user ${targetUser.id})`)
   } catch (error) {
     console.error('Error syncing to Google Calendar:', error)
     // Don't throw - we don't want to fail appointment creation if GC sync fails
@@ -83,7 +104,7 @@ async function syncToGoogleCalendar(
 }
 
 /**
- * Helper: Delete event from Google Calendar
+ * Helper: Delete event from the Google Calendar it was synced to (syncedToUserId or owner).
  */
 async function deleteFromGoogleCalendar(
   appointmentId: string,
@@ -92,22 +113,27 @@ async function deleteFromGoogleCalendar(
   try {
     const appointment = await prisma.appointment.findUnique({
       where: { id: appointmentId },
+      include: { syncedToUser: true },
     })
 
     const googleEventId = appointment?.googleEventId
     if (!googleEventId) return
 
-    const owner = await prisma.user.findFirst({
-      where: {
-        businessId,
-        role: 'OWNER',
-      },
-    })
+    let refreshToken: string | null = null
+    let calendarId: string | null = null
 
-    if (!owner) return
+    if (appointment?.syncedToUserId && appointment.syncedToUser?.googleRefreshToken && appointment.syncedToUser?.googleCalendarId) {
+      refreshToken = appointment.syncedToUser.googleRefreshToken
+      calendarId = appointment.syncedToUser.googleCalendarId
+    }
 
-    const refreshToken = owner?.googleRefreshToken
-    const calendarId = owner?.googleCalendarId
+    if (!refreshToken || !calendarId) {
+      const owner = await prisma.user.findFirst({
+        where: { businessId, role: 'OWNER' },
+      })
+      refreshToken = owner?.googleRefreshToken ?? null
+      calendarId = owner?.googleCalendarId ?? null
+    }
 
     if (!refreshToken || !calendarId) return
 
@@ -308,17 +334,26 @@ function normalizePhone(phone: string): string {
 
 export async function getAppointmentsByPhoneService(
   businessId: string,
-  phone: string
+  phone: string,
+  staffEmployeeId?: string | null
 ): Promise<AppointmentListItem[]> {
   const trimmed = phone.trim()
   if (!trimmed) return []
 
   const normalizedInput = normalizePhone(trimmed)
+  const where: {
+    businessId: string
+    status: string
+    employeeId?: string
+  } = {
+    businessId,
+    status: 'UPCOMING',
+  }
+  if (staffEmployeeId != null && staffEmployeeId !== '') {
+    where.employeeId = staffEmployeeId
+  }
   const appointments = await prisma.appointment.findMany({
-    where: {
-      businessId,
-      status: 'UPCOMING',
-    },
+    where,
     orderBy: { startTime: 'asc' },
     select: {
       id: true,
@@ -505,7 +540,8 @@ export async function adminUpdateAppointmentStatusService(
 export async function cancelAppointmentByOwnerService(
   appointmentId: string,
   businessId: string,
-  reason: string
+  reason: string,
+  staffEmployeeId?: string | null
 ) {
   const appointment = await prisma.appointment.findFirst({
     where: { id: appointmentId, businessId },
@@ -516,6 +552,18 @@ export async function cancelAppointmentByOwnerService(
   }
   if (appointment.status === 'CANCELLED') {
     throw new CancellationNotAllowedError('La cita ya fue cancelada')
+  }
+  if (staffEmployeeId !== undefined) {
+    if (staffEmployeeId == null || staffEmployeeId === '') {
+      throw new CancellationNotAllowedError(
+        'No tenés un perfil de empleado vinculado. Solo podés cancelar turnos asignados a vos.'
+      )
+    }
+    if (appointment.employeeId !== staffEmployeeId) {
+      throw new CancellationNotAllowedError(
+        'No podés cancelar esta cita. Solo podés cancelar turnos asignados a vos.'
+      )
+    }
   }
 
   // Process full refund when owner cancels (business's responsibility)

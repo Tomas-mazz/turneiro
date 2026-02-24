@@ -53,6 +53,7 @@ export default function AdminBusinessPage() {
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
   const [form, setForm] = useState<FormState>({
     name: '',
     slug: '',
@@ -434,6 +435,13 @@ export default function AdminBusinessPage() {
       ? (value === '' ? '' : (Number(value) || 0))
       : value
     setForm((prev) => ({ ...prev, [name]: parsed }))
+    if (fieldErrors[name]) {
+      setFieldErrors((prev) => {
+        const next = { ...prev }
+        delete next[name]
+        return next
+      })
+    }
   }
 
   const handleLogoFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -480,6 +488,7 @@ export default function AdminBusinessPage() {
   const handleSubmit = async () => {
     if (!id) return
     setError(null)
+    setFieldErrors({})
     setBusinessSaved(false)
     setSaving(true)
     try {
@@ -515,11 +524,25 @@ export default function AdminBusinessPage() {
       setBusinessSaved(true)
       setTimeout(() => router.push('/admin'), 1600)
     } catch (err: unknown) {
-      const msg =
+      const data =
         err && typeof err === 'object' && 'response' in err
-          ? (err as { response?: { data?: { error?: string } } }).response?.data?.error
-          : null
-      setError(msg || 'Error al guardar')
+          ? (err as { response?: { data?: { error?: string; field?: string; details?: { path: (string | number)[]; message: string }[] } } }).response?.data
+          : undefined
+      const msg = data?.error ?? 'Error al guardar'
+      setError(
+        data?.details?.length
+          ? 'Revisá los campos marcados.'
+          : msg
+      )
+      const next: Record<string, string> = {}
+      if (data?.details && Array.isArray(data.details)) {
+        for (const d of data.details) {
+          const key = typeof d.path?.[0] === 'string' ? d.path[0] : String(d.path?.[0] ?? '')
+          if (key && d.message) next[key] = d.message
+        }
+      }
+      if (data?.field && data?.error) next[data.field] = data.error
+      setFieldErrors(next)
     } finally {
       setSaving(false)
     }
@@ -587,8 +610,11 @@ export default function AdminBusinessPage() {
               required
               value={form.name}
               onChange={handleChange}
-              className="w-full rounded-lg border border-neutral-300 px-3 py-2 focus:border-neutral-500 focus:ring-1 focus:ring-neutral-500"
+              className={`w-full rounded-lg border px-3 py-2 focus:ring-1 ${fieldErrors.name ? 'border-red-500 focus:border-red-500 focus:ring-red-500' : 'border-neutral-300 focus:border-neutral-500 focus:ring-neutral-500'}`}
             />
+            {fieldErrors.name && (
+              <p className="mt-0.5 text-sm text-red-600" role="alert">{fieldErrors.name}</p>
+            )}
           </div>
           <div>
             <label htmlFor="slug" className="mb-1 block text-sm font-medium text-neutral-700">
@@ -601,8 +627,11 @@ export default function AdminBusinessPage() {
               required
               value={form.slug}
               onChange={handleChange}
-              className="w-full rounded-lg border border-neutral-300 px-3 py-2 focus:border-neutral-500 focus:ring-1 focus:ring-neutral-500"
+              className={`w-full rounded-lg border px-3 py-2 focus:ring-1 ${fieldErrors.slug ? 'border-red-500 focus:border-red-500 focus:ring-red-500' : 'border-neutral-300 focus:border-neutral-500 focus:ring-neutral-500'}`}
             />
+            {fieldErrors.slug && (
+              <p className="mt-0.5 text-sm text-red-600" role="alert">{fieldErrors.slug}</p>
+            )}
             <p className="mt-0.5 text-xs text-neutral-500">
               Página de reservas: /{form.slug || 'slug'}
             </p>
@@ -619,13 +648,16 @@ export default function AdminBusinessPage() {
             required
             value={form.category}
             onChange={handleChange}
-            className="w-full rounded-lg border border-neutral-300 px-3 py-2 focus:border-neutral-500 focus:ring-1 focus:ring-neutral-500"
+            className={`w-full rounded-lg border px-3 py-2 focus:ring-1 ${fieldErrors.category ? 'border-red-500 focus:border-red-500 focus:ring-red-500' : 'border-neutral-300 focus:border-neutral-500 focus:ring-neutral-500'}`}
           >
             <option value="barbershop">Barbería</option>
             <option value="salon">Salón</option>
             <option value="spa">Spa</option>
             <option value="other">Otro</option>
           </select>
+          {fieldErrors.category && (
+            <p className="mt-0.5 text-sm text-red-600" role="alert">{fieldErrors.category}</p>
+          )}
         </div>
 
         <div>
@@ -638,8 +670,11 @@ export default function AdminBusinessPage() {
             rows={2}
             value={form.description ?? ''}
             onChange={handleChange}
-            className="w-full rounded-lg border border-neutral-300 px-3 py-2 focus:border-neutral-500 focus:ring-1 focus:ring-neutral-500"
+            className={`w-full rounded-lg border px-3 py-2 focus:ring-1 ${fieldErrors.description ? 'border-red-500 focus:border-red-500 focus:ring-red-500' : 'border-neutral-300 focus:border-neutral-500 focus:ring-neutral-500'}`}
           />
+          {fieldErrors.description && (
+            <p className="mt-0.5 text-sm text-red-600" role="alert">{fieldErrors.description}</p>
+          )}
         </div>
 
         <div className="grid gap-4 sm:grid-cols-2">
@@ -653,8 +688,11 @@ export default function AdminBusinessPage() {
               type="text"
               value={form.phone ?? ''}
               onChange={handleChange}
-              className="w-full rounded-lg border border-neutral-300 px-3 py-2 focus:border-neutral-500 focus:ring-1 focus:ring-neutral-500"
+              className={`w-full rounded-lg border px-3 py-2 focus:ring-1 ${fieldErrors.phone ? 'border-red-500 focus:border-red-500 focus:ring-red-500' : 'border-neutral-300 focus:border-neutral-500 focus:ring-neutral-500'}`}
             />
+            {fieldErrors.phone && (
+              <p className="mt-0.5 text-sm text-red-600" role="alert">{fieldErrors.phone}</p>
+            )}
           </div>
           <div>
             <label htmlFor="email" className="mb-1 block text-sm font-medium text-neutral-700">
@@ -666,8 +704,11 @@ export default function AdminBusinessPage() {
               type="email"
               value={form.email ?? ''}
               onChange={handleChange}
-              className="w-full rounded-lg border border-neutral-300 px-3 py-2 focus:border-neutral-500 focus:ring-1 focus:ring-neutral-500"
+              className={`w-full rounded-lg border px-3 py-2 focus:ring-1 ${fieldErrors.email ? 'border-red-500 focus:border-red-500 focus:ring-red-500' : 'border-neutral-300 focus:border-neutral-500 focus:ring-neutral-500'}`}
             />
+            {fieldErrors.email && (
+              <p className="mt-0.5 text-sm text-red-600" role="alert">{fieldErrors.email}</p>
+            )}
           </div>
         </div>
 
@@ -681,8 +722,11 @@ export default function AdminBusinessPage() {
             type="text"
             value={form.address ?? ''}
             onChange={handleChange}
-            className="w-full rounded-lg border border-neutral-300 px-3 py-2 focus:border-neutral-500 focus:ring-1 focus:ring-neutral-500"
+            className={`w-full rounded-lg border px-3 py-2 focus:ring-1 ${fieldErrors.address ? 'border-red-500 focus:border-red-500 focus:ring-red-500' : 'border-neutral-300 focus:border-neutral-500 focus:ring-neutral-500'}`}
           />
+          {fieldErrors.address && (
+            <p className="mt-0.5 text-sm text-red-600" role="alert">{fieldErrors.address}</p>
+          )}
         </div>
 
         <div>
@@ -1474,8 +1518,11 @@ export default function AdminBusinessPage() {
                 value={form.ownerEmail ?? ''}
                 onChange={handleChange}
                 placeholder={business?.owner?.email ? undefined : 'Sin owner asignado'}
-                className="w-full rounded-lg border border-neutral-300 px-3 py-2 focus:border-neutral-500 focus:ring-1 focus:ring-neutral-500"
+                className={`w-full rounded-lg border px-3 py-2 focus:ring-1 ${fieldErrors.ownerEmail ? 'border-red-500 focus:border-red-500 focus:ring-red-500' : 'border-neutral-300 focus:border-neutral-500 focus:ring-neutral-500'}`}
               />
+              {fieldErrors.ownerEmail && (
+                <p className="mt-0.5 text-sm text-red-600" role="alert">{fieldErrors.ownerEmail}</p>
+              )}
             </div>
             <div>
               <label htmlFor="ownerPassword" className="mb-1 block text-sm text-neutral-600">
@@ -1489,8 +1536,11 @@ export default function AdminBusinessPage() {
                 onChange={handleChange}
                 minLength={6}
                 placeholder="••••••••"
-                className="w-full rounded-lg border border-neutral-300 px-3 py-2 focus:border-neutral-500 focus:ring-1 focus:ring-neutral-500"
+                className={`w-full rounded-lg border px-3 py-2 focus:ring-1 ${fieldErrors.ownerPassword ? 'border-red-500 focus:border-red-500 focus:ring-red-500' : 'border-neutral-300 focus:border-neutral-500 focus:ring-neutral-500'}`}
               />
+              {fieldErrors.ownerPassword && (
+                <p className="mt-0.5 text-sm text-red-600" role="alert">{fieldErrors.ownerPassword}</p>
+              )}
             </div>
           </div>
         </fieldset>

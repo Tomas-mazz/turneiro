@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
 import { format, addDays } from 'date-fns'
 import { es } from 'date-fns/locale'
+import { getAuthUser } from '@/lib/auth'
 import {
   getMyBusiness,
   getServices,
@@ -72,6 +73,11 @@ function DashboardContent() {
   const [blockReason, setBlockReason] = useState('')
   const [blockSubmitting, setBlockSubmitting] = useState(false)
   const [deletingBlockId, setDeletingBlockId] = useState<string | null>(null)
+  const [userRole, setUserRole] = useState<string | null>(null)
+
+  useEffect(() => {
+    setUserRole(getAuthUser()?.role ?? null)
+  }, [])
 
   useEffect(() => {
     getMyBusiness()
@@ -83,11 +89,15 @@ function DashboardContent() {
   }, [])
 
   useEffect(() => {
+    if (userRole !== 'OWNER') {
+      if (userRole === 'STAFF') setLoadingServices(false)
+      return
+    }
     getServices()
       .then(setServices)
       .catch((err) => setError(err.response?.data?.error || 'Error al cargar servicios'))
       .finally(() => setLoadingServices(false))
-  }, [])
+  }, [userRole])
 
 
   useEffect(() => {
@@ -282,9 +292,13 @@ function DashboardContent() {
       {/* Header: título a la izquierda, Google Calendar a la derecha */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h2 className="text-2xl font-bold text-neutral-900 sm:text-3xl">Configuración</h2>
+          <h2 className="text-2xl font-bold text-neutral-900 sm:text-3xl">
+            {userRole === 'STAFF' ? 'Tu panel' : 'Configuración'}
+          </h2>
           <p className="mt-1 text-sm text-neutral-600 sm:text-base">
-            Editá precios y duración de tus servicios y cancelá turnos con motivo obligatorio.
+            {userRole === 'STAFF'
+              ? 'Conectá tu Google Calendar, bloqueá días u horarios y cancelá turnos con motivo obligatorio.'
+              : 'Editá precios y duración de tus servicios y cancelá turnos con motivo obligatorio.'}
           </p>
         </div>
         <div className="flex shrink-0 flex-wrap items-center gap-2">
@@ -352,7 +366,8 @@ function DashboardContent() {
         </div>
       )}
 
-      {/* Servicios: cards en mobile, tabla en desktop */}
+      {/* Servicios (precio y duración): solo visible para OWNER */}
+      {userRole === 'OWNER' && (
       <section className="mt-8 mb-10 sm:mt-10 sm:mb-12">
         <h2 className="text-lg font-semibold text-neutral-900 sm:text-xl">Servicios (precio y duración)</h2>
         {loadingServices ? (
@@ -489,6 +504,7 @@ function DashboardContent() {
           </>
         )}
       </section>
+      )}
 
       {/* Bloquear días u horarios */}
       <section className="mt-8 mb-10 sm:mt-10 sm:mb-12">
@@ -624,6 +640,11 @@ function DashboardContent() {
         <h2 className="text-lg font-semibold text-neutral-900 sm:text-xl">Cancelar turno</h2>
         <p className="mt-1 text-sm text-neutral-600">
           Ingresá el teléfono del cliente para ver sus reservas y cancelar. El motivo es obligatorio. Al cancelar se elimina de Google Calendar.
+          {userRole === 'STAFF' && (
+            <span className="mt-1 block text-neutral-500">
+              Solo ves y podés cancelar los turnos asignados a vos.
+            </span>
+          )}
         </p>
         <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:gap-2">
           <input

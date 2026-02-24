@@ -12,6 +12,21 @@ export interface EmployeeListItem {
   isOwner: boolean
 }
 
+/**
+ * Get the Employee id linked to a STAFF user (for dashboard / cancel / calendar scoping).
+ * Returns null if the user is not linked to an employee or businessId doesn't match.
+ */
+export async function getEmployeeIdByUserIdService(
+  userId: string,
+  businessId: string
+): Promise<string | null> {
+  const employee = await prisma.employee.findFirst({
+    where: { userId, businessId },
+    select: { id: true },
+  })
+  return employee?.id ?? null
+}
+
 export async function getEmployeesForBusinessService(
   businessId: string
 ): Promise<EmployeeListItem[]> {
@@ -75,13 +90,18 @@ export async function createEmployeeForAdmin(
         throw new Error('El email del empleado ya está en uso')
       }
       const hashed = await bcrypt.hash(staffPassword, 10)
-      await tx.user.create({
+      const newUser = await tx.user.create({
         data: {
           email,
           password: hashed,
           role: 'STAFF',
           businessId,
         },
+        select: { id: true },
+      })
+      await tx.employee.update({
+        where: { id: createdEmployee.id },
+        data: { userId: newUser.id },
       })
     }
 
@@ -124,8 +144,15 @@ export async function deleteEmployeeForAdmin(employeeId: string): Promise<void> 
   if (!existing) {
     throw new EmployeeNotFoundError('Empleado no encontrado')
   }
-  await prisma.employee.delete({
-    where: { id: employeeId },
+  await prisma.$transaction(async (tx) => {
+    if (existing.userId) {
+      await tx.user.delete({
+        where: { id: existing.userId },
+      })
+    }
+    await tx.employee.delete({
+      where: { id: employeeId },
+    })
   })
 }
 

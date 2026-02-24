@@ -9,6 +9,7 @@ import {
   SlotUnavailableError,
   CancellationNotAllowedError,
 } from '../services/appointments.service'
+import { getEmployeeIdByUserIdService } from '../services/employees.service'
 import {
   createAppointmentSchema,
   cancelAppointmentSchema,
@@ -66,7 +67,20 @@ export async function getAppointmentLookup(
       error: 'Falta el teléfono del cliente',
     })
   }
-  const appointments = await getAppointmentsByPhoneService(businessId, phone)
+  let staffEmployeeId: string | null | undefined
+  if (req.user?.role === 'STAFF' && req.user?.userId) {
+    staffEmployeeId = await getEmployeeIdByUserIdService(req.user.userId, businessId)
+    if (staffEmployeeId === null) {
+      return res.json([])
+    }
+  } else {
+    staffEmployeeId = undefined
+  }
+  const appointments = await getAppointmentsByPhoneService(
+    businessId,
+    phone,
+    staffEmployeeId
+  )
   if (appointments.length === 0) {
     return res.status(404).json({
       error: 'No hay reservas próximas para ese teléfono',
@@ -95,10 +109,17 @@ export async function cancelAppointmentByOwner(
       })
     }
     const appointmentId = req.params.id
+    let staffEmployeeId: string | null | undefined
+    if (req.user?.role === 'STAFF' && req.user?.userId) {
+      staffEmployeeId = await getEmployeeIdByUserIdService(req.user.userId, businessId)
+    } else {
+      staffEmployeeId = undefined
+    }
     const result = await cancelAppointmentByOwnerService(
       appointmentId,
       businessId,
-      parsed.data.reason
+      parsed.data.reason,
+      staffEmployeeId
     )
     return res.status(200).json(result)
   } catch (err) {

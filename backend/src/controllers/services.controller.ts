@@ -25,6 +25,11 @@ export async function updateService(
   next: NextFunction
 ) {
   try {
+    if (req.user?.role !== 'OWNER') {
+      return res.status(403).json({
+        error: 'Solo el dueño del negocio puede editar precios y duración de servicios.',
+      })
+    }
     const businessId = req.user?.businessId
     if (!businessId) {
       return res.status(403).json({

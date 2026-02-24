@@ -59,20 +59,19 @@
 1. **Edit service prices** – Change the price of each product/service of their business.
 2. **Edit service duration** – Change the duration (e.g. 15–120 min) of each product/service.
 3. **Link to view Google Calendar** – Access the link to open/view their Google Calendar (where appointments are synced).
-   - **MVP scope:** All appointments sync to owner's calendar.
-   - **Post-MVP:** When multi-employee is implemented, each employee will have their own calendar; owner can view all or link to their own.
-4. **Cancel appointments** – Cancel appointments within their own business by entering appointment ID.
+   - Appointments assigned to an employee sync to that employee's calendar (if they have Google connected); otherwise to owner's calendar.
+4. **Cancel appointments** – Cancel appointments within their own business (by phone lookup).
    - Can cancel appointments assigned to any employee within their business.
    - **Cannot** cancel appointments from other businesses (enforced by `requireBusinessOwner` middleware).
    - Mandatory reason required.
    - Automatically processes refunds if payment was made.
-   - Automatically deletes event from Google Calendar (owner's in MVP; assigned employee's in post-MVP).
+   - Automatically deletes event from the correct Google Calendar (owner's or assigned employee's).
 
 **Everything else is done by Admin:**
 - Create/edit/delete services, service names, activate/deactivate → Admin
 - Working hours, blocks, branding, payment rules, cancellation rules → Admin
 - View appointments (owner sees them in Google Calendar) → link to GC
-- Multi-employee, employee profiles, employee Google Calendar setup → Admin (not in MVP; planned for post-MVP)
+- Multi-employee, employee profiles, staff credentials (Employee–User link) → Admin
 
 **Cannot do (MVP):**
 - Create or delete services
@@ -84,24 +83,25 @@
 - Cancel appointments from other businesses (can only cancel within own business)
 - Add/remove employees (must contact admin)
 
-## Employee (Staff – Post-MVP Only)
+## Employee (Staff – Dashboard)
 
-**Note:** Employee role is not implemented in MVP. This is the planned architecture for post-MVP.
+Staff are employees who have login credentials (email/password) created by Admin when adding the employee. They access the same `/dashboard` as the owner but with a reduced scope.
 
-**Will be able to do (Post-MVP):**
-- View their own Google Calendar with assigned appointments
-- See their schedule and upcoming appointments
-- Connect their personal Google Calendar via OAuth
-- **Cancel their own appointments** (by entering appointment ID/code, with mandatory reason); same flow as owner but restricted to appointments assigned to them
+**Can do:**
+- **Connect their own Google Calendar** – OAuth link; appointments booked with them sync to their calendar (so they see only their reservations).
+- **Block days or time slots** – Same as owner (business-wide or per-employee depending on backend support).
+- **Cancel their own appointments** – Lookup by client phone; they only see and can cancel appointments assigned to them (`appointment.employeeId` = their linked employee). Mandatory reason; refund and calendar delete as for owner.
 
 **Cannot do:**
-- Edit services or prices
-- Access owner dashboard
-- View or cancel appointments from other employees
+- Edit service prices or duration (only owner can).
+- See or cancel appointments assigned to other employees or unassigned.
+- Access admin panel.
 
-## Panel Comparison Summary (MVP)
+**Technical:** Each staff user is linked to one `Employee` via `Employee.userId`. Lookup and cancel APIs filter by this employee when the user role is STAFF.
 
-| Function | Admin Panel | Owner Dashboard (MVP) | Employee (Post-MVP) |
+## Panel Comparison Summary
+
+| Function | Admin Panel | Owner Dashboard | Staff Dashboard |
 | :--- | :--- | :--- | :--- |
 | Create/delete clients | ✅ | ❌ | ❌ |
 | Create/delete services | ✅ | ❌ | ❌ |
@@ -112,25 +112,22 @@
 | Branding (photo, colors, texts) | ✅ | ❌ | ❌ |
 | Payment / cancellation rules | ✅ | ❌ | ❌ |
 | Link to view Google Calendar | N/A | ✅ | ✅ (own only) |
-| Connect Google Calendar OAuth | N/A | ✅ | ✅ (post-MVP) |
-| Cancel business appointments by ID | ✅ | ✅ (own business only) | ✅ (own only) |
-| View appointments (centralized list) | ✅ | ❌ (sees in GC only) | ❌ (sees in own GC) |
-| Add/remove employees | ✅ | ❌ (must contact admin) | ❌ |
+| Connect Google Calendar OAuth | N/A | ✅ | ✅ |
+| Cancel appointments (by phone) | ✅ | ✅ (own business, any) | ✅ (own only) |
+| View appointments (centralized list) | ✅ | ❌ (sees in GC) | ❌ (sees in own GC) |
+| Add/remove employees | ✅ | ❌ (contact admin) | ❌ |
 
-## Multi-Employee Cancellation Flow (Post-MVP)
+## Cancellation and calendar flow (current)
 
-When multi-employee is implemented:
+**Owner cancels any appointment in the business**
+1. Owner looks up by client phone, selects appointment, enters reason.
+2. System verifies `appointment.businessId === owner.businessId`.
+3. Cancels, processes refund, deletes event from the calendar it was synced to (owner's or employee's per `syncedToUserId`).
 
-**Scenario: Owner wants to cancel any appointment in the business**
-1. Owner enters appointment ID (or short code) in dashboard
-2. System verifies `appointment.businessId === owner.businessId`
-3. If yes: cancels appointment, processes refund, deletes event from **assigned employee's Google Calendar**
-4. If no: shows error "Cita no encontrada o no pertenece a tu negocio"
+**Staff cancels their own appointment**
+1. Staff looks up by client phone; API returns only appointments where `appointment.employeeId` matches their linked employee.
+2. They select and enter reason; backend verifies again that the appointment is assigned to them.
+3. If not assigned to them: error "No podés cancelar esta cita. Solo podés cancelar turnos asignados a vos."
+4. If yes: cancels, refund, deletes from that employee's Google Calendar.
 
-**Scenario: Employee wants to cancel their own appointment**
-1. Employee enters appointment ID (or short code) in their dashboard
-2. System verifies appointment is assigned to this employee (`appointment.assignedToUserId === user.id`)
-3. If yes: cancels appointment, processes refund, deletes event from **employee's Google Calendar**
-4. If no: shows error (e.g. "Cita no encontrada o no es tu turno")
-
-**Security:** Owner can only cancel appointments within their own business. Employee can only cancel appointments assigned to them. Enforced by middleware (e.g. `requireBusinessOwner`, or staff check for `assignedToUserId`).
+**Google Calendar sync:** On create, if the appointment has an `employeeId` and that employee has a linked User with Google Calendar connected, the event is created on that user's calendar; otherwise on the owner's. `Appointment.syncedToUserId` stores which user's calendar was used so cancellation deletes from the correct calendar.
