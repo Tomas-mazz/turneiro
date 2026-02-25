@@ -392,7 +392,6 @@ export default function BusinessBookingPage() {
           onBack={handleBack}
           primaryColor={primaryColor}
           isDarkTheme={isDarkTheme}
-          onToggleTheme={() => setThemeMode((prev) => (prev === 'DARK' ? 'LIGHT' : 'DARK'))}
         />
       )}
 
@@ -421,7 +420,6 @@ export default function BusinessBookingPage() {
           }
           primaryColor={primaryColor}
           isDarkTheme={isDarkTheme}
-          onToggleTheme={() => setThemeMode((prev) => (prev === 'DARK' ? 'LIGHT' : 'DARK'))}
         />
       )}
 
