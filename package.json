@@ -17,10 +17,14 @@
     "db:seed": "cd backend && npm run db:seed"
   },
   "devDependencies": {
-    "concurrently": "^8.2.2"
+    "concurrently": "^8.2.2",
+    "prisma": "^6.19.2"
   },
   "engines": {
     "node": ">=18.0.0",
     "npm": ">=9.0.0"
+  },
+  "dependencies": {
+    "@prisma/client": "^7.4.1"
   }
 }
