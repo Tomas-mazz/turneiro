@@ -99,8 +99,8 @@ export function ServiceStep({
               onClick={onToggleTheme}
               className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border-2 transition-all duration-300 ease-out sm:h-11 sm:w-11 md:h-12 md:w-12 ${
                 isDarkTheme
-                  ? 'border-lime-300 bg-neutral-900 text-neutral-100 hover:border-lime-200'
-                  : 'border-indigo-500 bg-white text-neutral-600 hover:border-indigo-400'
+                  ? 'border-white bg-neutral-900 text-neutral-100 hover:border-neutral-300'
+                  : 'border-neutral-900 bg-white text-neutral-900 hover:border-neutral-700'
               }`}
               aria-label={isDarkTheme ? 'Cambiar a modo claro' : 'Cambiar a modo oscuro'}
               title={isDarkTheme ? 'Modo oscuro' : 'Modo claro'}

@@ -153,31 +153,6 @@ export function DateStep({
               {selectedService.name} ({selectedService.duration} min)
             </h1>
           </div>
-          {onToggleTheme && (
-            <button
-              type="button"
-              onClick={onToggleTheme}
-              className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border-2 transition-all duration-300 ease-out sm:h-11 sm:w-11 ${
-                isDarkTheme
-                  ? 'border-lime-300 bg-neutral-900 text-neutral-100 hover:border-lime-200'
-                  : 'border-indigo-500 bg-white text-neutral-600 hover:border-indigo-400'
-              }`}
-              aria-label={isDarkTheme ? 'Cambiar a modo claro' : 'Cambiar a modo oscuro'}
-              title={isDarkTheme ? 'Modo oscuro' : 'Modo claro'}
-            >
-              {isDarkTheme ? (
-                <svg viewBox="0 0 24 24" className="h-5 w-5 sm:h-6 sm:w-6" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden>
-                  <path d="M21 12.79A9 9 0 1 1 11.21 3a7 7 0 0 0 9.79 9.79Z" />
-                  <path d="M17.5 4.5v2M17.5 9.5v2M15 7h2M20 7h2" />
-                </svg>
-              ) : (
-                <svg viewBox="0 0 24 24" className="h-5 w-5 sm:h-6 sm:w-6" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden>
-                  <circle cx="12" cy="12" r="4" />
-                  <path d="M12 2v2.2M12 19.8V22M4.9 4.9l1.6 1.6M17.5 17.5l1.6 1.6M2 12h2.2M19.8 12H22M4.9 19.1l1.6-1.6M17.5 6.5l1.6-1.6" />
-                </svg>
-              )}
-            </button>
-          )}
         </div>
       </header>
 
