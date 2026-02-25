@@ -8,9 +8,12 @@ import {
 } from '../services/blockedSlots.service'
 import { createBlockedSlotSchema, listBlockedSlotsQuerySchema } from '../lib/schemas'
 import type { AuthRequest } from '../middleware/auth'
+import { getBusinessContextOrRespond } from '../lib/requestGuards'
 
 export async function getBlockedSlots(req: AuthRequest, res: Response) {
-  const { businessId } = req.businessContext!
+  const ctx = getBusinessContextOrRespond(req, res)
+  if (!ctx) return
+  const { businessId } = ctx
   const parsed = listBlockedSlotsQuerySchema.safeParse(req.query)
   const query = parsed.success ? parsed.data : {}
 
@@ -24,7 +27,9 @@ export async function createBlockedSlot(
   next: NextFunction
 ) {
   try {
-    const { businessId } = req.businessContext!
+    const ctx = getBusinessContextOrRespond(req, res)
+    if (!ctx) return
+    const { businessId } = ctx
     const parsed = createBlockedSlotSchema.safeParse(req.body)
     if (!parsed.success) {
       return res.status(400).json({
@@ -46,7 +51,9 @@ export async function deleteBlockedSlot(
   next: NextFunction
 ) {
   try {
-    const { businessId } = req.businessContext!
+    const ctx = getBusinessContextOrRespond(req, res)
+    if (!ctx) return
+    const { businessId } = ctx
     const id = req.params.id
     if (!id) {
       return res.status(400).json({ error: 'ID de bloqueo requerido' })

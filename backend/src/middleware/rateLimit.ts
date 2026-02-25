@@ -5,7 +5,7 @@ const WINDOW_MS = 15 * 60 * 1000
 export const loginLimiter = rateLimit({
   windowMs: WINDOW_MS,
   max: 5,
-  message: { error: 'Demasiados intentos de inicio de sesión. Intentá de nuevo en 15 minutos.' },
+  message: { error: 'Too many login attempts. Try again in 15 minutes.' },
   standardHeaders: true,
   legacyHeaders: false,
 })
@@ -13,7 +13,7 @@ export const loginLimiter = rateLimit({
 export const createAppointmentLimiter = rateLimit({
   windowMs: WINDOW_MS,
   max: 20,
-  message: { error: 'Demasiadas reservas desde esta dirección. Intentá de nuevo en 15 minutos.' },
+  message: { error: 'Too many booking requests from this address. Try again in 15 minutes.' },
   standardHeaders: true,
   legacyHeaders: false,
 })
@@ -21,7 +21,7 @@ export const createAppointmentLimiter = rateLimit({
 export const createPaymentIntentLimiter = rateLimit({
   windowMs: WINDOW_MS,
   max: 10,
-  message: { error: 'Demasiadas solicitudes de pago. Intentá de nuevo en 15 minutos.' },
+  message: { error: 'Too many payment requests. Try again in 15 minutes.' },
   standardHeaders: true,
   legacyHeaders: false,
 })

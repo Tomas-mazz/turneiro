@@ -1,9 +1,12 @@
 import { Request, Response, NextFunction } from 'express'
 import { getBusinessBySlugService, getMyBusinessService } from '../services/businesses.service'
 import type { AuthRequest } from '../middleware/auth'
+import { getBusinessContextOrRespond } from '../lib/requestGuards'
 
 export async function getMyBusiness(req: AuthRequest, res: Response) {
-  const { businessId } = req.businessContext!
+  const ctx = getBusinessContextOrRespond(req, res)
+  if (!ctx) return
+  const { businessId } = ctx
   const business = await getMyBusinessService(businessId)
   if (!business) {
     return res.status(404).json({ error: 'Negocio no encontrado' })

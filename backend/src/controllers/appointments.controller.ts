@@ -15,6 +15,7 @@ import {
   ownerCancelAppointmentSchema,
 } from '../lib/schemas'
 import type { AuthRequest } from '../middleware/auth'
+import { getBusinessContextOrRespond } from '../lib/requestGuards'
 
 export async function createAppointment(
   req: Request,
@@ -40,7 +41,9 @@ export async function createAppointment(
 }
 
 export async function getAppointments(req: AuthRequest, res: Response) {
-  const { businessId, staffEmployeeId } = req.businessContext!
+  const ctx = getBusinessContextOrRespond(req, res)
+  if (!ctx) return
+  const { businessId, staffEmployeeId } = ctx
   if (staffEmployeeId === null) {
     return res.json([])
   }
@@ -52,7 +55,9 @@ export async function getAppointmentLookup(
   req: AuthRequest,
   res: Response
 ) {
-  const { businessId, staffEmployeeId } = req.businessContext!
+  const ctx = getBusinessContextOrRespond(req, res)
+  if (!ctx) return
+  const { businessId, staffEmployeeId } = ctx
   const phone = typeof req.query.phone === 'string' ? req.query.phone : ''
   if (!phone.trim()) {
     return res.status(400).json({
@@ -81,7 +86,9 @@ export async function cancelAppointmentByOwner(
   next: NextFunction
 ) {
   try {
-    const { businessId, staffEmployeeId } = req.businessContext!
+    const ctx = getBusinessContextOrRespond(req, res)
+    if (!ctx) return
+    const { businessId, staffEmployeeId } = ctx
     const parsed = ownerCancelAppointmentSchema.safeParse(req.body)
     if (!parsed.success) {
       return res.status(400).json({
