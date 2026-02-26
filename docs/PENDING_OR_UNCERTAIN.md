@@ -1,5 +1,13 @@
 # Pending or Uncertain Content
 
+## Estado de integraciones (MVP)
+
+- **WhatsApp:** No implementado. Servicio stub; no se envían confirmaciones ni recordatorios. POST_MVP.
+- **Mercado Pago:** Pago (create preference, redirect) implementado. Webhook IPN deshabilitado por defecto (501 hasta implementar verificación HMAC). No activar `MERCADOPAGO_WEBHOOK_ENABLED=true` sin HMAC.
+- **Idioma:** Solo español en MVP. Switcher e inglés son POST_MVP.
+- **Verify-email:** Página stub en frontend; sin endpoint en backend. POST_MVP.
+- **API:** No existen `GET/PUT/DELETE /api/appointments/:id` ni `POST /api/webhooks/twilio`. Listado y acciones de citas van por `/api/appointments` (owner) y `/api/admin/appointments` (admin).
+
 ## Resolved Clarifications
 
 ### Payment System Configuration

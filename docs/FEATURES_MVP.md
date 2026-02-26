@@ -112,7 +112,7 @@ Minimalist design with hero section as first view
 - Show booked slots as unavailable
 - Mobile-responsive design
 - **Color Customization**: Each barber has their own primary color applied to buttons, active states, and accents
-- **Language Support**: English and Spanish with language switcher button
+- **Language**: Spanish only in MVP. Language switcher and English are POST_MVP.
 - **Multi-Barber Support**: Salon owners can create a shared booking page showing all barbers (future feature)
 
 ## Editable Branding (Admin Only in MVP)
@@ -189,7 +189,7 @@ Minimalist design with hero section as first view
 - Owner dashboard does NOT manage blocks in MVP.
 
 ## Cancellation via Link with 24-Hour Rule
-- **Cancellation Link**: Unique link sent via WhatsApp and email
+- **Cancellation Link**: Unique link generated per appointment. In MVP the link is **shown on the booking confirmation screen**; sending via WhatsApp/email is not implemented (POST_MVP).
 - **24-Hour Rule**: 
   - Appointments can only be cancelled if more than 24 hours before scheduled time
   - System calculates time difference automatically
@@ -215,7 +215,8 @@ Minimalist design with hero section as first view
     5. Confirmation message sent to both parties
 
 ## WhatsApp Confirmations and Reminders
-- **Immediate Confirmation**: Sent upon booking
+- **Status: POST_MVP / not implemented.** The integration (Twilio WhatsApp Cloud API or WhatsApp Business API) is planned but not active. No messages are sent on booking or as reminders.
+- **Immediate Confirmation** (when implemented): Sent upon booking
   - Appointment details (date, time, barber name)
   - Cancellation link
   - Barber contact information

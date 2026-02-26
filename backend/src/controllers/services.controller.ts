@@ -7,14 +7,12 @@ import {
 } from '../services/services.service'
 import { updateServiceSchema } from '../lib/schemas'
 import type { AuthRequest } from '../middleware/auth'
+import { getBusinessContextOrRespond } from '../lib/requestGuards'
 
 export async function getServices(req: AuthRequest, res: Response) {
-  const businessId = req.user?.businessId
-  if (!businessId) {
-    return res.status(403).json({
-      error: 'No tienes un negocio asignado',
-    })
-  }
+  const ctx = getBusinessContextOrRespond(req, res)
+  if (!ctx) return
+  const { businessId } = ctx
   const services = await getServicesForBusinessService(businessId)
   return res.json(services)
 }
@@ -30,12 +28,9 @@ export async function updateService(
         error: 'Solo el dueño del negocio puede editar precios y duración de servicios.',
       })
     }
-    const businessId = req.user?.businessId
-    if (!businessId) {
-      return res.status(403).json({
-        error: 'No tienes un negocio asignado',
-      })
-    }
+    const ctx = getBusinessContextOrRespond(req, res)
+    if (!ctx) return
+    const { businessId } = ctx
     const parsed = updateServiceSchema.safeParse(req.body)
     if (!parsed.success) {
       return res.status(400).json({

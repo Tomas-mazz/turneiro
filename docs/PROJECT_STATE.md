@@ -19,13 +19,14 @@ Read in this order:
 9. `docs/ARCHITECTURE.md`
 
 Reference only (do not use for code decisions):  
-`docs/PROJECT_VISION.md`, `docs/IDEAS_FUTURE.md`, `docs/DESIGN_UX.md`, `docs/OPEN_QUESTIONS.md`.
+`docs/PROJECT_VISION.md`, `docs/IDEAS_FUTURE.md`, `docs/DESIGN_UX.md`, `docs/OPEN_QUESTIONS.md`, `docs/RESOLVED_AMBIGUITIES.md`.
 
 ---
 
 ## 2) Current project summary
 
 - MVP multi-tenant booking SaaS (`frontend` Next.js, `backend` Express + Prisma + Postgres).
+- **No public registration.** Users (OWNER, STAFF, ADMIN) are created only by the platform admin: owner when creating a business, staff when creating an employee with credentials. There is no self-registration or public sign-up endpoint.
 - One login (`/login`) with role-based redirect:
   - `ADMIN` -> `/admin`
   - `OWNER` / `STAFF` -> `/dashboard`
@@ -35,12 +36,31 @@ Reference only (do not use for code decisions):
 
 ---
 
+## 2.1) Estado por feature (IMPLEMENTADO / PARCIAL / DESHABILITADO / POST_MVP)
+
+| Feature | Estado | Notas |
+|--------|--------|-------|
+| Auth (login, roles, JWT) | **IMPLEMENTADO** | Sin registro público. |
+| Booking público (servicio, fecha, hora, empleado, pago Stripe/MP, link cancelación en pantalla) | **IMPLEMENTADO** | |
+| Cancelación por token (ventana libre, reembolsos Stripe) | **IMPLEMENTADO** | |
+| Envío del link de cancelación por WhatsApp/email | **PARCIAL** | El link se muestra en pantalla tras la reserva; envío automático no implementado. |
+| WhatsApp (confirmación, recordatorios) | **DESHABILITADO / POST_MVP** | Servicio stub; no envía mensajes. |
+| Mercado Pago: pago (preference, redirect) | **IMPLEMENTADO** | |
+| Mercado Pago: webhook IPN | **DESHABILITADO** | Responde 501 hasta implementar verificación HMAC. |
+| Verify-email | **POST_MVP** | Solo página stub en frontend; sin backend. |
+| Idioma / i18n | **IMPLEMENTADO (español)** | Language switcher e inglés son POST_MVP. |
+| Rate limiting (login, crear cita, create-intent) | **IMPLEMENTADO** | Por IP, ventana 15 min. |
+
+---
+
 ## 3) Completed (do not redo)
 
 ### Core platform
-- Auth with JWT/bcrypt and role-based access.
+- Auth with JWT/bcrypt and role-based access. No public registration; users created only by admin.
 - Full booking flow on public page with payments (Stripe + Mercado Pago), cancellation token, and Google Calendar owner sync.
 - Owner dashboard scope (MVP): edit service price/duration, blocks, cancel by phone lookup, Google Calendar connect/disconnect.
+- Rate limiting on login, appointment creation, and payment create-intent (per IP).
+- Mercado Pago webhook disabled by default (501 until HMAC verification is implemented).
 
 ### Admin panel (done)
 - Businesses CRUD with branding (name/description/logo/cover/theme), contact data, owner credentials.
@@ -68,6 +88,72 @@ Reference only (do not use for code decisions):
 ---
 
 ## 4) Pending / next work (priority)
+
+### 4.1) PRIORITY – Phase 3 refactor (architecture & code quality)
+
+Use this section as full context to execute Phase 3 in another chat. **Do not change behaviour, business rules, API contracts, or remove endpoints.** Incremental, backend-first improvements.
+
+#### Diagnóstico resumido
+
+- **Estructura:** Rutas/controllers/services están bien organizados por dominio. No hace falta reorganizar carpetas.
+- **Archivos grandes:** Backend: `appointments.service.ts` (817), `businesses.service.ts` (545), `admin.controller.ts` (487). Frontend: `admin/businesses/[id]/page.tsx` (1641), `setup/page.tsx` (1048), `dashboard/page.tsx` (771).
+- **Código duplicado:**
+  - **businessId + 403 "No tienes un negocio asignado":** Repetido en `appointments.controller` (3x), `services.controller` (2x), `blockedSlots.controller` (3x), `businesses.controller` (1x).
+  - **Resolución staffEmployeeId (STAFF + getEmployeeIdByUserIdService):** Repetida en `appointments.controller` en getAppointments, getAppointmentLookup, cancelAppointmentByOwner (3x).
+  - **businessId = req.params.id; if (!businessId) res.status(400)...:** Repetido en `admin.controller` en getBusinessServices, createService, getWorkingHours, updateWorkingHours, getAdminBlockedSlots, createAdminBlockedSlot, getBusinessEmployees, createEmployee, listAdminAppointments, etc. (>10 veces).
+- **Validación:** Mezcla de `validateRequest(schema)` en ruta (admin: createBusiness, updateBusiness, working hours, createService, updateService) y `safeParse` en controller (login, appointments, blocked slots, employees, admin appointments). Misma respuesta 400 con `details` donde se usa safeParse.
+- **Middleware:** Falta uno que inyecte `businessId` (y opcionalmente `staffEmployeeId` para STAFF) en `req` tras `requireBusinessOwner`, para evitar repetir la comprobación y el 403 en cada controller.
+
+#### Mejoras priorizadas
+
+| Prioridad | Mejora | Impacto |
+|-----------|--------|---------|
+| **Alto** | Middleware "business context" (owner/staff): tras requireBusinessOwner, comprobar businessId (403 si falta), resolver staffEmployeeId para STAFF vía getEmployeeIdByUserIdService, adjuntar en req (ej. req.businessContext = { businessId, staffEmployeeId }). Usar en rutas appointments, services, blockedSlots. Eliminar bloques duplicados en esos controllers. | Quita repetición en 4 controllers y 3 usos de getEmployeeIdByUserIdService. |
+| **Alto** | Middleware o helper para admin que valide req.params.id (businessId) y responda 400 si falta; adjuntar en req (ej. req.businessId). Aplicar a rutas bajo /admin/businesses/:id/... (services, working-hours, blocked-slots, employees). En admin.controller usar req.businessId y quitar los >10 bloques idénticos. | Reduce repetición en admin.controller. |
+| **Medio** | Unificar validación: usar validateRequest(schema) en rutas donde hoy hay safeParse en controller (blocked slots owner, employees admin, admin appointments query/body), manteniendo respuesta 400 con details. | Un solo estilo de validación. |
+| **Medio** | Helper sendValidationError(res, zodError) que envíe 400 con error + details; usarlo en todos los controllers que hacen safeParse + res.status(400).json(...). | Menos código repetido. |
+| **Medio** | Frontend (opcional): extraer de admin/businesses/[id]/page.tsx componentes por sección (Datos del negocio, Servicios, Horarios, Bloqueos, Empleados) sin cambiar flujo ni APIs. | Mantenibilidad del componente gigante. |
+| **Bajo** | Extraer de appointments.service.ts las funciones de Google Calendar (syncToGoogleCalendar, deleteFromGoogleCalendar, resyncStaffUpcoming...) a appointment-calendar.service.ts; llamar desde appointments.service. Sin cambiar comportamiento. | Archivo más pequeño y responsabilidades separadas. |
+| **Bajo** | Errores de dominio (SlotUnavailableError, ServiceNotFoundError, etc.) extender AppError con statusCode para que errorHandler devuelva 4xx sin catch en cada controller. Opcional. | Manejo de errores más consistente. |
+
+#### Plan incremental (ejecutar en este orden)
+
+1. **Paso 1 (backend, alto impacto)**  
+   - Crear middleware `requireBusinessContext`: después de requireBusinessOwner, comprobar req.user.businessId (403 si falta). Si role === 'STAFF' y req.user.userId, llamar getEmployeeIdByUserIdService(req.user.userId, businessId) y adjuntar en req (ej. req.businessContext = { businessId, staffEmployeeId }). Para STAFF sin empleado asociado, staffEmployeeId puede ser null (getAppointments/getAppointmentLookup ya devuelven [] en ese caso).  
+   - Aplicar middleware en rutas de appointments, services, blockedSlots (las que usan requireBusinessOwner y luego leen businessId).  
+   - En appointments.controller, services.controller, blockedSlots.controller, businesses.controller: leer businessId y staffEmployeeId desde req.businessContext; eliminar bloques duplicados de "businessId + 403" y de resolución de staffEmployeeId.  
+   - **Archivos a tocar:** `backend/src/middleware/auth.ts` (o nuevo `middleware/businessContext.ts`), `backend/src/routes/appointments.ts`, `backend/src/routes/services.ts`, `backend/src/routes/blockedSlots.ts`, `backend/src/routes/businesses.ts`, `backend/src/controllers/appointments.controller.ts`, `backend/src/controllers/services.controller.ts`, `backend/src/controllers/blockedSlots.controller.ts`, `backend/src/controllers/businesses.controller.ts`.
+
+2. **Paso 2 (backend, alto impacto)**  
+   - Crear middleware `requireAdminBusinessId` (o similar): leer req.params.id como businessId; si falta, res.status(400).json({ error: 'ID de negocio obligatorio' }); si existe, adjuntar en req (ej. req.businessId = req.params.id).  
+   - Aplicar en rutas admin que usan :id como businessId: GET/POST/PATCH /businesses/:id, GET/POST /businesses/:id/services, GET/PUT /businesses/:id/working-hours, GET/POST/DELETE /businesses/:id/blocked-slots, GET/POST /businesses/:id/employees. No aplicar donde :id es serviceId, employeeId o appointmentId.  
+   - En admin.controller, en esos handlers sustituir `const businessId = req.params.id; if (!businessId)...` por `const businessId = req.businessId` (o el nombre elegido).  
+   - **Archivos a tocar:** `backend/src/middleware/` (nuevo o en auth.ts), `backend/src/routes/admin.ts`, `backend/src/controllers/admin.controller.ts`.
+
+3. **Paso 3 (opcional, medio)**  
+   - Añadir helper `sendValidationError(res, zodError)` en `lib/` o `middleware/validation.ts`; usarlo en todos los controllers que hacen safeParse y luego res.status(400).json({ error: 'Error de validación', details: parsed.error.errors }).  
+   - Opcional: en rutas que hoy validan en controller, pasar a validateRequest en ruta y quitar safeParse del controller (mantener mismo formato de respuesta).
+
+4. **Paso 4 (opcional, frontend)**  
+   - En `frontend/app/(admin)/admin/businesses/[id]/page.tsx`, extraer por secciones: un componente por "Datos del negocio", "Servicios", "Horarios", "Bloqueos", "Empleados", pasando estado y setters necesarios por props. Sin cambiar comportamiento ni APIs.
+
+5. **Paso 5 (opcional, bajo)**  
+   - Extraer de `appointments.service.ts` las funciones de Google Calendar (syncToGoogleCalendar, deleteFromGoogleCalendar, resyncStaffUpcomingAppointmentsToOwnCalendar) a `appointment-calendar.service.ts`; llamarlas desde appointments.service. Sin cambiar contratos ni comportamiento.
+
+#### Reglas para Phase 3
+
+- No cambiar comportamiento funcional ni reglas de negocio.
+- No agregar features ni eliminar endpoints activos.
+- No cambiar contratos de API (request/response).
+- No tocar frontend salvo Paso 4 (y solo si se prioriza).
+- Hacer cambios incrementales; verificar que tests/QA sigan pasando tras cada paso.
+
+#### Qué cambiar primero
+
+- **Primero:** Paso 1 (middleware requireBusinessContext + uso en appointments, services, blockedSlots, businesses).
+- **Segundo:** Paso 2 (middleware requireAdminBusinessId + uso en rutas admin con :id como businessId).
+
+---
 
 1. **QA** – Admin: appointments, employees, wizard, business edit save, working hours. Public booking: per-employee slots, theme toggle, confirm step. Owner vs staff login and dashboard behaviour; per-employee calendar flow.
 2. **UI polish** (if needed): employee row actions spacing; theme toggle on extreme viewports.
@@ -99,6 +185,7 @@ Reference only (do not use for code decisions):
 - Do not implement out-of-scope features without explicit decision:
   - Premium/advanced automations
 - **Calendar model (current):** Appointments sync to the **assigned employee's Google Calendar** when that employee has a linked User with Google connected; otherwise to **owner's calendar**. Each employee can connect their own Google Calendar and see only their appointments.
+- **WhatsApp and cancellation link delivery:** Not implemented in MVP. Link is shown on booking confirmation screen only. Sending via WhatsApp/email is POST_MVP.
 
 ---
 
@@ -146,6 +233,6 @@ Reference only (do not use for code decisions):
 
 ## 8) Context snapshot for next chat
 
-**Last session:** Calendar + availability: (1) Re-sync staff UPCOMING appointments to their calendar on Google connect; (2) GET /appointments filtered by employee for STAFF; (3) Google event title "con [empleado]" / "con dueño" (owner only); (4) Owner calendar copy for staff events with colorId; isOwner fix so "con Juan" (owner) = default color; (5) Week availability when employees = any employee has slot; (6) Slot packing: free intervals + 15 min granularity. Removed "Tus próximos turnos" UI. PROJECT_STATE: all 6 steps done, possible next steps added.
+**Last session:** Phase 3 refactor plan (architecture & code quality) added to PROJECT_STATE as **priority** in section 4.1. Plan includes: diagnostic, prioritized improvements (middleware business context + admin businessId), incremental steps (Paso 1–5), exact files to touch, and rules (no behaviour/API changes, backend-first).
 
-**Next:** QA (see section 4). Possible next steps in section 4. No blocked decisions.
+**Next:** Execute Phase 3 refactor (section 4.1): start with Paso 1 (requireBusinessContext middleware), then Paso 2 (requireAdminBusinessId). Alternatively: QA (section 4) or other backlog items. No blocked decisions.

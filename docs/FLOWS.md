@@ -39,16 +39,14 @@ Creates appointment record (with service, price, provider, payment status)
   ↓
 Blocks time slot based on service duration
   ↓
-Sends WhatsApp confirmation to client
-  ↓
-Sends notification to business owner
+Client sees confirmation screen with cancellation link (WhatsApp/email sending not implemented; POST_MVP)
   ↓
 Booking complete
 ```
 
 ## Cancellation Flow
 ```
-Client receives cancellation link (via WhatsApp/Email)
+Client has cancellation link (in MVP: shown on booking confirmation page; WhatsApp/email sending is POST_MVP)
   ↓
 Clicks cancellation link
   ↓
@@ -111,23 +109,13 @@ Rules apply to all future appointments for that business
 Warning message automatically generated for booking page
 ```
 
-## WhatsApp Notification Flow
+## WhatsApp Notification Flow (POST_MVP – not implemented)
 ```
 Appointment created
   ↓
-System triggers WhatsApp message
+System would trigger WhatsApp message (not implemented)
   ↓
-Message includes:
-  - Appointment date and time
-  - Barber name
-  - Cancellation link
-  - Contact information
+Message would include: appointment details, cancellation link, contact (when implemented)
   ↓
-24 hours before appointment
-  ↓
-System sends reminder message
-  ↓
-2 hours before appointment (optional)
-  ↓
-System sends final reminder
+Reminders 24h and 2h before (optional) – not implemented
 ```

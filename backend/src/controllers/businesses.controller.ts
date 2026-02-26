@@ -1,12 +1,12 @@
 import { Request, Response, NextFunction } from 'express'
 import { getBusinessBySlugService, getMyBusinessService } from '../services/businesses.service'
 import type { AuthRequest } from '../middleware/auth'
+import { getBusinessContextOrRespond } from '../lib/requestGuards'
 
 export async function getMyBusiness(req: AuthRequest, res: Response) {
-  const businessId = req.user?.businessId
-  if (!businessId) {
-    return res.status(403).json({ error: 'No tienes un negocio asignado' })
-  }
+  const ctx = getBusinessContextOrRespond(req, res)
+  if (!ctx) return
+  const { businessId } = ctx
   const business = await getMyBusinessService(businessId)
   if (!business) {
     return res.status(404).json({ error: 'Negocio no encontrado' })
