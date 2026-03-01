@@ -11,6 +11,12 @@ body {
   font-family: var(--font-roboto);
 }
 
+/* Reserve scrollbar space only when the page scroll is on the body (booking steps service/date/form/payment).
+   Not applied on hero (overflow-hidden) to avoid double gutter if a section had its own overflow-y. */
+html.booking-body-scroll {
+  scrollbar-gutter: stable;
+}
+
 h1, h2, h3, h4, h5, h6 {
   font-family: var(--font-montserrat);
 }

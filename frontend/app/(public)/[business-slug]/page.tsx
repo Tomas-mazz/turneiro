@@ -88,6 +88,19 @@ export default function BusinessBookingPage() {
     return () => window.removeEventListener('popstate', onPopState)
   }, [])
 
+  // Reserve scrollbar space only when the body scrolls (not on hero with overflow-hidden).
+  // Avoids double gutter when a section has its own overflow-y.
+  useEffect(() => {
+    if (typeof document === 'undefined') return
+    const html = document.documentElement
+    if (step === 'hero') {
+      html.classList.remove('booking-body-scroll')
+    } else {
+      html.classList.add('booking-body-scroll')
+    }
+    return () => html.classList.remove('booking-body-scroll')
+  }, [step])
+
   useEffect(() => {
     if (!slug) return
     setLoading(true)
@@ -339,7 +352,7 @@ export default function BusinessBookingPage() {
       className={
         step === 'hero'
           ? 'min-h-screen h-screen overflow-hidden bg-neutral-100 transition-colors duration-300 ease-out'
-          : 'min-h-screen bg-neutral-100 transition-colors duration-300 ease-out'
+          : 'min-h-screen overflow-x-hidden bg-neutral-100 transition-colors duration-300 ease-out'
       }
       style={
         step === 'service' || step === 'date'
