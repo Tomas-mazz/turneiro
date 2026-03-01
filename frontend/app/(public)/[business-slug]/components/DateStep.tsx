@@ -1,9 +1,11 @@
 'use client'
 
+import { useState } from 'react'
 import Image from 'next/image'
 import type { Employee, ServiceOption } from '../types'
 import { formatDateKey } from '../utils'
 import { BookingLayout } from './BookingLayout'
+import { EmployeeSelectModal } from './EmployeeSelectModal'
 
 const WEEKDAY_ABBR = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb']
 
@@ -33,6 +35,10 @@ type DateStepProps = {
   slots: string[]
   /** Slots per employee when there are employees; each employee has their own availability. */
   slotsByEmployee: Record<string, string[]>
+  /** Unique sorted slot times (union of all employees); used when employees.length > 1. */
+  unifiedSlots: string[]
+  /** For each slot time, employee ids that have that slot (creation order). */
+  employeesBySlot: Record<string, string[]>
   slotsLoading: boolean
   selectedSlot: string | null
   onSelectedSlot: (slot: string | null, employeeId: string | null) => void
@@ -57,6 +63,8 @@ export function DateStep({
   currentTimeStr: currentTimeStrProp,
   slots,
   slotsByEmployee,
+  unifiedSlots,
+  employeesBySlot,
   slotsLoading,
   selectedSlot,
   onSelectedSlot,
@@ -86,6 +94,8 @@ export function DateStep({
     : 'border border-neutral-400 bg-white text-neutral-700 hover:bg-neutral-50'
   const visibleDates = getVisibleDates(calendarMonth)
   const monthLabel = calendarMonth.toLocaleString('es', { month: 'long', year: 'numeric' })
+
+  const [modalSlot, setModalSlot] = useState<string | null>(null)
 
   // When selected date is today, only show slots after current time (HH:MM); use Argentina time when provided
   const currentTimeStr =
@@ -242,6 +252,76 @@ export function DateStep({
           <p className={subText}>Seleccioná una fecha para ver horarios disponibles.</p>
         ) : slotsLoading ? (
           <p className={subText}>Cargando horarios...</p>
+        ) : employees.length > 1 ? (
+          /* Unified calendar: one cell per slot — photos above-left, time below (Step 5 will add modal on click) */
+          <div className="flex flex-col gap-4 md:gap-5">
+            <div>
+              <p className={`font-semibold ${titleText}`}>Horarios disponibles</p>
+              <p className={`text-sm ${subText}`}>
+                $ {selectedService.price.toFixed(0)} ({selectedService.duration} min)
+              </p>
+            </div>
+            {unifiedSlots.length === 0 ? (
+              <div className={`rounded-xl py-6 text-center text-sm ${noSlotsCardClass}`}>
+                Sin turnos disponibles
+              </div>
+            ) : (
+              <div className="grid grid-cols-3 gap-3 md:gap-4 lg:grid-cols-4 lg:gap-5">
+                {unifiedSlots.map((slot) => {
+                  const slotEmployeeIds = employeesBySlot[slot] ?? []
+                  const slotEmployees = slotEmployeeIds
+                    .map((id) => employees.find((e) => e.id === id))
+                    .filter((e): e is Employee => e != null)
+                  const showCount = Math.min(3, slotEmployees.length)
+                  const extraCount = slotEmployees.length - showCount
+                  const avatarClass = isDarkTheme
+                    ? 'bg-neutral-600 text-neutral-200'
+                    : 'bg-neutral-300 text-neutral-700'
+                  return (
+                    <div key={slot} className="flex flex-col items-start gap-1.5">
+                      {/* Photos: separate container above and left of the horario box */}
+                      <div className="flex min-h-[1.75rem] items-center gap-0.5 pl-0.5">
+                        {slotEmployees.slice(0, showCount).map((emp) => (
+                          <div
+                            key={emp.id}
+                            className={`flex h-7 w-7 shrink-0 items-center justify-center overflow-hidden rounded-full text-xs font-medium ${avatarClass}`}
+                            aria-hidden
+                          >
+                            {emp.photoUrl ? (
+                              <Image
+                                src={emp.photoUrl}
+                                alt=""
+                                width={28}
+                                height={28}
+                                className="h-full w-full object-cover"
+                                unoptimized
+                              />
+                            ) : (
+                              emp.name.charAt(0).toUpperCase()
+                            )}
+                          </div>
+                        ))}
+                        {extraCount > 0 && (
+                          <span className={`text-xs font-medium ${isDarkTheme ? 'text-neutral-300' : 'text-neutral-600'}`}>
+                            +{extraCount}
+                          </span>
+                        )}
+                      </div>
+                      {/* Horario: its own box (button), separate from photos — opens modal on click */}
+                      <button
+                        type="button"
+                        onClick={() => setModalSlot(slot)}
+                        className={`w-full rounded-lg px-3 py-3 text-sm font-medium transition-colors md:px-4 md:py-3.5 md:text-base lg:px-5 ${slotBtnClass}`}
+                        aria-label={`Horario ${slot}${slotEmployees.length > 0 ? `, ${slotEmployees.length} disponible${slotEmployees.length === 1 ? '' : 's'}` : ''}`}
+                      >
+                        {slot}
+                      </button>
+                    </div>
+                  )
+                })}
+              </div>
+            )}
+          </div>
         ) : (
           <div className="space-y-10 md:space-y-12">
             {employees.length > 0 ? (
@@ -337,7 +417,7 @@ export function DateStep({
           </div>
         )}
 
-        {selectedDate && selectedSlot && (
+        {selectedDate && selectedSlot && employees.length <= 1 && (
           <div className="mt-10 flex justify-end md:mt-12">
             <button
               type="button"
@@ -348,6 +428,25 @@ export function DateStep({
               Continuar
             </button>
           </div>
+        )}
+
+        {employees.length > 1 && (
+          <EmployeeSelectModal
+            isOpen={modalSlot != null}
+            slotTime={modalSlot ?? ''}
+            employees={employees}
+            availableEmployeeIds={employeesBySlot[modalSlot ?? ''] ?? []}
+            onSelect={(employeeId) => {
+              if (modalSlot) {
+                onSelectedSlot(modalSlot, employeeId)
+                onContinue()
+                setModalSlot(null)
+              }
+            }}
+            onClose={() => setModalSlot(null)}
+            isDarkTheme={isDarkTheme}
+            primaryColor={primaryColor}
+          />
         )}
       </div>
     </BookingLayout>
