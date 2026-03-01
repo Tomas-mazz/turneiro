@@ -22,7 +22,7 @@ export function BookingLayout({
 
   return (
     <section
-      className={`relative left-1/2 min-h-screen w-screen -translate-x-1/2 transition-colors duration-300 ease-out ${textColor}`}
+      className={`relative left-1/2 min-h-screen w-screen -translate-x-1/2 overflow-x-hidden transition-colors duration-300 ease-out ${textColor}`}
       style={{ backgroundColor: bgColor, width: '100vw' }}
     >
       <BookingHeader

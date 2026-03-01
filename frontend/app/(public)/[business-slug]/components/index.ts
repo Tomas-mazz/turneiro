@@ -1,3 +1,5 @@
+export { BookingHeader } from './BookingHeader'
+export { BookingLayout } from './BookingLayout'
 export { BookingHero } from './BookingHero'
 export { BookingDone } from './BookingDone'
 export { ClientFormStep } from './ClientFormStep'

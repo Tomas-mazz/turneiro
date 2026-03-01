@@ -363,6 +363,7 @@ export default function BusinessBookingPage() {
           selectedService={selectedService}
           onSelectService={setSelectedService}
           onContinue={() => goToStep('date')}
+          onGoToServices={() => goToStep('service')}
           primaryColor={primaryColor}
           isDarkTheme={isDarkTheme}
           onToggleTheme={() => setThemeMode((prev) => (prev === 'DARK' ? 'LIGHT' : 'DARK'))}
@@ -371,6 +372,7 @@ export default function BusinessBookingPage() {
 
       {step === 'date' && selectedService && (
         <DateStep
+          businessName={business.name}
           selectedService={selectedService}
           employees={business.employees ?? []}
           calendarMonth={calendarMonth}
@@ -390,13 +392,16 @@ export default function BusinessBookingPage() {
           }}
           onContinue={() => goToStep('form')}
           onBack={handleBack}
+          onGoToServices={() => goToStep('service')}
           primaryColor={primaryColor}
           isDarkTheme={isDarkTheme}
+          onToggleTheme={() => setThemeMode((prev) => (prev === 'DARK' ? 'LIGHT' : 'DARK'))}
         />
       )}
 
       {step === 'form' && selectedService && selectedDate && selectedSlot && (
         <ClientFormStep
+          businessName={business.name}
           selectedService={selectedService}
           selectedDate={selectedDate}
           selectedSlot={selectedSlot}
@@ -418,8 +423,10 @@ export default function BusinessBookingPage() {
                 }
               : undefined
           }
+          onGoToServices={() => goToStep('service')}
           primaryColor={primaryColor}
           isDarkTheme={isDarkTheme}
+          onToggleTheme={() => setThemeMode((prev) => (prev === 'DARK' ? 'LIGHT' : 'DARK'))}
         />
       )}
 
