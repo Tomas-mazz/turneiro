@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from 'react'
 import Image from 'next/image'
 import type { Business, ServiceOption } from '../types'
-import { useTypewriter } from '../hooks/useTypewriter'
+import { BookingLayout } from './BookingLayout'
 
 const DAY_NAMES = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado']
 
@@ -15,6 +15,7 @@ type ServiceStepProps = {
   selectedService: ServiceOption | null
   onSelectService: (s: ServiceOption | null) => void
   onContinue: () => void
+  onGoToServices: () => void
   primaryColor: string
   isDarkTheme?: boolean
   onToggleTheme?: () => void
@@ -25,13 +26,11 @@ export function ServiceStep({
   selectedService,
   onSelectService,
   onContinue,
+  onGoToServices,
   primaryColor,
   isDarkTheme = true,
   onToggleTheme,
 }: ServiceStepProps) {
-  const bgColor = isDarkTheme ? 'hsl(0, 0%, 9%)' : 'rgb(255, 255, 255)'
-  const textColor = isDarkTheme ? 'text-white' : 'text-neutral-900'
-  const borderColor = isDarkTheme ? 'border-neutral-600' : 'border-neutral-300'
   const titleColor = isDarkTheme ? 'text-neutral-300' : 'text-neutral-800'
   const serviceNameColor = isDarkTheme ? 'text-white' : 'text-neutral-900'
   const serviceMetaColor = isDarkTheme ? 'text-neutral-400' : 'text-neutral-700'
@@ -65,7 +64,6 @@ export function ServiceStep({
     },
     {} as Record<number, { startTime: string; endTime: string; isClosed: boolean }>
   )
-  const displayName = useTypewriter(business.name)
   const [isClosing, setIsClosing] = useState(false)
   const panelRef = useRef<HTMLDivElement>(null)
 
@@ -85,43 +83,13 @@ export function ServiceStep({
   }
 
   return (
-    <section className={`min-h-screen transition-colors duration-300 ease-out ${textColor}`} style={{ backgroundColor: bgColor }}>
-      {/* Header: business name with typewriter */}
-      <header className={`border-b ${borderColor} py-4 md:py-6`}>
-        <div className="mx-auto flex max-w-6xl items-center justify-between gap-3 px-4 md:px-6 lg:px-8">
-          <h1 className={`min-w-0 truncate text-left text-2xl font-bold md:text-3xl ${isDarkTheme ? 'text-white' : 'text-neutral-900'}`}>
-            {displayName}
-            <span className="animate-pulse">|</span>
-          </h1>
-          {onToggleTheme && (
-            <button
-              type="button"
-              onClick={onToggleTheme}
-              className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border transition-all duration-300 ease-out sm:h-11 sm:w-11 md:h-12 md:w-12 ${
-                isDarkTheme
-                  ? 'border-white bg-neutral-900 text-neutral-100 hover:opacity-90'
-                  : 'border-black bg-white text-neutral-600 hover:opacity-90'
-              }`}
-              aria-label={isDarkTheme ? 'Cambiar a modo claro' : 'Cambiar a modo oscuro'}
-              title={isDarkTheme ? 'Modo oscuro' : 'Modo claro'}
-            >
-              {isDarkTheme ? (
-                <svg viewBox="0 0 24 24" className="h-5 w-5 sm:h-6 sm:w-6" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden>
-                  <path d="M21 12.79A9 9 0 1 1 11.21 3a7 7 0 0 0 9.79 9.79Z" />
-                  <path d="M17.5 4.5v2M17.5 9.5v2M15 7h2M20 7h2" />
-                </svg>
-              ) : (
-                <svg viewBox="0 0 24 24" className="h-5 w-5 sm:h-6 sm:w-6" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden>
-                  <circle cx="12" cy="12" r="4" />
-                  <path d="M12 2v2.2M12 19.8V22M4.9 4.9l1.6 1.6M17.5 17.5l1.6 1.6M2 12h2.2M19.8 12H22M4.9 19.1l1.6-1.6M17.5 6.5l1.6-1.6" />
-                </svg>
-              )}
-            </button>
-          )}
-        </div>
-      </header>
-
-      <div className="mx-auto flex max-w-4xl flex-col gap-8 px-4 py-8 md:max-w-4xl md:flex-row md:gap-10 md:px-6 md:py-10 lg:max-w-6xl lg:gap-12 lg:px-8">
+    <BookingLayout
+      businessName={business.name}
+      isDarkTheme={isDarkTheme}
+      onToggleTheme={onToggleTheme}
+      onGoToServices={onGoToServices}
+    >
+      <div className="flex max-w-4xl flex-col gap-8 md:max-w-4xl md:flex-row md:gap-10 lg:max-w-6xl lg:gap-12">
         {/* Left: services list */}
         <div className="min-w-0 flex-1">
           <h2 className={`mb-4 text-center text-lg font-semibold md:mb-5 md:text-left md:text-xl ${titleColor}`}>
@@ -325,6 +293,6 @@ export function ServiceStep({
           </div>
         </div>
       )}
-    </section>
+    </BookingLayout>
   )
 }

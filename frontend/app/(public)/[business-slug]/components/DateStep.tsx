@@ -3,6 +3,7 @@
 import Image from 'next/image'
 import type { Employee, ServiceOption } from '../types'
 import { formatDateKey } from '../utils'
+import { BookingLayout } from './BookingLayout'
 
 const WEEKDAY_ABBR = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb']
 
@@ -17,6 +18,7 @@ function getVisibleDates(windowStart: Date): Date[] {
 }
 
 type DateStepProps = {
+  businessName: string
   selectedService: ServiceOption
   employees: Employee[]
   calendarMonth: Date
@@ -36,12 +38,14 @@ type DateStepProps = {
   onSelectedSlot: (slot: string | null, employeeId: string | null) => void
   onContinue: () => void
   onBack: () => void
+  onGoToServices: () => void
   primaryColor: string
   isDarkTheme?: boolean
   onToggleTheme?: () => void
 }
 
 export function DateStep({
+  businessName,
   selectedService,
   employees,
   calendarMonth,
@@ -58,13 +62,11 @@ export function DateStep({
   onSelectedSlot,
   onContinue,
   onBack,
+  onGoToServices,
   primaryColor,
   isDarkTheme = true,
   onToggleTheme,
 }: DateStepProps) {
-  const bgColor = isDarkTheme ? 'hsl(0, 0%, 9%)' : 'rgb(244, 244, 245)'
-  const sectionText = isDarkTheme ? 'text-white' : 'text-neutral-900'
-  const headerBorder = isDarkTheme ? 'border-neutral-600' : 'border-neutral-300'
   const backBtnClass = isDarkTheme
     ? 'bg-neutral-700/80 text-white hover:bg-neutral-600'
     : 'border border-neutral-300 bg-neutral-100 text-neutral-700 hover:bg-neutral-200'
@@ -133,57 +135,30 @@ export function DateStep({
   const isCurrentWeek = formatDateKey(calendarMonth) === todayKey
 
   return (
-    <section
-      className={`min-h-screen transition-colors duration-300 ease-out ${sectionText}`}
-      style={{ backgroundColor: bgColor }}
+    <BookingLayout
+      businessName={businessName}
+      isDarkTheme={isDarkTheme}
+      onToggleTheme={onToggleTheme}
+      onGoToServices={onGoToServices}
     >
-      {/* Header: back button + service title */}
-      <header className={`border-b py-4 md:py-5 ${headerBorder}`}>
-        <div className="mx-auto flex max-w-3xl items-center justify-between gap-3 px-4 md:px-6 lg:px-8">
-          <div className="flex min-w-0 items-center gap-3 md:gap-4">
-            <button
-              type="button"
-              onClick={onBack}
-              className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full transition-colors ${backBtnClass}`}
-              aria-label="Volver"
-            >
-              ←
-            </button>
-            <h1 className={`min-w-0 truncate text-lg font-semibold md:text-xl ${titleText}`}>
-              {selectedService.name} ({selectedService.duration} min)
-            </h1>
-          </div>
-          {onToggleTheme && (
-            <button
-              type="button"
-              onClick={onToggleTheme}
-              className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border-2 transition-all duration-300 ease-out sm:h-11 sm:w-11 ${
-                isDarkTheme
-                  ? 'border-lime-300 bg-neutral-900 text-neutral-100 hover:border-lime-200'
-                  : 'border-indigo-500 bg-white text-neutral-600 hover:border-indigo-400'
-              }`}
-              aria-label={isDarkTheme ? 'Cambiar a modo claro' : 'Cambiar a modo oscuro'}
-              title={isDarkTheme ? 'Modo oscuro' : 'Modo claro'}
-            >
-              {isDarkTheme ? (
-                <svg viewBox="0 0 24 24" className="h-5 w-5 sm:h-6 sm:w-6" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden>
-                  <path d="M21 12.79A9 9 0 1 1 11.21 3a7 7 0 0 0 9.79 9.79Z" />
-                  <path d="M17.5 4.5v2M17.5 9.5v2M15 7h2M20 7h2" />
-                </svg>
-              ) : (
-                <svg viewBox="0 0 24 24" className="h-5 w-5 sm:h-6 sm:w-6" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden>
-                  <circle cx="12" cy="12" r="4" />
-                  <path d="M12 2v2.2M12 19.8V22M4.9 4.9l1.6 1.6M17.5 17.5l1.6 1.6M2 12h2.2M19.8 12H22M4.9 19.1l1.6-1.6M17.5 6.5l1.6-1.6" />
-                </svg>
-              )}
-            </button>
-          )}
+      <div className="flex w-full flex-col">
+        {/* Back + service title */}
+        <div className="mb-6 flex min-w-0 items-center gap-3 md:mb-8 md:gap-4">
+          <button
+            type="button"
+            onClick={onBack}
+            className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full transition-colors ${backBtnClass}`}
+            aria-label="Volver"
+          >
+            ←
+          </button>
+          <h2 className={`min-w-0 truncate text-lg font-semibold md:text-xl ${titleText}`}>
+            {selectedService.name} ({selectedService.duration} min)
+          </h2>
         </div>
-      </header>
 
-      <div className="mx-auto max-w-3xl px-4 py-6 md:px-6 md:py-8 lg:px-8">
         {/* Month + navigation */}
-        <div className="mb-4 flex flex-wrap items-center justify-between gap-3 md:mb-6 md:gap-4">
+        <div className="flex flex-wrap items-center justify-between gap-4 md:gap-4">
           <span className={`text-lg font-medium capitalize md:text-xl ${titleText}`}>{monthLabel}</span>
           <div className="flex flex-wrap items-center justify-end gap-2 md:gap-3">
             <button
@@ -268,15 +243,15 @@ export function DateStep({
         ) : slotsLoading ? (
           <p className={subText}>Cargando horarios...</p>
         ) : (
-          <div className="space-y-8">
+          <div className="space-y-10 md:space-y-12">
             {employees.length > 0 ? (
               employees.map((emp) => {
                 const employeeSlots = slotsByEmployee[emp.id] ?? []
                 const displaySlotsEmp = displaySlotsFor(employeeSlots)
                 return (
-                  <div key={emp.id} className="flex flex-col gap-3">
+                  <div key={emp.id} className="flex flex-col gap-4 md:gap-5">
                     {/* Avatar left; name on top, price (min) below — no card background */}
-                    <div className="flex items-start gap-3">
+                    <div className="flex items-start gap-4">
                       <div className="relative shrink-0 overflow-visible">
                         <div
                           className={`flex h-12 w-12 items-center justify-center overflow-hidden rounded-full text-lg font-medium ${
@@ -309,7 +284,7 @@ export function DateStep({
                         Sin turnos disponibles
                       </div>
                     ) : (
-                      <div className="grid grid-cols-3 gap-2 md:gap-3 lg:grid-cols-4">
+                      <div className="grid grid-cols-3 gap-3 md:gap-4 lg:grid-cols-4 lg:gap-5">
                         {displaySlotsEmp.map((slot) => (
                           <button
                             key={slot}
@@ -329,7 +304,7 @@ export function DateStep({
                 )
               })
             ) : (
-              <div className="flex flex-col gap-3">
+              <div className="flex flex-col gap-4 md:gap-5">
                 <div>
                   <p className={`font-semibold ${titleText}`}>Horarios disponibles</p>
                   <p className={`text-sm ${subText}`}>
@@ -341,7 +316,7 @@ export function DateStep({
                     Sin turnos disponibles
                   </div>
                 ) : (
-                  <div className="grid grid-cols-3 gap-2 md:gap-3 lg:grid-cols-4">
+                  <div className="grid grid-cols-3 gap-3 md:gap-4 lg:grid-cols-4 lg:gap-5">
                     {displaySlots.map((slot) => (
                       <button
                         key={slot}
@@ -363,7 +338,7 @@ export function DateStep({
         )}
 
         {selectedDate && selectedSlot && (
-          <div className="mt-8 flex justify-end">
+          <div className="mt-10 flex justify-end md:mt-12">
             <button
               type="button"
               onClick={onContinue}
@@ -375,6 +350,6 @@ export function DateStep({
           </div>
         )}
       </div>
-    </section>
+    </BookingLayout>
   )
 }
