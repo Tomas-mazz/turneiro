@@ -46,6 +46,7 @@ export default function BusinessBookingPage() {
   const [selectedSlot, setSelectedSlot] = useState<string | null>(null)
   const [selectedEmployeeId, setSelectedEmployeeId] = useState<string | null>(null)
   const [clientName, setClientName] = useState('')
+  const [clientEmail, setClientEmail] = useState('')
   const [clientPhone, setClientPhone] = useState('')
   const [submitLoading, setSubmitLoading] = useState(false)
   const [submitError, setSubmitError] = useState<string | null>(null)
@@ -215,6 +216,13 @@ export default function BusinessBookingPage() {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
     if (!business || !selectedService || !selectedDate || !selectedSlot) return
+
+    const email = clientEmail.trim()
+    const gmailRegex = /^[a-zA-Z0-9._%+-]+@gmail\.com$/i
+    if (!gmailRegex.test(email)) {
+      setSubmitError('Ingresá un Gmail válido (por ejemplo, tuusuario@gmail.com).')
+      return
+    }
     setSubmitLoading(true)
     setSubmitError(null)
     api
@@ -224,6 +232,7 @@ export default function BusinessBookingPage() {
         date: selectedDate,
         slotTime: selectedSlot,
         clientName: clientName.trim(),
+        clientEmail: email,
         clientPhone: clientPhone.trim(),
         employeeId: selectedEmployeeId,
       })
@@ -453,8 +462,10 @@ export default function BusinessBookingPage() {
           selectedDate={selectedDate}
           selectedSlot={selectedSlot}
           clientName={clientName}
+          clientEmail={clientEmail}
           clientPhone={clientPhone}
           onClientName={setClientName}
+          onClientEmail={setClientEmail}
           onClientPhone={setClientPhone}
           onSubmit={handleSubmit}
           submitLoading={submitLoading}
