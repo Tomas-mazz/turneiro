@@ -118,6 +118,119 @@ export default function BusinessBookingPage() {
       .finally(() => setLoading(false))
   }, [slug])
 
+  // Restore previous booking state (step + basic selections) for this business
+  // so that a full reload keeps the user on the same section when possible.
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    if (!business) return
+
+    const storageKey = `booking:${slug}`
+    const raw = window.sessionStorage.getItem(storageKey)
+    if (!raw) return
+
+    try {
+      const parsed = JSON.parse(raw) as {
+        step?: Step
+        serviceId?: string
+        calendarMonth?: string
+        selectedDate?: string | null
+        selectedSlot?: string | null
+        selectedEmployeeId?: string | null
+        clientName?: string
+        clientEmail?: string
+        clientPhone?: string
+      }
+
+      const service =
+        parsed.serviceId && business.services
+          ? business.services.find((s) => s.id === parsed.serviceId) ?? null
+          : null
+
+      if (service) {
+        setSelectedService(service)
+      }
+      if (parsed.calendarMonth) {
+        const d = new Date(parsed.calendarMonth)
+        if (!Number.isNaN(d.getTime())) {
+          setCalendarMonth(d)
+        }
+      }
+      if (parsed.selectedDate) setSelectedDate(parsed.selectedDate)
+      if (parsed.selectedSlot) setSelectedSlot(parsed.selectedSlot)
+      if (parsed.selectedEmployeeId !== undefined) setSelectedEmployeeId(parsed.selectedEmployeeId)
+      if (parsed.clientName) setClientName(parsed.clientName)
+      if (parsed.clientEmail) setClientEmail(parsed.clientEmail)
+      if (parsed.clientPhone) setClientPhone(parsed.clientPhone)
+
+      // Decide the safest step we can restore given the data we have.
+      const requestedStep = parsed.step ?? step
+      const hasService = !!service
+      const hasDate = !!parsed.selectedDate
+      const hasSlot = !!parsed.selectedSlot
+
+      let nextStep: Step = 'hero'
+      if (requestedStep === 'payment') {
+        // Do not restore directly to payment because we don't persist createdAppointment.
+        nextStep = hasService && hasDate && hasSlot ? 'form' : hasService ? 'date' : 'service'
+      } else if (requestedStep === 'form') {
+        nextStep = hasService && hasDate && hasSlot ? 'form' : hasService ? 'date' : 'service'
+      } else if (requestedStep === 'date') {
+        nextStep = hasService ? 'date' : 'service'
+      } else if (requestedStep === 'service') {
+        nextStep = 'service'
+      } else if (requestedStep === 'hero') {
+        nextStep = 'hero'
+      } else if (requestedStep === 'done' && createdAppointment) {
+        nextStep = 'done'
+      } else {
+        nextStep = 'hero'
+      }
+
+      if (nextStep !== step) {
+        setStep(nextStep)
+        window.history.replaceState({ step: nextStep }, '', pathname ?? `/${slug}`)
+      }
+    } catch {
+      // Ignore corrupted storage, fallback to current step.
+    }
+    // We intentionally omit `step` from deps to avoid re-running after we adjust it here.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [business, slug, pathname, createdAppointment])
+
+  // Persist current step and basic booking state so reloads can restore it.
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    if (!slug) return
+
+    const storageKey = `booking:${slug}`
+    const serviceId = selectedService?.id
+
+    const payload = {
+      step,
+      serviceId,
+      calendarMonth: calendarMonth.toISOString(),
+      selectedDate,
+      selectedSlot,
+      selectedEmployeeId,
+      clientName,
+      clientEmail,
+      clientPhone,
+    }
+
+    window.sessionStorage.setItem(storageKey, JSON.stringify(payload))
+  }, [
+    slug,
+    step,
+    selectedService,
+    calendarMonth,
+    selectedDate,
+    selectedSlot,
+    selectedEmployeeId,
+    clientName,
+    clientEmail,
+    clientPhone,
+  ])
+
   // Background for service and date steps (dark or light theme)
   useEffect(() => {
     if (step !== 'service' && step !== 'date') return
@@ -137,6 +250,39 @@ export default function BusinessBookingPage() {
       document.body.style.transition = prevBodyTransition
     }
   }, [step, isDarkTheme])
+
+  // If we land on a deep step (form/payment) without the required state
+  // (e.g. corrupted state or direct navigation), reset to a safe starting step
+  // instead of rendering an empty screen. Prefer keeping the user inside
+  // the booking flow (service/date) instead of sending them back to hero.
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    if (!business) return
+
+    const hasCoreSelection = !!(selectedService && selectedDate && selectedSlot)
+
+    if (!hasCoreSelection && (step === 'form' || step === 'payment')) {
+      const fallbackStep: Step = selectedService ? 'date' : 'service'
+      setStep(fallbackStep)
+      window.history.replaceState({ step: fallbackStep }, '', pathname ?? `/${slug}`)
+      return
+    }
+
+    if (step === 'payment' && !createdAppointment) {
+      const fallbackStep: Step = hasCoreSelection ? 'form' : selectedService ? 'date' : 'service'
+      setStep(fallbackStep)
+      window.history.replaceState({ step: fallbackStep }, '', pathname ?? `/${slug}`)
+    }
+  }, [
+    step,
+    business,
+    selectedService,
+    selectedDate,
+    selectedSlot,
+    createdAppointment,
+    pathname,
+    slug,
+  ])
 
   useEffect(() => {
     if (step !== 'date' || !business || !selectedService) return
