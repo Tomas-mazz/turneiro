@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useMemo, useState, useCallback } from 'react'
 import { useParams, usePathname } from 'next/navigation'
 import { api } from '@/lib/api'
 import type { Business, Step, ServiceOption, CreatedAppointment } from './types'
@@ -327,6 +327,38 @@ export default function BusinessBookingPage() {
   const primaryColor = business?.primaryColor || '#f5f5f5'
   const { dateKey: todayKey, timeStr: currentTimeArgentina } = getNowInArgentina()
 
+  // Unified calendar: unique slots across all employees, and which employees are available per slot (creation order).
+  const { unifiedSlots, employeesBySlot } = useMemo(() => {
+    const employees = business?.employees ?? []
+    if (!selectedDate || employees.length === 0) {
+      return { unifiedSlots: [] as string[], employeesBySlot: {} as Record<string, string[]> }
+    }
+    const allSlotTimesSet = new Set<string>()
+    for (const slotList of Object.values(slotsByEmployee)) {
+      for (const s of slotList) allSlotTimesSet.add(s)
+    }
+    const allSlotTimes = Array.from(allSlotTimesSet).sort()
+    const isToday = selectedDate === todayKey
+    const filteredSlots = isToday
+      ? allSlotTimes.filter((s) => s > currentTimeArgentina)
+      : allSlotTimes
+    const bySlot: Record<string, string[]> = {}
+    for (const slot of allSlotTimes) {
+      const ids: string[] = []
+      for (const emp of employees) {
+        if ((slotsByEmployee[emp.id] ?? []).includes(slot)) ids.push(emp.id)
+      }
+      bySlot[slot] = ids
+    }
+    return { unifiedSlots: filteredSlots, employeesBySlot: bySlot }
+  }, [
+    business?.employees,
+    selectedDate,
+    slotsByEmployee,
+    todayKey,
+    currentTimeArgentina,
+  ])
+
   if (loading) {
     return (
       <main className="min-h-screen flex items-center justify-center bg-neutral-100">
@@ -397,6 +429,8 @@ export default function BusinessBookingPage() {
           currentTimeStr={currentTimeArgentina}
           slots={slots}
           slotsByEmployee={slotsByEmployee}
+          unifiedSlots={unifiedSlots}
+          employeesBySlot={employeesBySlot}
           slotsLoading={slotsLoading}
           selectedSlot={selectedSlot}
           onSelectedSlot={(slot, employeeId) => {
