@@ -528,10 +528,6 @@ export default function BusinessBookingPage() {
     )
   }
 
-  if (step === 'done' && createdAppointment) {
-    return <BookingDone appointment={createdAppointment} primaryColor={primaryColor} />
-  }
-
   return (
     <main
       className={
@@ -540,7 +536,7 @@ export default function BusinessBookingPage() {
           : 'min-h-screen overflow-x-hidden bg-neutral-100 transition-colors duration-300 ease-out'
       }
       style={
-        step === 'service' || step === 'date'
+        step === 'service' || step === 'date' || step === 'done'
           ? { backgroundColor: isDarkTheme ? 'hsl(0, 0%, 9%)' : 'rgb(244, 244, 245)' }
           : undefined
       }
@@ -658,6 +654,12 @@ export default function BusinessBookingPage() {
             primaryColor={primaryColor}
           />
         )}
+
+      {step === 'done' && createdAppointment && (
+        <div className="min-h-screen flex items-center justify-center px-4 py-12">
+          <BookingDone appointment={createdAppointment} primaryColor={primaryColor} />
+        </div>
+      )}
     </main>
   )
 }
