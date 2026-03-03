@@ -124,6 +124,10 @@ export default function BusinessBookingPage() {
     if (typeof window === 'undefined') return
     if (!business) return
 
+    // If we already have an appointment and are showing the confirmation
+    // screen, don't override the current step with older persisted state.
+    if (createdAppointment && step === 'done') return
+
     const storageKey = `booking:${slug}`
     const raw = window.sessionStorage.getItem(storageKey)
     if (!raw) return
@@ -384,16 +388,10 @@ export default function BusinessBookingPage() {
       })
       .then((res) => {
         setCreatedAppointment(res.data)
-        if (business.settings?.paymentRequired) {
-          goToStep('payment')
-          setPaymentError(null)
-          setPaymentProvider(null)
-          setPaymentClientSecret(null)
-          setPaymentIntentId(null)
-          setPaymentAmount(null)
-        } else {
-          goToStep('done')
-        }
+        // For now, always finalize the booking immediately after creating
+        // the appointment and show the confirmation screen. The payment
+        // step remains available separately when needed.
+        goToStep('done')
       })
       .catch((err) => {
         const status = err.response?.status
@@ -617,10 +615,14 @@ export default function BusinessBookingPage() {
           submitLoading={submitLoading}
           submitError={submitError}
           createdAppointment={createdAppointment}
-          onContinueToPayment={createdAppointment ? () => goToStep('payment') : undefined}
+          onContinueToPayment={
+            business.settings?.paymentRequired && createdAppointment
+              ? () => goToStep('payment')
+              : undefined
+          }
           onBack={handleBack}
           onBackToCalendar={
-            createdAppointment
+            business.settings?.paymentRequired && createdAppointment
               ? () => {
                   setCreatedAppointment(null)
                   goToStep('date')
