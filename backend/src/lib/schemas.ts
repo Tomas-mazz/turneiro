@@ -10,6 +10,7 @@ export const createAppointmentSchema = z.object({
   date: z.string().regex(dateRegex, 'La fecha debe ser AAAA-MM-DD'),
   slotTime: z.string().regex(timeRegex, 'El horario debe ser HH:MM'),
   clientName: z.string().min(1, 'El nombre es obligatorio').max(100),
+  clientEmail: z.string().email('Ingresá un email válido'),
   clientPhone: z.string().regex(phoneRegex, {
     message: 'El teléfono debe ser internacional (+1234567890) o formato local',
   }),
