@@ -366,9 +366,8 @@ function DashboardContent() {
         </div>
       )}
 
-      {/* Servicios (precio y duración): solo visible para OWNER */}
       {userRole === 'OWNER' && (
-      <section className="mt-8 mb-10 sm:mt-10 sm:mb-12">
+      <section id="services-section" className="mt-8 mb-10 sm:mt-10 sm:mb-12">
         <h2 className="text-lg font-semibold text-neutral-900 sm:text-xl">Servicios (precio y duración)</h2>
         {loadingServices ? (
           <p className="mt-2 text-sm text-neutral-500">Cargando servicios...</p>
@@ -506,8 +505,7 @@ function DashboardContent() {
       </section>
       )}
 
-      {/* Bloquear días u horarios */}
-      <section className="mt-8 mb-10 sm:mt-10 sm:mb-12">
+      <section id="block-section" className="mt-8 mb-10 sm:mt-10 sm:mb-12">
         <h2 className="text-lg font-semibold text-neutral-900 sm:text-xl">Bloquear días u horarios</h2>
         <p className="mt-1 text-sm text-neutral-600">
           Bloqueá un día completo o un rango horario para que no aparezcan en la página de reservas.
@@ -635,8 +633,7 @@ function DashboardContent() {
         </div>
       </section>
 
-      {/* Cancelar turno */}
-      <section className="mt-8 sm:mt-10">
+      <section id="cancel-section" className="mt-8 sm:mt-10">
         <h2 className="text-lg font-semibold text-neutral-900 sm:text-xl">Cancelar turno</h2>
         <p className="mt-1 text-sm text-neutral-600">
           Ingresá el teléfono del cliente para ver sus reservas y cancelar. El motivo es obligatorio. Al cancelar se elimina de Google Calendar.
