@@ -2,6 +2,7 @@
 
 import type { ServiceOption, CreatedAppointment } from '../types'
 import { BookingLayout } from './BookingLayout'
+import { CalendarIcon } from '@/app/_assets/icons'
 
 type ClientFormStepProps = {
   businessName: string
@@ -9,8 +10,10 @@ type ClientFormStepProps = {
   selectedDate: string
   selectedSlot: string
   clientName: string
+  clientEmail: string
   clientPhone: string
   onClientName: (v: string) => void
+  onClientEmail: (v: string) => void
   onClientPhone: (v: string) => void
   onSubmit: (e: React.FormEvent) => void
   submitLoading: boolean
@@ -31,8 +34,10 @@ export function ClientFormStep({
   selectedDate,
   selectedSlot,
   clientName,
+  clientEmail,
   clientPhone,
   onClientName,
+  onClientEmail,
   onClientPhone,
   onSubmit,
   submitLoading,
@@ -46,8 +51,6 @@ export function ClientFormStep({
   isDarkTheme = true,
   onToggleTheme,
 }: ClientFormStepProps) {
-  const summary = `${selectedService.name} · ${selectedDate} · ${selectedSlot}`
-
   const backBtnClass = isDarkTheme
     ? 'bg-neutral-700/80 text-white hover:bg-neutral-600'
     : 'border border-neutral-300 bg-neutral-100 text-neutral-700 hover:bg-neutral-200'
@@ -57,8 +60,9 @@ export function ClientFormStep({
     ? 'w-full rounded-lg border border-neutral-600 bg-neutral-700/80 px-4 py-3 text-white placeholder-neutral-500 focus:border-neutral-500 focus:outline-none focus:ring-1 focus:ring-neutral-500'
     : 'w-full rounded-lg border border-neutral-400 bg-white px-4 py-3 text-neutral-800 placeholder-neutral-400 focus:border-neutral-600 focus:outline-none focus:ring-1 focus:ring-neutral-600'
   const summaryCardClass = isDarkTheme
-    ? 'rounded-xl border border-neutral-600 bg-neutral-700/80 px-4 py-3 text-neutral-200'
-    : 'rounded-xl border border-neutral-300 bg-white px-4 py-3 text-neutral-700'
+    ? 'border border-neutral-700/80 bg-neutral-800/80 text-neutral-100'
+    : 'border border-neutral-200 bg-white text-neutral-900'
+  const summaryIconBg = isDarkTheme ? 'bg-neutral-700 text-neutral-100' : 'bg-neutral-900 text-white'
   const secondaryBtnClass = isDarkTheme
     ? 'w-full rounded-lg border border-neutral-500 bg-neutral-700/80 py-3 font-medium text-white hover:bg-neutral-600'
     : 'w-full rounded-lg border border-neutral-400 bg-transparent py-3 font-medium text-neutral-800 hover:bg-neutral-100'
@@ -71,12 +75,14 @@ export function ClientFormStep({
         onToggleTheme={onToggleTheme}
         onGoToServices={onGoToServices}
       >
-        <div className="max-w-3xl">
+        <div className="mx-auto w-full max-w-xl md:max-w-2xl">
           <h2 className={`mb-4 min-w-0 truncate text-lg font-semibold md:mb-6 md:text-xl ${titleText}`}>
             Reserva creada
           </h2>
-          <div className={`mb-6 rounded-xl border px-4 py-4 ${summaryCardClass}`}>
-            <p className={`text-sm ${subText}`}>{summary}</p>
+          <div className={`mb-6 rounded-2xl px-4 py-4 shadow-sm ${summaryCardClass}`}>
+            <p className={`text-xs font-semibold uppercase tracking-wide ${subText}`}>
+              Resumen de tu turno
+            </p>
             <p className="mt-2 text-sm">
               Tu reserva está lista. Completá el pago para confirmar.
             </p>
@@ -112,7 +118,7 @@ export function ClientFormStep({
       onToggleTheme={onToggleTheme}
       onGoToServices={onGoToServices}
     >
-      <div className="max-w-3xl">
+      <div className="mx-auto w-full max-w-xl md:max-w-2xl">
         <div className="mb-4 flex min-w-0 items-center gap-3 md:mb-6 md:gap-4">
           {onBack && (
             <button
@@ -128,8 +134,26 @@ export function ClientFormStep({
             Tus datos
           </h2>
         </div>
-        <div className={`mb-6 rounded-xl border px-4 py-3 ${summaryCardClass}`}>
-          <p className="text-sm font-medium">{summary}</p>
+        <div className={`mb-6 rounded-2xl px-4 py-4 shadow-sm ${summaryCardClass}`}>
+          <p className={`text-xs font-semibold uppercase tracking-wide ${subText}`}>
+            Resumen de tu turno
+          </p>
+          <div className="mt-3 flex items-start gap-3">
+            <div
+              className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full ${summaryIconBg}`}
+              aria-hidden
+            >
+              <CalendarIcon className="h-5 w-5" />
+            </div>
+            <div className="min-w-0">
+              <p className={`truncate text-sm font-semibold ${titleText}`}>
+                {selectedService.name}
+              </p>
+              <p className={`mt-1 text-sm ${subText}`}>
+                {selectedDate} · {selectedSlot}
+              </p>
+            </div>
+          </div>
         </div>
 
         <form onSubmit={onSubmit} className="space-y-5">
@@ -145,6 +169,21 @@ export function ClientFormStep({
               onChange={(e) => onClientName(e.target.value)}
               className={inputClass}
               placeholder="Tu nombre"
+            />
+          </div>
+          <div>
+            <label htmlFor="clientEmail" className={`mb-2 block text-sm font-medium ${titleText}`}>
+              Gmail
+            </label>
+            <input
+              id="clientEmail"
+              type="email"
+              required
+              value={clientEmail}
+              onChange={(e) => onClientEmail(e.target.value)}
+              className={inputClass}
+              placeholder="tuusuario@gmail.com"
+              pattern="^[a-zA-Z0-9._%+-]+@gmail\\.com$"
             />
           </div>
           <div>

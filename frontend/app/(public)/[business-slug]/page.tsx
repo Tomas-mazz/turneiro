@@ -46,6 +46,7 @@ export default function BusinessBookingPage() {
   const [selectedSlot, setSelectedSlot] = useState<string | null>(null)
   const [selectedEmployeeId, setSelectedEmployeeId] = useState<string | null>(null)
   const [clientName, setClientName] = useState('')
+  const [clientEmail, setClientEmail] = useState('')
   const [clientPhone, setClientPhone] = useState('')
   const [submitLoading, setSubmitLoading] = useState(false)
   const [submitError, setSubmitError] = useState<string | null>(null)
@@ -117,6 +118,123 @@ export default function BusinessBookingPage() {
       .finally(() => setLoading(false))
   }, [slug])
 
+  // Restore previous booking state (step + basic selections) for this business
+  // so that a full reload keeps the user on the same section when possible.
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    if (!business) return
+
+    // If we already have an appointment and are showing the confirmation
+    // screen, don't override the current step with older persisted state.
+    if (createdAppointment && step === 'done') return
+
+    const storageKey = `booking:${slug}`
+    const raw = window.sessionStorage.getItem(storageKey)
+    if (!raw) return
+
+    try {
+      const parsed = JSON.parse(raw) as {
+        step?: Step
+        serviceId?: string
+        calendarMonth?: string
+        selectedDate?: string | null
+        selectedSlot?: string | null
+        selectedEmployeeId?: string | null
+        clientName?: string
+        clientEmail?: string
+        clientPhone?: string
+      }
+
+      const service =
+        parsed.serviceId && business.services
+          ? business.services.find((s) => s.id === parsed.serviceId) ?? null
+          : null
+
+      if (service) {
+        setSelectedService(service)
+      }
+      if (parsed.calendarMonth) {
+        const d = new Date(parsed.calendarMonth)
+        if (!Number.isNaN(d.getTime())) {
+          setCalendarMonth(d)
+        }
+      }
+      if (parsed.selectedDate) setSelectedDate(parsed.selectedDate)
+      if (parsed.selectedSlot) setSelectedSlot(parsed.selectedSlot)
+      if (parsed.selectedEmployeeId !== undefined) setSelectedEmployeeId(parsed.selectedEmployeeId)
+      if (parsed.clientName) setClientName(parsed.clientName)
+      if (parsed.clientEmail) setClientEmail(parsed.clientEmail)
+      if (parsed.clientPhone) setClientPhone(parsed.clientPhone)
+
+      // Decide the safest step we can restore given the data we have.
+      const requestedStep = parsed.step ?? step
+      const hasService = !!service
+      const hasDate = !!parsed.selectedDate
+      const hasSlot = !!parsed.selectedSlot
+
+      let nextStep: Step = 'hero'
+      if (requestedStep === 'payment') {
+        // Do not restore directly to payment because we don't persist createdAppointment.
+        nextStep = hasService && hasDate && hasSlot ? 'form' : hasService ? 'date' : 'service'
+      } else if (requestedStep === 'form') {
+        nextStep = hasService && hasDate && hasSlot ? 'form' : hasService ? 'date' : 'service'
+      } else if (requestedStep === 'date') {
+        nextStep = hasService ? 'date' : 'service'
+      } else if (requestedStep === 'service') {
+        nextStep = 'service'
+      } else if (requestedStep === 'hero') {
+        nextStep = 'hero'
+      } else if (requestedStep === 'done' && createdAppointment) {
+        nextStep = 'done'
+      } else {
+        nextStep = 'hero'
+      }
+
+      if (nextStep !== step) {
+        setStep(nextStep)
+        window.history.replaceState({ step: nextStep }, '', pathname ?? `/${slug}`)
+      }
+    } catch {
+      // Ignore corrupted storage, fallback to current step.
+    }
+    // We intentionally omit `step` from deps to avoid re-running after we adjust it here.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [business, slug, pathname, createdAppointment])
+
+  // Persist current step and basic booking state so reloads can restore it.
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    if (!slug) return
+
+    const storageKey = `booking:${slug}`
+    const serviceId = selectedService?.id
+
+    const payload = {
+      step,
+      serviceId,
+      calendarMonth: calendarMonth.toISOString(),
+      selectedDate,
+      selectedSlot,
+      selectedEmployeeId,
+      clientName,
+      clientEmail,
+      clientPhone,
+    }
+
+    window.sessionStorage.setItem(storageKey, JSON.stringify(payload))
+  }, [
+    slug,
+    step,
+    selectedService,
+    calendarMonth,
+    selectedDate,
+    selectedSlot,
+    selectedEmployeeId,
+    clientName,
+    clientEmail,
+    clientPhone,
+  ])
+
   // Background for service and date steps (dark or light theme)
   useEffect(() => {
     if (step !== 'service' && step !== 'date') return
@@ -136,6 +254,39 @@ export default function BusinessBookingPage() {
       document.body.style.transition = prevBodyTransition
     }
   }, [step, isDarkTheme])
+
+  // If we land on a deep step (form/payment) without the required state
+  // (e.g. corrupted state or direct navigation), reset to a safe starting step
+  // instead of rendering an empty screen. Prefer keeping the user inside
+  // the booking flow (service/date) instead of sending them back to hero.
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    if (!business) return
+
+    const hasCoreSelection = !!(selectedService && selectedDate && selectedSlot)
+
+    if (!hasCoreSelection && (step === 'form' || step === 'payment')) {
+      const fallbackStep: Step = selectedService ? 'date' : 'service'
+      setStep(fallbackStep)
+      window.history.replaceState({ step: fallbackStep }, '', pathname ?? `/${slug}`)
+      return
+    }
+
+    if (step === 'payment' && !createdAppointment) {
+      const fallbackStep: Step = hasCoreSelection ? 'form' : selectedService ? 'date' : 'service'
+      setStep(fallbackStep)
+      window.history.replaceState({ step: fallbackStep }, '', pathname ?? `/${slug}`)
+    }
+  }, [
+    step,
+    business,
+    selectedService,
+    selectedDate,
+    selectedSlot,
+    createdAppointment,
+    pathname,
+    slug,
+  ])
 
   useEffect(() => {
     if (step !== 'date' || !business || !selectedService) return
@@ -215,6 +366,13 @@ export default function BusinessBookingPage() {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
     if (!business || !selectedService || !selectedDate || !selectedSlot) return
+
+    const email = clientEmail.trim()
+    const gmailRegex = /^[a-zA-Z0-9._%+-]+@gmail\.com$/i
+    if (!gmailRegex.test(email)) {
+      setSubmitError('Ingresá un Gmail válido (por ejemplo, tuusuario@gmail.com).')
+      return
+    }
     setSubmitLoading(true)
     setSubmitError(null)
     api
@@ -224,21 +382,16 @@ export default function BusinessBookingPage() {
         date: selectedDate,
         slotTime: selectedSlot,
         clientName: clientName.trim(),
+        clientEmail: email,
         clientPhone: clientPhone.trim(),
         employeeId: selectedEmployeeId,
       })
       .then((res) => {
         setCreatedAppointment(res.data)
-        if (business.settings?.paymentRequired) {
-          goToStep('payment')
-          setPaymentError(null)
-          setPaymentProvider(null)
-          setPaymentClientSecret(null)
-          setPaymentIntentId(null)
-          setPaymentAmount(null)
-        } else {
-          goToStep('done')
-        }
+        // For now, always finalize the booking immediately after creating
+        // the appointment and show the confirmation screen. The payment
+        // step remains available separately when needed.
+        goToStep('done')
       })
       .catch((err) => {
         const status = err.response?.status
@@ -453,17 +606,23 @@ export default function BusinessBookingPage() {
           selectedDate={selectedDate}
           selectedSlot={selectedSlot}
           clientName={clientName}
+          clientEmail={clientEmail}
           clientPhone={clientPhone}
           onClientName={setClientName}
+          onClientEmail={setClientEmail}
           onClientPhone={setClientPhone}
           onSubmit={handleSubmit}
           submitLoading={submitLoading}
           submitError={submitError}
           createdAppointment={createdAppointment}
-          onContinueToPayment={createdAppointment ? () => goToStep('payment') : undefined}
+          onContinueToPayment={
+            business.settings?.paymentRequired && createdAppointment
+              ? () => goToStep('payment')
+              : undefined
+          }
           onBack={handleBack}
           onBackToCalendar={
-            createdAppointment
+            business.settings?.paymentRequired && createdAppointment
               ? () => {
                   setCreatedAppointment(null)
                   goToStep('date')

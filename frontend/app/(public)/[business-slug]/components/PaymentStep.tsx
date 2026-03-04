@@ -5,7 +5,8 @@ import { Elements } from '@stripe/react-stripe-js'
 import { StripePaymentForm } from './StripePaymentForm'
 import type { CreatedAppointment } from '../types'
 
-const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY || '')
+const publishableKey = process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY
+const stripePromise = publishableKey ? loadStripe(publishableKey) : null
 
 type PaymentStepProps = {
   createdAppointment: CreatedAppointment
@@ -97,7 +98,8 @@ export function PaymentStep({
         </div>
       ) : (
         paymentClientSecret &&
-        paymentIntentId && (
+        paymentIntentId &&
+        stripePromise && (
           <Elements
             stripe={stripePromise}
             options={{
