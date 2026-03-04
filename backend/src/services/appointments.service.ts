@@ -5,6 +5,7 @@ import type { CreateAppointmentInput } from '../lib/schemas'
 import * as stripeService from './stripe.service'
 import * as mercadopagoService from './mercadopago.service'
 import * as googleCalendarService from './google-calendar.service'
+import { sendAppointmentConfirmationEmail } from './email.service'
 
 export class SlotUnavailableError extends Error {
   constructor(message: string = 'El horario ya no está disponible') {
@@ -391,6 +392,7 @@ export async function createAppointmentService(data: CreateAppointmentInput) {
       price: service.price,
       paymentStatus: 'PENDING',
       clientName: data.clientName,
+      clientEmail: data.clientEmail,
       clientPhone: data.clientPhone,
       status: 'UPCOMING',
       cancellationToken,
@@ -398,9 +400,14 @@ export async function createAppointmentService(data: CreateAppointmentInput) {
   })
 
   // Sync to Google Calendar asynchronously (don't block response)
-  syncToGoogleCalendar(appointment.id, business.id).catch(err =>
+  syncToGoogleCalendar(appointment.id, business.id).catch(err => {
     console.error('Failed to sync to Google Calendar:', err)
-  )
+  })
+
+  // Send confirmation email asynchronously (don't block response)
+  sendAppointmentConfirmationEmail(appointment.id).catch(err => {
+    console.error('Failed to send confirmation email:', err)
+  })
 
   return {
     id: appointment.id,

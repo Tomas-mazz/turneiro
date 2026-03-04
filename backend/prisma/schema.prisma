@@ -112,6 +112,7 @@ model Appointment {
   paymentAmount Float?   // Amount paid (deposit or full)
   refundAmount  Float?   // Amount refunded (if cancelled)
   clientName    String
+  clientEmail   String?
   clientPhone   String
   status        String   // UPCOMING, COMPLETED, CANCELLED
   cancellationToken String? @unique
