@@ -23,6 +23,8 @@ import type { ServiceListItem, AppointmentListItem, BlockedSlotListItem } from '
 
 const GOOGLE_CALENDAR_URL = 'https://calendar.google.com'
 
+type DashboardSection = 'all' | 'services' | 'blocking' | 'cancel'
+
 function formatDateTime(iso: string) {
   const d = new Date(iso)
   return format(d, "d MMM yyyy, HH:mm", { locale: es })
@@ -43,8 +45,7 @@ function groupAppointmentsByDate(appointments: AppointmentListItem[]) {
   return Object.entries(groups).sort(([a], [b]) => a.localeCompare(b))
 }
 
-function DashboardContent() {
-  const searchParams = useSearchParams()
+export function DashboardContent({ section = 'all' }: { section?: DashboardSection }) {
   const [businessTitle, setBusinessTitle] = useState<string | null>(null)
   const [businessSlug, setBusinessSlug] = useState<string | null>(null)
   const [services, setServices] = useState<ServiceListItem[]>([])
@@ -61,9 +62,6 @@ function DashboardContent() {
   const [cancelModal, setCancelModal] = useState<AppointmentListItem | null>(null)
   const [cancelReason, setCancelReason] = useState('')
   const [cancelling, setCancelling] = useState(false)
-  const [calendarConnected, setCalendarConnected] = useState<boolean | null>(null)
-  const [calendarLoading, setCalendarLoading] = useState(false)
-  const [calendarMessage, setCalendarMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
   const [blockedSlots, setBlockedSlots] = useState<BlockedSlotListItem[]>([])
   const [loadingBlockedSlots, setLoadingBlockedSlots] = useState(true)
   const [blockDate, setBlockDate] = useState('')
@@ -100,12 +98,6 @@ function DashboardContent() {
   }, [userRole])
 
 
-  useEffect(() => {
-    getGoogleCalendarStatus()
-      .then((data) => setCalendarConnected(data.connected))
-      .catch(() => setCalendarConnected(false))
-  }, [])
-
   const loadBlockedSlots = () => {
     const today = format(new Date(), 'yyyy-MM-dd')
     const to = format(addDays(new Date(), 60), 'yyyy-MM-dd')
@@ -118,48 +110,6 @@ function DashboardContent() {
   useEffect(() => {
     loadBlockedSlots()
   }, [])
-
-  useEffect(() => {
-    const connected = searchParams.get('google_calendar')
-    const err = searchParams.get('google_calendar_error')
-    if (connected === 'connected') {
-      setCalendarMessage({ type: 'success', text: 'Google Calendar conectado correctamente.' })
-      setCalendarConnected(true)
-      window.history.replaceState({}, '', '/dashboard')
-    } else if (err) {
-      const messages: Record<string, string> = {
-        '1': 'No se pudo conectar Google Calendar. Intentá de nuevo.',
-        '2': 'No se recibió autorización. Revocá el acceso y autorizá de nuevo.',
-        '3': 'No se encontró calendario. Asegurate de tener Google Calendar habilitado.',
-      }
-      setCalendarMessage({ type: 'error', text: messages[err] || messages['1'] })
-      window.history.replaceState({}, '', '/dashboard')
-    }
-  }, [searchParams])
-
-  const handleConnectGoogleCalendar = async () => {
-    setCalendarLoading(true)
-    try {
-      const { authUrl } = await getGoogleCalendarAuthUrl()
-      window.location.href = authUrl
-    } catch (err) {
-      setError((err as { response?: { data?: { error?: string } } })?.response?.data?.error || 'Error al iniciar la conexión')
-      setCalendarLoading(false)
-    }
-  }
-
-  const handleDisconnectGoogleCalendar = async () => {
-    setCalendarLoading(true)
-    try {
-      await disconnectGoogleCalendar()
-      setCalendarConnected(false)
-      setCalendarMessage({ type: 'success', text: 'Google Calendar desconectado.' })
-    } catch (err) {
-      setError((err as { response?: { data?: { error?: string } } })?.response?.data?.error || 'Error al desconectar')
-    } finally {
-      setCalendarLoading(false)
-    }
-  }
 
   const handleLookupAppointment = async () => {
     const phone = phoneInput.trim()
@@ -271,87 +221,29 @@ function DashboardContent() {
     }
   }
 
+  if (!businessTitle) {
+    return (
+      <main className="flex min-h-[40vh] items-center justify-center p-8">
+        <p className="text-neutral-500">Cargando panel...</p>
+      </main>
+    )
+  }
+
   return (
     <main className="p-4 pb-10 sm:p-6 lg:p-8">
       {/* Título principal: nombre del negocio + Panel; derecha: volver a página principal */}
-      {businessTitle && (
-        <header className="mb-6 flex flex-col gap-3 border-b border-neutral-200 pb-4 sm:mb-8 sm:flex-row sm:items-center sm:justify-between sm:pb-6">
-          <h1 className="text-xl font-bold text-neutral-900 sm:text-2xl">
-            {businessTitle}
-          </h1>
-          <Link
-            href={businessSlug ? `/${businessSlug}` : '/'}
-            className="inline-flex shrink-0 items-center gap-1.5 text-sm font-medium text-neutral-600 underline decoration-neutral-300 underline-offset-2 transition-colors hover:text-neutral-900 hover:decoration-neutral-500"
-          >
-            <span aria-hidden>←</span>
-            Ir a la página principal
-          </Link>
-        </header>
-      )}
-
-      {/* Header: título a la izquierda, Google Calendar a la derecha */}
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h2 className="text-2xl font-bold text-neutral-900 sm:text-3xl">
-            {userRole === 'STAFF' ? 'Tu panel' : 'Configuración'}
-          </h2>
-          <p className="mt-1 text-sm text-neutral-600 sm:text-base">
-            {userRole === 'STAFF'
-              ? 'Conectá tu Google Calendar, bloqueá días u horarios y cancelá turnos con motivo obligatorio.'
-              : 'Editá precios y duración de tus servicios y cancelá turnos con motivo obligatorio.'}
-          </p>
-        </div>
-        <div className="flex shrink-0 flex-wrap items-center gap-2">
-          {calendarConnected ? (
-            <>
-              <a
-                href={GOOGLE_CALENDAR_URL}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="rounded-lg border border-sky-200 bg-sky-50 px-4 py-2.5 text-sm font-medium text-sky-800 transition-colors hover:bg-sky-100"
-              >
-                Ver Google Calendar
-              </a>
-              <button
-                type="button"
-                disabled={calendarLoading}
-                onClick={handleDisconnectGoogleCalendar}
-                className="rounded-lg border border-red-200 bg-red-50 px-4 py-2.5 text-sm font-medium text-red-700 transition-colors hover:bg-red-100 disabled:opacity-50"
-              >
-                Desconectar
-              </button>
-            </>
-          ) : (
-            <button
-              type="button"
-              disabled={calendarLoading}
-              onClick={handleConnectGoogleCalendar}
-              className="rounded-lg border border-sky-200 bg-sky-50 px-4 py-2.5 text-sm font-medium text-sky-800 transition-colors hover:bg-sky-100 disabled:opacity-50"
-            >
-              {calendarLoading ? 'Redirigiendo...' : 'Conectar Google Calendar'}
-            </button>
-          )}
-        </div>
-      </div>
-
-      {calendarMessage && (
-        <div
-          className={`mt-4 rounded-lg border p-3 text-sm sm:mt-4 ${
-            calendarMessage.type === 'success'
-              ? 'border-green-200 bg-green-50 text-green-800'
-              : 'border-red-200 bg-red-50 text-red-800'
-          }`}
+      <header className="mb-6 flex flex-col gap-3 border-b border-neutral-200 pb-4 sm:mb-8 sm:flex-row sm:items-center sm:justify-between sm:pb-6">
+        <h1 className="text-xl font-bold text-neutral-900 sm:text-2xl">
+          {businessTitle}
+        </h1>
+        <Link
+          href={businessSlug ? `/${businessSlug}` : '/'}
+          className="inline-flex shrink-0 items-center gap-1.5 text-sm font-medium text-neutral-600 underline decoration-neutral-300 underline-offset-2 transition-colors hover:text-neutral-900 hover:decoration-neutral-500"
         >
-          {calendarMessage.text}
-          <button
-            type="button"
-            onClick={() => setCalendarMessage(null)}
-            className="ml-2 underline"
-          >
-            Cerrar
-          </button>
-        </div>
-      )}
+          <span aria-hidden>←</span>
+          Ir a la página principal
+        </Link>
+      </header>
 
       {error && (
         <div className="mt-4 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-800">
@@ -366,8 +258,8 @@ function DashboardContent() {
         </div>
       )}
 
-      {userRole === 'OWNER' && (
-      <section id="services-section" className="mt-8 mb-10 sm:mt-10 sm:mb-12">
+      {userRole === 'OWNER' && (section === 'all' || section === 'services') && (
+      <section className="mt-8 mb-10 sm:mt-10 sm:mb-12">
         <h2 className="text-lg font-semibold text-neutral-900 sm:text-xl">Servicios (precio y duración)</h2>
         {loadingServices ? (
           <p className="mt-2 text-sm text-neutral-500">Cargando servicios...</p>
@@ -505,7 +397,8 @@ function DashboardContent() {
       </section>
       )}
 
-      <section id="block-section" className="mt-8 mb-10 sm:mt-10 sm:mb-12">
+      {(section === 'all' || section === 'blocking') && (
+      <section className="mt-8 mb-10 sm:mt-10 sm:mb-12">
         <h2 className="text-lg font-semibold text-neutral-900 sm:text-xl">Bloquear días u horarios</h2>
         <p className="mt-1 text-sm text-neutral-600">
           Bloqueá un día completo o un rango horario para que no aparezcan en la página de reservas.
@@ -632,8 +525,10 @@ function DashboardContent() {
           )}
         </div>
       </section>
+      )}
 
-      <section id="cancel-section" className="mt-8 sm:mt-10">
+      {(section === 'all' || section === 'cancel') && (
+      <section className="mt-8 sm:mt-10">
         <h2 className="text-lg font-semibold text-neutral-900 sm:text-xl">Cancelar turno</h2>
         <p className="mt-1 text-sm text-neutral-600">
           Ingresá el teléfono del cliente para ver sus reservas y cancelar. El motivo es obligatorio. Al cancelar se elimina de Google Calendar.
@@ -716,6 +611,7 @@ function DashboardContent() {
           )
         })()}
       </section>
+      )}
 
       {/* Modal cancelar */}
       {cancelModal && (
@@ -759,10 +655,245 @@ function DashboardContent() {
   )
 }
 
-export default function DashboardPage() {
+function DashboardHome() {
+  const [businessTitle, setBusinessTitle] = useState<string | null>(null)
+  const [businessSlug, setBusinessSlug] = useState<string | null>(null)
+  const [userRole, setUserRole] = useState<string | null>(null)
+  const [calendarConnected, setCalendarConnected] = useState<boolean | null>(null)
+  const [calendarLoading, setCalendarLoading] = useState(false)
+  const [calendarMessage, setCalendarMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
+  const searchParams = useSearchParams()
+
+  useEffect(() => {
+    const user = getAuthUser()
+    setUserRole(user?.role ?? null)
+
+    getMyBusiness()
+      .then((b) => {
+        setBusinessTitle(`${b.name} - Panel`)
+        setBusinessSlug(b.slug)
+      })
+      .catch(() => setBusinessTitle('Panel'))
+
+    getGoogleCalendarStatus()
+      .then((data) => setCalendarConnected(data.connected))
+      .catch(() => setCalendarConnected(false))
+  }, [])
+
+  useEffect(() => {
+    const connected = searchParams.get('google_calendar')
+    const err = searchParams.get('google_calendar_error')
+    if (connected === 'connected') {
+      setCalendarMessage({ type: 'success', text: 'Google Calendar conectado correctamente.' })
+      setCalendarConnected(true)
+      window.history.replaceState({}, '', '/dashboard')
+    } else if (err) {
+      const messages: Record<string, string> = {
+        '1': 'No se pudo conectar Google Calendar. Intentá de nuevo.',
+        '2': 'No se recibió autorización. Revocá el acceso y autorizá de nuevo.',
+        '3': 'No se encontró calendario. Asegurate de tener Google Calendar habilitado.',
+      }
+      setCalendarMessage({ type: 'error', text: messages[err] || messages['1'] })
+      window.history.replaceState({}, '', '/dashboard')
+    }
+  }, [searchParams])
+
+  const handleConnectGoogleCalendar = async () => {
+    setCalendarLoading(true)
+    try {
+      const { authUrl } = await getGoogleCalendarAuthUrl()
+      window.location.href = authUrl
+    } catch {
+      setCalendarMessage({
+        type: 'error',
+        text: 'Error al iniciar la conexión. Intentá de nuevo.',
+      })
+      setCalendarLoading(false)
+    }
+  }
+
+  const handleDisconnectGoogleCalendar = async () => {
+    setCalendarLoading(true)
+    try {
+      await disconnectGoogleCalendar()
+      setCalendarConnected(false)
+      setCalendarMessage({ type: 'success', text: 'Google Calendar desconectado.' })
+    } catch {
+      setCalendarMessage({
+        type: 'error',
+        text: 'Error al desconectar. Intentá de nuevo.',
+      })
+    } finally {
+      setCalendarLoading(false)
+    }
+  }
+
+  const cards =
+    userRole === 'OWNER'
+      ? [
+          {
+            id: 'services',
+            title: 'Servicios',
+            description:
+              'Actualizá el precio y la duración de cada servicio que ofrecés en tu negocio.',
+            href: '/dashboard/services',
+          },
+          {
+            id: 'blocking',
+            title: 'Bloquear días u horarios',
+            description:
+              'Bloqueá días completos o rangos horarios para que no aparezcan como disponibles en la página de reservas.',
+            href: '/dashboard/blocking',
+          },
+          {
+            id: 'cancel',
+            title: 'Cancelar turnos',
+            description:
+              'Buscá turnos por teléfono, cancelalos con un motivo y sincronizá los cambios con Google Calendar.',
+            href: '/dashboard/cancel',
+          },
+        ]
+      : [
+          {
+            id: 'blocking',
+            title: 'Bloquear días u horarios',
+            description:
+              'Indicá cuándo no estás disponible para que esos horarios no se ofrezcan en las reservas.',
+            href: '/dashboard/blocking',
+          },
+          {
+            id: 'cancel',
+            title: 'Cancelar turnos',
+            description:
+              'Buscá tus turnos asignados por teléfono y cancelalos con un motivo obligatorio.',
+            href: '/dashboard/cancel',
+          },
+        ]
+
   return (
-    <Suspense fallback={<div className="p-8 text-neutral-500">Cargando...</div>}>
-      <DashboardContent />
-    </Suspense>
+    <main className="p-4 pb-10 sm:p-6 lg:p-8">
+      <header className="mb-6 border-b border-neutral-200 pb-4 sm:mb-8 sm:pb-6">
+        {businessTitle && (
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <h1 className="text-xl font-bold text-neutral-900 sm:text-2xl">
+              {businessTitle}
+            </h1>
+            <Link
+              href={businessSlug ? `/${businessSlug}` : '/'}
+              className="inline-flex shrink-0 items-center gap-1.5 text-sm font-medium text-neutral-600 underline decoration-neutral-300 underline-offset-2 transition-colors hover:text-neutral-900 hover:decoration-neutral-500"
+            >
+              <span aria-hidden>←</span>
+              Ir a la página principal
+            </Link>
+          </div>
+        )}
+      </header>
+
+      <section className="mb-6">
+        <h2 className="text-lg font-semibold text-neutral-900 sm:text-xl">
+          Tu panel
+        </h2>
+        <p className="mt-1 max-w-2xl text-sm text-neutral-600">
+          Usá estas secciones para administrar tu día a día: ajustar servicios, bloquear horarios y
+          cancelar turnos de forma ordenada.
+        </p>
+      </section>
+
+      {calendarMessage && (
+        <div
+          className={`mb-4 rounded-lg border p-3 text-sm ${
+            calendarMessage.type === 'success'
+              ? 'border-green-200 bg-green-50 text-green-800'
+              : 'border-red-200 bg-red-50 text-red-800'
+          }`}
+        >
+          {calendarMessage.text}
+          <button
+            type="button"
+            onClick={() => setCalendarMessage(null)}
+            className="ml-2 underline"
+          >
+            Cerrar
+          </button>
+        </div>
+      )}
+
+      <section className="mb-8 rounded-xl border border-sky-100 bg-sky-50/60 p-4 sm:p-5">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <h2 className="text-base font-semibold text-sky-900 sm:text-lg">
+              Conectá tu Google Calendar
+            </h2>
+            <p className="mt-1 text-sm text-sky-900/80">
+              Sincronizá tus turnos con Google Calendar para ver todo en un solo lugar. Las
+              cancelaciones que hagas desde este panel también se reflejan en tu calendario.
+            </p>
+          </div>
+          <div className="flex shrink-0 flex-wrap items-center gap-2">
+            {calendarConnected ? (
+              <>
+                <a
+                  href={GOOGLE_CALENDAR_URL}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="rounded-lg border border-sky-200 bg-white px-4 py-2.5 text-sm font-medium text-sky-800 transition-colors hover:bg-sky-50"
+                >
+                  Ver Google Calendar
+                </a>
+                <button
+                  type="button"
+                  disabled={calendarLoading}
+                  onClick={handleDisconnectGoogleCalendar}
+                  className="rounded-lg border border-red-200 bg-red-50 px-4 py-2.5 text-sm font-medium text-red-700 transition-colors hover:bg-red-100 disabled:opacity-50"
+                >
+                  {calendarLoading ? 'Desconectando...' : 'Desconectar'}
+                </button>
+              </>
+            ) : (
+              <button
+                type="button"
+                disabled={calendarLoading}
+                onClick={handleConnectGoogleCalendar}
+                className="rounded-lg border border-sky-300 bg-white px-4 py-2.5 text-sm font-medium text-sky-800 transition-colors hover:bg-sky-50 disabled:opacity-50"
+              >
+                {calendarLoading ? 'Redirigiendo...' : 'Conectar Google Calendar'}
+              </button>
+            )}
+          </div>
+        </div>
+      </section>
+
+      <section>
+        <h2 className="text-sm font-semibold uppercase tracking-wide text-neutral-500">
+          Secciones disponibles
+        </h2>
+        <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {cards.map((card) => (
+            <Link
+              key={card.id}
+              href={card.href}
+              className="group flex h-full flex-col justify-between rounded-xl border border-neutral-200 bg-white p-4 shadow-sm transition hover:border-sky-200 hover:shadow-md"
+            >
+              <div>
+                <h3 className="text-base font-semibold text-neutral-900">
+                  {card.title}
+                </h3>
+                <p className="mt-1 text-sm text-neutral-600">
+                  {card.description}
+                </p>
+              </div>
+              <span className="mt-3 inline-flex items-center text-sm font-medium text-sky-700 group-hover:text-sky-800">
+                Ir a esta sección
+                <span aria-hidden className="ml-1">→</span>
+              </span>
+            </Link>
+          ))}
+        </div>
+      </section>
+    </main>
   )
+}
+
+export default function DashboardPage() {
+  return <DashboardHome />
 }
