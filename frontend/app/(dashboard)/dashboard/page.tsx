@@ -716,7 +716,11 @@ export function DashboardContent({ section = 'all' }: { section?: DashboardSecti
               </tbody>
             </table>
           </div>
-        ) : null}
+        ) : (
+          <p className="mt-4 text-sm text-neutral-500">
+            Todavía no configuraste horarios. Completá al menos un día para que se ofrezcan turnos en la página de reservas.
+          </p>
+        )}
         <div className="mt-6 flex flex-wrap gap-3">
           <button
             type="button"
