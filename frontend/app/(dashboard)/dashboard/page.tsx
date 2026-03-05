@@ -20,12 +20,19 @@ import {
   getBlockedSlots,
   createBlockedSlot,
   deleteBlockedSlot,
+  getWorkingHours,
+  updateWorkingHours,
 } from '@/lib/api'
-import type { ServiceListItem, AppointmentListItem, BlockedSlotListItem } from '@/types'
+import type {
+  ServiceListItem,
+  AppointmentListItem,
+  BlockedSlotListItem,
+  WorkingHoursItem,
+} from '@/types'
 
 const GOOGLE_CALENDAR_URL = 'https://calendar.google.com'
 
-type DashboardSection = 'all' | 'services' | 'blocking' | 'cancel'
+type DashboardSection = 'all' | 'services' | 'blocking' | 'hours' | 'cancel'
 
 function formatDateTime(iso: string) {
   const d = new Date(iso)
@@ -77,6 +84,11 @@ export function DashboardContent({ section = 'all' }: { section?: DashboardSecti
   const [blockScope, setBlockScope] = useState<'BUSINESS' | 'SELF'>('BUSINESS')
   const [newService, setNewService] = useState({ name: '', price: '', duration: '30', isActive: true })
   const [creatingService, setCreatingService] = useState(false)
+  const [workingHours, setWorkingHours] = useState<WorkingHoursItem[]>([])
+  const [loadingWorkingHours, setLoadingWorkingHours] = useState(false)
+  const [savingWorkingHours, setSavingWorkingHours] = useState(false)
+  const [workingHoursError, setWorkingHoursError] = useState<string | null>(null)
+  const [workingHoursJustSaved, setWorkingHoursJustSaved] = useState(false)
 
   useEffect(() => {
     setUserRole(getAuthUser()?.role ?? null)
@@ -102,6 +114,17 @@ export function DashboardContent({ section = 'all' }: { section?: DashboardSecti
       .finally(() => setLoadingServices(false))
   }, [userRole])
 
+  useEffect(() => {
+    if (userRole !== 'OWNER') return
+    if (!(section === 'all' || section === 'hours')) return
+    setLoadingWorkingHours(true)
+    getWorkingHours()
+      .then(setWorkingHours)
+      .catch(() => setWorkingHoursError('Error al cargar horarios'))
+      .finally(() => setLoadingWorkingHours(false))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [userRole, section])
+
 
   const loadBlockedSlots = () => {
     const today = new Date()
@@ -109,8 +132,6 @@ export function DashboardContent({ section = 'all' }: { section?: DashboardSecti
     const to = format(addDays(today, 60), 'yyyy-MM-dd')
     getBlockedSlots({ from: todayStr, to })
       .then((list) => {
-        // Defensa extra: aunque el backend ya filtra por "from",
-        // nos aseguramos de no mostrar bloqueos de días pasados.
         const filtered = list.filter((b) => b.date >= todayStr)
         setBlockedSlots(filtered)
       })
@@ -274,6 +295,16 @@ export function DashboardContent({ section = 'all' }: { section?: DashboardSecti
     } finally {
       setBlockSubmitting(false)
     }
+  }
+
+  const handleWorkingHoursChange = (
+    dayOfWeek: number,
+    field: keyof WorkingHoursItem,
+    value: string | boolean | null
+  ) => {
+    setWorkingHours((prev) =>
+      prev.map((h) => (h.dayOfWeek === dayOfWeek ? { ...h, [field]: value } : h))
+    )
   }
 
   const handleDeleteBlock = async (id: string) => {
@@ -584,6 +615,145 @@ export function DashboardContent({ section = 'all' }: { section?: DashboardSecti
             </div>
           </>
         )}
+      </section>
+      )}
+
+      {userRole === 'OWNER' && (section === 'all' || section === 'hours') && (
+      <section className="mt-8 mb-10 sm:mt-10 sm:mb-12">
+        <h2 className="text-lg font-semibold text-neutral-900 sm:text-xl">Horarios de apertura</h2>
+        <p className="mt-1 text-sm text-neutral-600">
+          Configurá horario de apertura y cierre por día. Opcional: pausa donde no se atiende (ej. almuerzo).
+        </p>
+        {workingHoursError && (
+          <p className="mt-3 rounded-md bg-red-50 p-2 text-sm text-red-700">{workingHoursError}</p>
+        )}
+        {workingHoursJustSaved && !workingHoursError && (
+          <p className="mt-3 rounded-md bg-emerald-50 p-2 text-sm text-emerald-700">
+            Horarios guardados correctamente.
+          </p>
+        )}
+        {loadingWorkingHours ? (
+          <p className="mt-4 text-sm text-neutral-500">Cargando horarios...</p>
+        ) : workingHours.length > 0 ? (
+          <div className="mt-4 overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-neutral-200 text-left text-neutral-600">
+                  <th className="py-2">Día</th>
+                  <th className="py-2">Cerrado</th>
+                  <th className="py-2">Apertura</th>
+                  <th className="py-2">Cierre</th>
+                  <th className="py-2">Corte inicio</th>
+                  <th className="py-2">Corte fin</th>
+                </tr>
+              </thead>
+              <tbody>
+                {workingHours.map((h) => (
+                  <tr key={h.dayOfWeek} className="border-b border-neutral-100">
+                    <td className="py-2 font-medium">
+                      {['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'][h.dayOfWeek]}
+                    </td>
+                    <td className="py-2">
+                      <input
+                        type="checkbox"
+                        checked={h.isClosed}
+                        onChange={(e) => handleWorkingHoursChange(h.dayOfWeek, 'isClosed', e.target.checked)}
+                        className="rounded border-neutral-300 text-neutral-900"
+                      />
+                    </td>
+                    <td className="py-2">
+                      <input
+                        type="time"
+                        value={h.startTime}
+                        onChange={(e) => handleWorkingHoursChange(h.dayOfWeek, 'startTime', e.target.value)}
+                        disabled={h.isClosed}
+                        className="w-28 rounded border border-neutral-300 px-2 py-1 disabled:bg-neutral-100"
+                      />
+                    </td>
+                    <td className="py-2">
+                      <input
+                        type="time"
+                        value={h.endTime}
+                        onChange={(e) => handleWorkingHoursChange(h.dayOfWeek, 'endTime', e.target.value)}
+                        disabled={h.isClosed}
+                        className="w-28 rounded border border-neutral-300 px-2 py-1 disabled:bg-neutral-100"
+                      />
+                    </td>
+                    <td className="py-2">
+                      <input
+                        type="time"
+                        value={h.lunchStart ?? ''}
+                        onChange={(e) =>
+                          handleWorkingHoursChange(
+                            h.dayOfWeek,
+                            'lunchStart',
+                            e.target.value || null
+                          )
+                        }
+                        disabled={h.isClosed}
+                        placeholder="--:--"
+                        className="w-28 rounded border border-neutral-300 px-2 py-1 disabled:bg-neutral-100"
+                      />
+                    </td>
+                    <td className="py-2">
+                      <input
+                        type="time"
+                        value={h.lunchEnd ?? ''}
+                        onChange={(e) =>
+                          handleWorkingHoursChange(
+                            h.dayOfWeek,
+                            'lunchEnd',
+                            e.target.value || null
+                          )
+                        }
+                        disabled={h.isClosed}
+                        placeholder="--:--"
+                        className="w-28 rounded border border-neutral-300 px-2 py-1 disabled:bg-neutral-100"
+                      />
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : null}
+        <div className="mt-6 flex flex-wrap gap-3">
+          <button
+            type="button"
+            disabled={loadingWorkingHours || savingWorkingHours}
+            onClick={async () => {
+              setWorkingHoursError(null)
+              setWorkingHoursJustSaved(false)
+              setSavingWorkingHours(true)
+              try {
+                const payload = workingHours.map(
+                  ({ dayOfWeek, startTime, endTime, isClosed, lunchStart, lunchEnd }) => ({
+                    dayOfWeek,
+                    startTime,
+                    endTime,
+                    isClosed,
+                    lunchStart: lunchStart || null,
+                    lunchEnd: lunchEnd || null,
+                  })
+                )
+                const updated = await updateWorkingHours(payload)
+                setWorkingHours(updated)
+                setWorkingHoursJustSaved(true)
+                setTimeout(() => setWorkingHoursJustSaved(false), 2500)
+              } catch (err) {
+                const msg =
+                  (err as { response?: { data?: { error?: string } } })?.response?.data?.error ||
+                  'Error al guardar horarios'
+                setWorkingHoursError(msg)
+              } finally {
+                setSavingWorkingHours(false)
+              }
+            }}
+            className="rounded-lg bg-neutral-900 px-4 py-2.5 text-sm font-medium text-white hover:bg-neutral-800 disabled:opacity-50"
+          >
+            {savingWorkingHours ? 'Guardando...' : 'Guardar horarios'}
+          </button>
+        </div>
       </section>
       )}
 
@@ -956,6 +1126,13 @@ function DashboardHome() {
             description:
               'Actualizá el precio y la duración de cada servicio que ofrecés en tu negocio.',
             href: '/dashboard/services',
+          },
+          {
+            id: 'hours',
+            title: 'Horarios',
+            description:
+              'Definí el horario de apertura y cierre de cada día, incluyendo pausas donde no se atiende.',
+            href: '/dashboard/hours',
           },
           {
             id: 'blocking',

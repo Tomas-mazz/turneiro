@@ -207,6 +207,19 @@ export async function updateAdminWorkingHours(
   return data
 }
 
+// Working hours (owner dashboard)
+export async function getWorkingHours(): Promise<WorkingHoursItem[]> {
+  const { data } = await api.get<WorkingHoursItem[]>('/working-hours')
+  return data
+}
+
+export async function updateWorkingHours(
+  hours: WorkingHoursItem[]
+): Promise<WorkingHoursItem[]> {
+  const { data } = await api.put<WorkingHoursItem[]>('/working-hours', { hours })
+  return data
+}
+
 export async function createAdminBusiness(
   body: CreateBusinessBody
 ): Promise<{ id: string; slug: string }> {

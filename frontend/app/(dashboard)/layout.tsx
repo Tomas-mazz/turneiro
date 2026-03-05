@@ -9,7 +9,7 @@ import { getMyBusiness } from '@/lib/api'
 type DashboardRole = 'OWNER' | 'STAFF' | null
 
 type NavItem = {
-  id: 'home' | 'services' | 'block' | 'cancel'
+  id: 'home' | 'services' | 'hours' | 'block' | 'cancel'
   label: string
   href: string
 }
@@ -17,6 +17,7 @@ type NavItem = {
 const OWNER_ITEMS: NavItem[] = [
   { id: 'home', label: 'Inicio', href: '/dashboard' },
   { id: 'services', label: 'Servicios', href: '/dashboard/services' },
+  { id: 'hours', label: 'Horarios', href: '/dashboard/hours' },
   { id: 'block', label: 'Bloquear días u horarios', href: '/dashboard/blocking' },
   { id: 'cancel', label: 'Cancelar turnos', href: '/dashboard/cancel' },
 ]
@@ -94,13 +95,17 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
                   key={item.id}
                   type="button"
                   onClick={handleNavClick(item)}
-                  className={`flex w-full items-center rounded-lg px-3 py-2 text-left transition-colors ${
+                  className={`flex w-full items-center rounded-lg text-left transition-colors ${
                     isActive
                       ? 'bg-sky-500/90 text-white'
                       : 'text-sky-100 hover:bg-sky-600/70 hover:text-white'
+                  } ${
+                    item.id === 'block' && role === 'OWNER'
+                      ? 'ml-4 px-2 py-1.5 text-xs'
+                      : 'px-3 py-2 text-sm'
                   }`}
                 >
-                  <span className="text-sm font-medium">{item.label}</span>
+                  <span className="font-medium">{item.label}</span>
                 </button>
               )
             })}
