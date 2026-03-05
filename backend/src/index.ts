@@ -38,6 +38,7 @@ import authRoutes from './routes/auth'
 import paymentsRoutes from './routes/payments'
 import googleCalendarRoutes from './routes/google-calendar'
 import blockedSlotsRoutes from './routes/blockedSlots'
+import workingHoursRoutes from './routes/workingHours'
 import adminRoutes from './routes/admin'
 import uploadRoutes from './routes/upload'
 app.use('/api/businesses', businessesRoutes)
@@ -51,6 +52,7 @@ app.use('/api/auth', authRoutes)
 app.use('/api/payments', paymentsRoutes)
 app.use('/api/google-calendar', googleCalendarRoutes)
 app.use('/api/blocked-slots', blockedSlotsRoutes)
+app.use('/api/working-hours', workingHoursRoutes)
 
 // 404 handler
 app.use((req, res) => {

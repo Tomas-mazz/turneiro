@@ -1,5 +1,8 @@
 import { Response, NextFunction } from 'express'
-import { getEmployeeIdByUserIdService } from '../services/employees.service'
+import {
+  getEmployeeIdByUserIdService,
+  getOwnerEmployeeIdForBusinessService,
+} from '../services/employees.service'
 import type { AuthRequest } from './auth'
 
 export interface BusinessContext {
@@ -29,6 +32,10 @@ export async function requireBusinessContext(
   let staffEmployeeId: string | null | undefined
   if (req.user?.role === 'STAFF' && req.user?.userId) {
     staffEmployeeId = await getEmployeeIdByUserIdService(req.user.userId, businessId)
+  } else if (req.user?.role === 'OWNER') {
+    // When the owner has an employee marked as isOwner, use that employee id
+    // to represent the owner's personal calendar.
+    staffEmployeeId = await getOwnerEmployeeIdForBusinessService(businessId)
   } else {
     staffEmployeeId = undefined
   }

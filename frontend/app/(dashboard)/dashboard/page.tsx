@@ -10,6 +10,8 @@ import {
   getMyBusiness,
   getServices,
   updateService,
+  createService,
+  deleteService,
   getAppointmentsByPhone,
   cancelAppointmentByOwner,
   getGoogleCalendarAuthUrl,
@@ -18,12 +20,19 @@ import {
   getBlockedSlots,
   createBlockedSlot,
   deleteBlockedSlot,
+  getWorkingHours,
+  updateWorkingHours,
 } from '@/lib/api'
-import type { ServiceListItem, AppointmentListItem, BlockedSlotListItem } from '@/types'
+import type {
+  ServiceListItem,
+  AppointmentListItem,
+  BlockedSlotListItem,
+  WorkingHoursItem,
+} from '@/types'
 
 const GOOGLE_CALENDAR_URL = 'https://calendar.google.com'
 
-type DashboardSection = 'all' | 'services' | 'blocking' | 'cancel'
+type DashboardSection = 'all' | 'services' | 'blocking' | 'hours' | 'cancel'
 
 function formatDateTime(iso: string) {
   const d = new Date(iso)
@@ -72,6 +81,14 @@ export function DashboardContent({ section = 'all' }: { section?: DashboardSecti
   const [blockSubmitting, setBlockSubmitting] = useState(false)
   const [deletingBlockId, setDeletingBlockId] = useState<string | null>(null)
   const [userRole, setUserRole] = useState<string | null>(null)
+  const [blockScope, setBlockScope] = useState<'BUSINESS' | 'SELF'>('BUSINESS')
+  const [newService, setNewService] = useState({ name: '', price: '', duration: '30', isActive: true })
+  const [creatingService, setCreatingService] = useState(false)
+  const [workingHours, setWorkingHours] = useState<WorkingHoursItem[]>([])
+  const [loadingWorkingHours, setLoadingWorkingHours] = useState(false)
+  const [savingWorkingHours, setSavingWorkingHours] = useState(false)
+  const [workingHoursError, setWorkingHoursError] = useState<string | null>(null)
+  const [workingHoursJustSaved, setWorkingHoursJustSaved] = useState(false)
 
   useEffect(() => {
     setUserRole(getAuthUser()?.role ?? null)
@@ -97,12 +114,27 @@ export function DashboardContent({ section = 'all' }: { section?: DashboardSecti
       .finally(() => setLoadingServices(false))
   }, [userRole])
 
+  useEffect(() => {
+    if (userRole !== 'OWNER') return
+    if (!(section === 'all' || section === 'hours')) return
+    setLoadingWorkingHours(true)
+    getWorkingHours()
+      .then(setWorkingHours)
+      .catch(() => setWorkingHoursError('Error al cargar horarios'))
+      .finally(() => setLoadingWorkingHours(false))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [userRole, section])
+
 
   const loadBlockedSlots = () => {
-    const today = format(new Date(), 'yyyy-MM-dd')
-    const to = format(addDays(new Date(), 60), 'yyyy-MM-dd')
-    getBlockedSlots({ from: today, to })
-      .then(setBlockedSlots)
+    const today = new Date()
+    const todayStr = format(today, 'yyyy-MM-dd')
+    const to = format(addDays(today, 60), 'yyyy-MM-dd')
+    getBlockedSlots({ from: todayStr, to })
+      .then((list) => {
+        const filtered = list.filter((b) => b.date >= todayStr)
+        setBlockedSlots(filtered)
+      })
       .catch(() => setBlockedSlots([]))
       .finally(() => setLoadingBlockedSlots(false))
   }
@@ -160,6 +192,59 @@ export function DashboardContent({ section = 'all' }: { section?: DashboardSecti
     }
   }
 
+  const handleAddService = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!newService.name.trim() || !newService.price || !newService.duration) return
+    setCreatingService(true)
+    try {
+      const service = await createService({
+        name: newService.name.trim(),
+        price: Number(newService.price),
+        duration: Math.min(120, Math.max(15, Number(newService.duration))),
+        isActive: newService.isActive,
+      })
+      setServices((prev) => [...prev, service])
+      setNewService({ name: '', price: '', duration: '30', isActive: true })
+    } catch (err) {
+      setError(
+        (err as { response?: { data?: { error?: string } } })?.response?.data?.error ||
+          'Error al crear servicio'
+      )
+    } finally {
+      setCreatingService(false)
+    }
+  }
+
+  const handleToggleServiceActive = async (s: ServiceListItem) => {
+    setSavingId(s.id)
+    setJustSavedId(null)
+    try {
+      const updated = await updateService(s.id, { isActive: !s.isActive })
+      setServices((prev) => prev.map((x) => (x.id === s.id ? updated : x)))
+      setJustSavedId(s.id)
+    } catch (err) {
+      setError(
+        (err as { response?: { data?: { error?: string } } })?.response?.data?.error ||
+          'Error al actualizar servicio'
+      )
+    } finally {
+      setSavingId(null)
+    }
+  }
+
+  const handleDeleteService = async (serviceId: string) => {
+    if (!window.confirm('¿Eliminar este servicio?')) return
+    try {
+      await deleteService(serviceId)
+      setServices((prev) => prev.filter((s) => s.id !== serviceId))
+    } catch (err) {
+      setError(
+        (err as { response?: { data?: { error?: string } } })?.response?.data?.error ||
+          'Error al eliminar servicio'
+      )
+    }
+  }
+
   useEffect(() => {
     if (!justSavedId) return
     const t = setTimeout(() => setJustSavedId(null), 2500)
@@ -195,6 +280,9 @@ export function DashboardContent({ section = 'all' }: { section?: DashboardSecti
         body.startTime = blockStartTime
         body.endTime = blockEndTime
       }
+      if (userRole === 'OWNER') {
+        body.scope = blockScope
+      }
       await createBlockedSlot(body)
       setBlockDate('')
       setBlockType('FULL_DAY')
@@ -207,6 +295,16 @@ export function DashboardContent({ section = 'all' }: { section?: DashboardSecti
     } finally {
       setBlockSubmitting(false)
     }
+  }
+
+  const handleWorkingHoursChange = (
+    dayOfWeek: number,
+    field: keyof WorkingHoursItem,
+    value: string | boolean | null
+  ) => {
+    setWorkingHours((prev) =>
+      prev.map((h) => (h.dayOfWeek === dayOfWeek ? { ...h, [field]: value } : h))
+    )
   }
 
   const handleDeleteBlock = async (id: string) => {
@@ -260,13 +358,97 @@ export function DashboardContent({ section = 'all' }: { section?: DashboardSecti
 
       {userRole === 'OWNER' && (section === 'all' || section === 'services') && (
       <section className="mt-8 mb-10 sm:mt-10 sm:mb-12">
-        <h2 className="text-lg font-semibold text-neutral-900 sm:text-xl">Servicios (precio y duración)</h2>
+        <h2 className="text-lg font-semibold text-neutral-900 sm:text-xl">
+          Servicios (precio, duración y estado)
+        </h2>
         {loadingServices ? (
           <p className="mt-2 text-sm text-neutral-500">Cargando servicios...</p>
         ) : services.length === 0 ? (
-          <p className="mt-2 text-sm text-neutral-500">No hay servicios. El admin debe crearlos.</p>
+          <p className="mt-2 text-sm text-neutral-500">
+            No hay servicios. Podés crearlos desde aquí.
+          </p>
         ) : (
           <>
+            <form
+              onSubmit={handleAddService}
+              className="mt-4 mb-4 flex flex-wrap items-end gap-3 rounded-lg border border-neutral-200 bg-white p-4 shadow-sm"
+            >
+              <div className="w-40">
+                <label
+                  htmlFor="newServiceNameDashboard"
+                  className="mb-1 block text-xs text-neutral-600"
+                >
+                  Nombre *
+                </label>
+                <input
+                  id="newServiceNameDashboard"
+                  type="text"
+                  required
+                  value={newService.name}
+                  onChange={(e) => setNewService((p) => ({ ...p, name: e.target.value }))}
+                  placeholder="ej. Corte"
+                  className="w-full rounded-lg border border-neutral-300 px-3 py-2 text-sm"
+                />
+              </div>
+              <div className="w-24">
+                <label
+                  htmlFor="newServicePriceDashboard"
+                  className="mb-1 block text-xs text-neutral-600"
+                >
+                  Precio *
+                </label>
+                <input
+                  id="newServicePriceDashboard"
+                  type="number"
+                  required
+                  min={0}
+                  step={0.01}
+                  value={newService.price}
+                  onChange={(e) => setNewService((p) => ({ ...p, price: e.target.value }))}
+                  placeholder="500"
+                  className="w-full rounded-lg border border-neutral-300 px-3 py-2 text-sm"
+                />
+              </div>
+              <div className="w-24">
+                <label
+                  htmlFor="newServiceDurationDashboard"
+                  className="mb-1 block text-xs text-neutral-600"
+                >
+                  Duración (min) *
+                </label>
+                <input
+                  id="newServiceDurationDashboard"
+                  type="number"
+                  required
+                  min={15}
+                  max={120}
+                  value={newService.duration}
+                  onChange={(e) =>
+                    setNewService((p) => ({ ...p, duration: e.target.value }))
+                  }
+                  className="w-full rounded-lg border border-neutral-300 px-3 py-2 text-sm"
+                />
+              </div>
+              <label className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  checked={newService.isActive}
+                  onChange={(e) =>
+                    setNewService((p) => ({ ...p, isActive: e.target.checked }))
+                  }
+                  className="rounded border-neutral-300"
+                />
+                <span className="text-xs text-neutral-600">Activo</span>
+              </label>
+              <button
+                type="submit"
+                disabled={creatingService}
+                className="rounded-lg bg-neutral-900 px-4 py-2 text-sm font-medium text-white hover:bg-neutral-800 disabled:opacity-50"
+              >
+                {creatingService ? 'Agregando...' : 'Agregar servicio'}
+              </button>
+            </form>
+
             {/* Mobile: una card por servicio */}
             <div className="mt-4 space-y-4 md:hidden">
               {services.map((s) => (
@@ -303,17 +485,28 @@ export function DashboardContent({ section = 'all' }: { section?: DashboardSecti
                       />
                     </div>
                   </div>
-                  <div className="mt-3 flex justify-center sm:justify-end">
+                  <div className="mt-3 flex items-center justify-between gap-3">
+                    <button
+                      type="button"
+                      onClick={() => handleToggleServiceActive(s)}
+                      className={`rounded-lg border px-3 py-1.5 text-xs font-medium ${
+                        s.isActive
+                          ? 'border-emerald-200 bg-emerald-50 text-emerald-800'
+                          : 'border-neutral-300 bg-neutral-100 text-neutral-700'
+                      }`}
+                    >
+                      {s.isActive ? 'Activo' : 'Inactivo'}
+                    </button>
                     <button
                       type="button"
                       disabled={savingId === s.id}
                       onClick={() => handleSaveService(s)}
-                      className={`inline-block rounded-lg border px-4 py-2 text-sm font-medium transition-transform duration-300 disabled:hover:scale-100 ${
+                      className={`inline-block rounded-lg border px-4 py-2 text-sm font-medium ${
                         justSavedId === s.id
-                          ? 'border-emerald-300 bg-emerald-100 text-emerald-800 scale-105 animate-pulse'
+                          ? 'border-emerald-300 bg-emerald-100 text-emerald-800'
                           : savingId === s.id
                             ? 'border-emerald-200 bg-emerald-50 text-emerald-800 opacity-70'
-                            : 'border-emerald-200 bg-emerald-50 text-emerald-800 hover:scale-105 hover:bg-emerald-100 disabled:opacity-50'
+                            : 'border-emerald-200 bg-emerald-50 text-emerald-800 hover:bg-emerald-100 disabled:opacity-50'
                       }`}
                     >
                       {savingId === s.id
@@ -321,6 +514,13 @@ export function DashboardContent({ section = 'all' }: { section?: DashboardSecti
                         : justSavedId === s.id
                           ? 'Guardado ✓'
                           : 'Guardar'}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleDeleteService(s.id)}
+                      className="rounded-lg border border-red-200 bg-red-50 px-3 py-1.5 text-xs font-medium text-red-700 hover:bg-red-100"
+                    >
+                      Eliminar
                     </button>
                   </div>
                 </div>
@@ -334,7 +534,8 @@ export function DashboardContent({ section = 'all' }: { section?: DashboardSecti
                     <th className="px-4 py-3 font-medium text-neutral-700">Servicio</th>
                     <th className="px-4 py-3 font-medium text-neutral-700">Precio ($)</th>
                     <th className="px-4 py-3 font-medium text-neutral-700">Duración (min)</th>
-                    <th className="px-4 py-3 font-medium text-neutral-700">Acción</th>
+                    <th className="px-4 py-3 font-medium text-neutral-700">Estado</th>
+                    <th className="px-4 py-3 font-medium text-neutral-700">Acciones</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-neutral-200 bg-white">
@@ -365,18 +566,31 @@ export function DashboardContent({ section = 'all' }: { section?: DashboardSecti
                           }
                         />
                       </td>
-                      <td className="w-0 px-4 py-3">
-                        <span className="inline-block min-w-[7.5rem] text-center">
+                      <td className="px-4 py-3">
+                        <button
+                          type="button"
+                          onClick={() => handleToggleServiceActive(s)}
+                          className={`rounded-lg border px-3 py-1.5 text-xs font-medium ${
+                            s.isActive
+                              ? 'border-emerald-200 bg-emerald-50 text-emerald-800'
+                              : 'border-neutral-300 bg-neutral-100 text-neutral-700'
+                          }`}
+                        >
+                          {s.isActive ? 'Activo' : 'Inactivo'}
+                        </button>
+                      </td>
+                      <td className="px-4 py-3">
+                        <div className="flex items-center gap-2 justify-end">
                           <button
                             type="button"
                             disabled={savingId === s.id}
                             onClick={() => handleSaveService(s)}
-                            className={`inline-block rounded-lg border px-3 py-1.5 text-sm font-medium transition-transform duration-300 disabled:hover:scale-100 ${
+                            className={`inline-block rounded-lg border px-3 py-1.5 text-sm font-medium ${
                               justSavedId === s.id
-                                ? 'border-emerald-300 bg-emerald-100 text-emerald-800 scale-110 animate-pulse'
+                                ? 'border-emerald-300 bg-emerald-100 text-emerald-800'
                                 : savingId === s.id
                                   ? 'border-emerald-200 bg-emerald-50 text-emerald-800 opacity-70'
-                                  : 'border-emerald-200 bg-emerald-50 text-emerald-800 hover:scale-110 hover:bg-emerald-100 disabled:opacity-50'
+                                  : 'border-emerald-200 bg-emerald-50 text-emerald-800 hover:bg-emerald-100 disabled:opacity-50'
                             }`}
                           >
                             {savingId === s.id
@@ -385,7 +599,14 @@ export function DashboardContent({ section = 'all' }: { section?: DashboardSecti
                                 ? 'Guardado ✓'
                                 : 'Guardar'}
                           </button>
-                        </span>
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteService(s.id)}
+                            className="inline-block rounded-lg border border-red-200 bg-red-50 px-3 py-1.5 text-sm font-medium text-red-700 hover:bg-red-100"
+                          >
+                            Eliminar
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   ))}
@@ -394,6 +615,149 @@ export function DashboardContent({ section = 'all' }: { section?: DashboardSecti
             </div>
           </>
         )}
+      </section>
+      )}
+
+      {userRole === 'OWNER' && (section === 'all' || section === 'hours') && (
+      <section className="mt-8 mb-10 sm:mt-10 sm:mb-12">
+        <h2 className="text-lg font-semibold text-neutral-900 sm:text-xl">Horarios de apertura</h2>
+        <p className="mt-1 text-sm text-neutral-600">
+          Configurá horario de apertura y cierre por día. Opcional: pausa donde no se atiende (ej. almuerzo).
+        </p>
+        {workingHoursError && (
+          <p className="mt-3 rounded-md bg-red-50 p-2 text-sm text-red-700">{workingHoursError}</p>
+        )}
+        {workingHoursJustSaved && !workingHoursError && (
+          <p className="mt-3 rounded-md bg-emerald-50 p-2 text-sm text-emerald-700">
+            Horarios guardados correctamente.
+          </p>
+        )}
+        {loadingWorkingHours ? (
+          <p className="mt-4 text-sm text-neutral-500">Cargando horarios...</p>
+        ) : workingHours.length > 0 ? (
+          <div className="mt-4 overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-neutral-200 text-left text-neutral-600">
+                  <th className="py-2">Día</th>
+                  <th className="py-2">Cerrado</th>
+                  <th className="py-2">Apertura</th>
+                  <th className="py-2">Cierre</th>
+                  <th className="py-2">Corte inicio</th>
+                  <th className="py-2">Corte fin</th>
+                </tr>
+              </thead>
+              <tbody>
+                {workingHours.map((h) => (
+                  <tr key={h.dayOfWeek} className="border-b border-neutral-100">
+                    <td className="py-2 font-medium">
+                      {['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'][h.dayOfWeek]}
+                    </td>
+                    <td className="py-2">
+                      <input
+                        type="checkbox"
+                        checked={h.isClosed}
+                        onChange={(e) => handleWorkingHoursChange(h.dayOfWeek, 'isClosed', e.target.checked)}
+                        className="rounded border-neutral-300 text-neutral-900"
+                      />
+                    </td>
+                    <td className="py-2">
+                      <input
+                        type="time"
+                        value={h.startTime}
+                        onChange={(e) => handleWorkingHoursChange(h.dayOfWeek, 'startTime', e.target.value)}
+                        disabled={h.isClosed}
+                        className="w-28 rounded border border-neutral-300 px-2 py-1 disabled:bg-neutral-100"
+                      />
+                    </td>
+                    <td className="py-2">
+                      <input
+                        type="time"
+                        value={h.endTime}
+                        onChange={(e) => handleWorkingHoursChange(h.dayOfWeek, 'endTime', e.target.value)}
+                        disabled={h.isClosed}
+                        className="w-28 rounded border border-neutral-300 px-2 py-1 disabled:bg-neutral-100"
+                      />
+                    </td>
+                    <td className="py-2">
+                      <input
+                        type="time"
+                        value={h.lunchStart ?? ''}
+                        onChange={(e) =>
+                          handleWorkingHoursChange(
+                            h.dayOfWeek,
+                            'lunchStart',
+                            e.target.value || null
+                          )
+                        }
+                        disabled={h.isClosed}
+                        placeholder="--:--"
+                        className="w-28 rounded border border-neutral-300 px-2 py-1 disabled:bg-neutral-100"
+                      />
+                    </td>
+                    <td className="py-2">
+                      <input
+                        type="time"
+                        value={h.lunchEnd ?? ''}
+                        onChange={(e) =>
+                          handleWorkingHoursChange(
+                            h.dayOfWeek,
+                            'lunchEnd',
+                            e.target.value || null
+                          )
+                        }
+                        disabled={h.isClosed}
+                        placeholder="--:--"
+                        className="w-28 rounded border border-neutral-300 px-2 py-1 disabled:bg-neutral-100"
+                      />
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <p className="mt-4 text-sm text-neutral-500">
+            Todavía no configuraste horarios. Completá al menos un día para que se ofrezcan turnos en la página de reservas.
+          </p>
+        )}
+        <div className="mt-6 flex flex-wrap gap-3">
+          <button
+            type="button"
+            disabled={loadingWorkingHours || savingWorkingHours}
+            onClick={async () => {
+              setWorkingHoursError(null)
+              setWorkingHoursJustSaved(false)
+              setSavingWorkingHours(true)
+              try {
+                const payload = workingHours.map(
+                  ({ dayOfWeek, startTime, endTime, isClosed, lunchStart, lunchEnd }) => ({
+                    dayOfWeek,
+                    startTime,
+                    endTime,
+                    isClosed,
+                    lunchStart: lunchStart || null,
+                    lunchEnd: lunchEnd || null,
+                  })
+                )
+                const updated = await updateWorkingHours(payload)
+                setWorkingHours(updated)
+                setWorkingHoursJustSaved(true)
+                setTimeout(() => setWorkingHoursJustSaved(false), 2500)
+              } catch (err) {
+                const msg =
+                  (err as { response?: { data?: { error?: string } } })?.response?.data?.error ||
+                  'Error al guardar horarios'
+                setWorkingHoursError(msg)
+              } finally {
+                setSavingWorkingHours(false)
+              }
+            }}
+            className="rounded-lg bg-neutral-900 px-4 py-2.5 text-sm font-medium text-white hover:bg-neutral-800 disabled:opacity-50"
+          >
+            {savingWorkingHours ? 'Guardando...' : 'Guardar horarios'}
+          </button>
+        </div>
       </section>
       )}
 
@@ -439,6 +803,35 @@ export function DashboardContent({ section = 'all' }: { section?: DashboardSecti
                 </label>
               </div>
             </div>
+            {userRole === 'OWNER' && (
+              <div>
+                <span className="mb-1 block text-xs font-medium text-neutral-600">
+                  Aplicar a
+                </span>
+                <div className="flex gap-4">
+                  <label className="flex cursor-pointer items-center gap-2">
+                    <input
+                      type="radio"
+                      name="blockScope"
+                      checked={blockScope === 'BUSINESS'}
+                      onChange={() => setBlockScope('BUSINESS')}
+                      className="rounded-full border-neutral-300"
+                    />
+                    <span className="text-sm">Toda la tienda</span>
+                  </label>
+                  <label className="flex cursor-pointer items-center gap-2">
+                    <input
+                      type="radio"
+                      name="blockScope"
+                      checked={blockScope === 'SELF'}
+                      onChange={() => setBlockScope('SELF')}
+                      className="rounded-full border-neutral-300"
+                    />
+                    <span className="text-sm">Solo mi calendario</span>
+                  </label>
+                </div>
+              </div>
+            )}
             {blockType === 'TIME_SLOT' && (
               <>
                 <div>
@@ -737,6 +1130,13 @@ function DashboardHome() {
             description:
               'Actualizá el precio y la duración de cada servicio que ofrecés en tu negocio.',
             href: '/dashboard/services',
+          },
+          {
+            id: 'hours',
+            title: 'Horarios',
+            description:
+              'Definí el horario de apertura y cierre de cada día, incluyendo pausas donde no se atiende.',
+            href: '/dashboard/hours',
           },
           {
             id: 'blocking',

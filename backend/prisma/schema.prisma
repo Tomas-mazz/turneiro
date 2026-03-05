@@ -9,31 +9,31 @@ datasource db {
 
 // Business model - represents a business/barbershop/salon
 model Business {
-  id          String   @id @default(cuid())
-  name        String
-  slug        String   @unique
-  description String?
-  category    String   // Business category/rubro (barbershop, salon, spa, etc.)
-  logo        String?
-  coverPhoto  String?
-  coverVideo  String?
-  theme       String  @default("DARK")   // DARK = fondo oscuro, LIGHT = fondo blanco
-  primaryColor String  @default("#000000")  // derived from theme for buttons (set on save)
-  phone       String?
-  email       String?
-  address     String?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id           String   @id @default(cuid())
+  name         String
+  slug         String   @unique
+  description  String?
+  category     String // Business category/rubro (barbershop, salon, spa, etc.)
+  logo         String?
+  coverPhoto   String?
+  coverVideo   String?
+  theme        String   @default("DARK") // DARK = fondo oscuro, LIGHT = fondo blanco
+  primaryColor String   @default("#000000") // derived from theme for buttons (set on save)
+  phone        String?
+  email        String?
+  address      String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
 
   // Relations
-  users         User[]
-  appointments  Appointment[]
-  services      Service[]
-  workingHours  WorkingHours[]
-  blockedSlots  BlockedSlot[]
-  settings      BusinessSettings?
-  subscription  Subscription?
-  employees     Employee[]
+  users        User[]
+  appointments Appointment[]
+  services     Service[]
+  workingHours WorkingHours[]
+  blockedSlots BlockedSlot[]
+  settings     BusinessSettings?
+  subscription Subscription?
+  employees    Employee[]
 
   @@index([slug])
 }
@@ -50,8 +50,8 @@ model Employee {
   userId     String?  @unique // optional link to User (STAFF) for dashboard / per-employee flows
 
   // Relations
-  business Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
-  user     User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  business     Business      @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  user         User?         @relation(fields: [userId], references: [id], onDelete: SetNull)
   // In the future, appointments and blocked slots can be scoped per employee
   appointments Appointment[]
   blockedSlots BlockedSlot[]
@@ -62,19 +62,19 @@ model Employee {
 
 // User model - authentication for business owners/staff
 model User {
-  id        String   @id @default(cuid())
-  email     String   @unique
-  password  String   // Hashed password
-  role      String   // OWNER, ADMIN, STAFF
-  businessId String?
+  id                 String   @id @default(cuid())
+  email              String   @unique
+  password           String // Hashed password
+  role               String // OWNER, ADMIN, STAFF
+  businessId         String?
   googleRefreshToken String? // Google OAuth refresh token for Calendar API
   googleCalendarId   String? // Google Calendar ID (usually "primary")
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
 
   // Relations
-  business Business? @relation(fields: [businessId], references: [id], onDelete: Cascade)
-  employee Employee? // STAFF user linked to one employee for dashboard / calendar
+  business             Business?     @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  employee             Employee? // STAFF user linked to one employee for dashboard / calendar
   appointmentsSyncedTo Appointment[] // appointments whose GC event was created on this user's calendar
 
   @@index([email])
@@ -83,17 +83,17 @@ model User {
 
 // Service model - services offered by business
 model Service {
-  id        String   @id @default(cuid())
-  name      String
-  price     Float
-  duration  Int      // Duration in minutes (15-120)
-  isActive  Boolean  @default(true)
+  id         String   @id @default(cuid())
+  name       String
+  price      Float
+  duration   Int // Duration in minutes (15-120)
+  isActive   Boolean  @default(true)
   businessId String
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
 
   // Relations
-  business    Business      @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  business     Business      @relation(fields: [businessId], references: [id], onDelete: Cascade)
   appointments Appointment[]
 
   @@index([businessId])
@@ -101,36 +101,36 @@ model Service {
 
 // Appointment model - client appointments
 model Appointment {
-  id            String   @id @default(cuid())
-  startTime     DateTime
-  endTime       DateTime
-  serviceName   String
-  price         Float
-  paymentStatus String   // PENDING, PAID, REFUNDED, PARTIALLY_REFUNDED
-  paymentProvider String? // STRIPE, MERCADOPAGO
-  paymentIntentId String? // Stripe Payment Intent ID or Mercado Pago Preference ID
-  paymentAmount Float?   // Amount paid (deposit or full)
-  refundAmount  Float?   // Amount refunded (if cancelled)
-  clientName    String
-  clientEmail   String?
-  clientPhone   String
-  status        String   // UPCOMING, COMPLETED, CANCELLED
-  cancellationToken String? @unique
-  cancellationReason String? // Reason when cancelled by owner (mandatory in UI)
-  googleEventId String? // Google Calendar Event ID for syncing
-  syncedToUserId String? // User whose Google Calendar the event was created in (for per-employee sync)
+  id                   String   @id @default(cuid())
+  startTime            DateTime
+  endTime              DateTime
+  serviceName          String
+  price                Float
+  paymentStatus        String // PENDING, PAID, REFUNDED, PARTIALLY_REFUNDED
+  paymentProvider      String? // STRIPE, MERCADOPAGO
+  paymentIntentId      String? // Stripe Payment Intent ID or Mercado Pago Preference ID
+  paymentAmount        Float? // Amount paid (deposit or full)
+  refundAmount         Float? // Amount refunded (if cancelled)
+  clientName           String
+  clientEmail          String?
+  clientPhone          String
+  status               String // UPCOMING, COMPLETED, CANCELLED
+  cancellationToken    String?  @unique
+  cancellationReason   String? // Reason when cancelled by owner (mandatory in UI)
+  googleEventId        String? // Google Calendar Event ID for syncing
+  syncedToUserId       String? // User whose Google Calendar the event was created in (for per-employee sync)
   ownerCalendarEventId String? // When synced to staff, copy on owner's calendar (for owner view with color); deleted on cancel
-  businessId    String
-  employeeId    String?
-  serviceId     String?
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  businessId           String
+  employeeId           String?
+  serviceId            String?
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
 
   // Relations
-  business Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
-  service  Service? @relation(fields: [serviceId], references: [id], onDelete: SetNull)
-  employee Employee? @relation(fields: [employeeId], references: [id], onDelete: SetNull)
-  syncedToUser User? @relation(fields: [syncedToUserId], references: [id], onDelete: SetNull)
+  business     Business  @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  service      Service?  @relation(fields: [serviceId], references: [id], onDelete: SetNull)
+  employee     Employee? @relation(fields: [employeeId], references: [id], onDelete: SetNull)
+  syncedToUser User?     @relation(fields: [syncedToUserId], references: [id], onDelete: SetNull)
 
   @@index([businessId])
   @@index([startTime])
@@ -144,11 +144,11 @@ model Appointment {
 // WorkingHours model - business working hours per day
 model WorkingHours {
   id         String   @id @default(cuid())
-  dayOfWeek  Int      // 0 = Sunday, 1 = Monday, ..., 6 = Saturday
-  startTime  String   // Format: "HH:MM"
-  endTime    String   // Format: "HH:MM"
-  lunchStart String?  // Optional lunch break start
-  lunchEnd   String?  // Optional lunch break end
+  dayOfWeek  Int // 0 = Sunday, 1 = Monday, ..., 6 = Saturday
+  startTime  String // Format: "HH:MM"
+  endTime    String // Format: "HH:MM"
+  lunchStart String? // Optional lunch break start
+  lunchEnd   String? // Optional lunch break end
   isClosed   Boolean  @default(false)
   businessId String
   createdAt  DateTime @default(now())
@@ -165,9 +165,9 @@ model WorkingHours {
 model BlockedSlot {
   id         String   @id @default(cuid())
   date       DateTime @db.Date
-  startTime  String?  // Format: "HH:MM" (null if FULL_DAY)
-  endTime    String?  // Format: "HH:MM" (null if FULL_DAY)
-  type       String   // TIME_SLOT or FULL_DAY
+  startTime  String? // Format: "HH:MM" (null if FULL_DAY)
+  endTime    String? // Format: "HH:MM" (null if FULL_DAY)
+  type       String // TIME_SLOT or FULL_DAY
   reason     String?
   businessId String
   // Optional: when set, block applies only to that employee's agenda
@@ -176,7 +176,7 @@ model BlockedSlot {
   updatedAt  DateTime @updatedAt
 
   // Relations
-  business Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  business Business  @relation(fields: [businessId], references: [id], onDelete: Cascade)
   employee Employee? @relation(fields: [employeeId], references: [id], onDelete: Cascade)
 
   @@index([businessId])
@@ -186,18 +186,19 @@ model BlockedSlot {
 
 // BusinessSettings model - business configuration
 model BusinessSettings {
-  id                    String   @id @default(cuid())
-  paymentRequired       Boolean  @default(false)
-  paymentType           String?  // PERCENTAGE or FULL
-  depositPercentage     Float?   // If paymentType is PERCENTAGE
-  requireRegistrationBeforePayment Boolean @default(true)
-  freeCancellationWindow Int?    // Hours before appointment (e.g., 24)
-  cancellationHasCost   Boolean  @default(false)
-  lateCancellationFee    Float?   // Percentage if cancellationHasCost is true
-  bufferTime            Int?     // Minutes between appointments
-  businessId            String   @unique
-  createdAt             DateTime @default(now())
-  updatedAt             DateTime @updatedAt
+  id                               String   @id @default(cuid())
+  paymentRequired                  Boolean  @default(false)
+  paymentType                      String? // PERCENTAGE or FULL
+  depositPercentage                Float? // If paymentType is PERCENTAGE
+  requireRegistrationBeforePayment Boolean  @default(true)
+  freeCancellationWindow           Int? // Hours before appointment (e.g., 24)
+  cancellationHasCost              Boolean  @default(false)
+  lateCancellationFee              Float? // Percentage if cancellationHasCost is true
+  bufferTime                       Int? // Legacy: additional buffer minutes between appointments
+  slotIntervalMinutes              Int      @default(15) // Base slot interval (15, 20, 30...) for availability generation
+  businessId                       String   @unique
+  createdAt                        DateTime @default(now())
+  updatedAt                        DateTime @updatedAt
 
   // Relations
   business Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
@@ -208,8 +209,8 @@ model BusinessSettings {
 // Subscription model - business subscription/plan
 model Subscription {
   id         String   @id @default(cuid())
-  plan       String   // FREE, BASIC, PREMIUM
-  status     String   // ACTIVE, CANCELLED, EXPIRED
+  plan       String // FREE, BASIC, PREMIUM
+  status     String // ACTIVE, CANCELLED, EXPIRED
   businessId String   @unique
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt

@@ -13,7 +13,7 @@ function minutesToTime(m: number): string {
   return `${h.toString().padStart(2, '0')}:${mn.toString().padStart(2, '0')}`
 }
 
-const SLOT_GRANULARITY_MINUTES = 15
+const DEFAULT_SLOT_INTERVAL_MINUTES = 15
 
 /** Merge overlapping intervals [start, end] (in minutes). Input sorted by start. */
 function mergeIntervals(intervals: [number, number][]): [number, number][] {
@@ -79,6 +79,11 @@ export async function getAvailabilityService(
     include: {
       services: { where: { id: serviceId, isActive: true } },
       workingHours: true,
+      settings: {
+        select: {
+          slotIntervalMinutes: true,
+        },
+      },
     },
   })
 
@@ -95,6 +100,10 @@ export async function getAvailabilityService(
   const lunchStart = working.lunchStart ? timeToMinutes(working.lunchStart) : null
   const lunchEnd = working.lunchEnd ? timeToMinutes(working.lunchEnd) : null
   const duration = service.duration
+  const slotInterval =
+    business.settings?.slotIntervalMinutes && business.settings.slotIntervalMinutes > 0
+      ? business.settings.slotIntervalMinutes
+      : DEFAULT_SLOT_INTERVAL_MINUTES
 
   const dayStart = new Date(date)
   dayStart.setHours(0, 0, 0, 0)
@@ -130,15 +139,20 @@ export async function getAvailabilityService(
 
   // A full-day block without employeeId blocks the whole business.
   // A full-day block with employeeId blocks only that employee.
-  if (
-    blockedSlots.some(
-      (b) =>
-        b.type === 'FULL_DAY' &&
-        // If no employee is specified, any full-day block applies.
-        // If an employee is specified, only global (null) or matching employee blocks apply.
-        (!employeeId || b.employeeId === null || b.employeeId === employeeId)
-    )
-  ) {
+  const hasFullDayBlock = blockedSlots.some((b) => {
+    if (b.type !== 'FULL_DAY') return false
+    // When no employeeId is provided (single-resource business), only business-wide
+    // blocks (employeeId === null) should apply.
+    if (!employeeId) {
+      return b.employeeId === null
+    }
+    // When an employeeId is provided, apply:
+    // - global business blocks (employeeId === null)
+    // - plus blocks specific to that employee.
+    return b.employeeId === null || b.employeeId === employeeId
+  })
+
+  if (hasFullDayBlock) {
     return []
   }
 
@@ -155,7 +169,16 @@ export async function getAvailabilityService(
   }
   for (const b of blockedSlots) {
     if (b.type !== 'TIME_SLOT' || !b.startTime || !b.endTime) continue
-    if (employeeId && b.employeeId && b.employeeId !== employeeId) continue
+    if (employeeId) {
+      // When an employeeId is provided, apply:
+      // - global business blocks (employeeId === null)
+      // - plus blocks specific to that employee.
+      if (b.employeeId && b.employeeId !== employeeId) continue
+    } else {
+      // When no employeeId is provided (single-resource business),
+      // only business-wide blocks (employeeId === null) should apply.
+      if (b.employeeId) continue
+    }
     busyIntervals.push([timeToMinutes(b.startTime), timeToMinutes(b.endTime)])
   }
   const mergedBusy = mergeIntervals(busyIntervals)
@@ -174,11 +197,7 @@ export async function getAvailabilityService(
   for (const [segStart, segEnd] of segments) {
     const free = subtractBusyFromSegment(segStart, segEnd, mergedBusy)
     for (const [freeStart, freeEnd] of free) {
-      for (
-        let t = freeStart;
-        t + duration <= freeEnd;
-        t += SLOT_GRANULARITY_MINUTES
-      ) {
+      for (let t = freeStart; t + duration <= freeEnd; t += slotInterval) {
         slotSet.add(minutesToTime(t))
       }
     }

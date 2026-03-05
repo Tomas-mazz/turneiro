@@ -78,7 +78,8 @@ export interface AdminBusinessDetail {
     freeCancellationWindow: number | null
     cancellationHasCost: boolean
     lateCancellationFee: number | null
-    bufferTime: number | null
+  bufferTime: number | null
+  slotIntervalMinutes: number
   } | null
   owner: { id: string; email: string } | null
 }
@@ -107,7 +108,9 @@ export type CreateBusinessBody = {
   ownerPassword?: string
 }
 
-export type UpdateBusinessBody = Partial<CreateBusinessBody>
+export type UpdateBusinessBody = Partial<CreateBusinessBody> & {
+  slotIntervalMinutes?: number
+}
 
 export interface WorkingHoursItem {
   id?: string

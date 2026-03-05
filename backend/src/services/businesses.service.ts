@@ -144,7 +144,8 @@ export interface AdminBusinessDetail {
     freeCancellationWindow: number | null
     cancellationHasCost: boolean
     lateCancellationFee: number | null
-    bufferTime: number | null
+  bufferTime: number | null
+  slotIntervalMinutes: number
   } | null
   owner: { id: string; email: string } | null
 }
@@ -173,7 +174,8 @@ type BusinessByIdAdminRow = {
     freeCancellationWindow: number | null
     cancellationHasCost: boolean
     lateCancellationFee: number | null
-    bufferTime: number | null
+  bufferTime: number | null
+  slotIntervalMinutes: number
   } | null
   users: { id: string; email: string }[]
 }
@@ -211,6 +213,7 @@ export async function getBusinessByIdForAdmin(
           cancellationHasCost: true,
           lateCancellationFee: true,
           bufferTime: true,
+          slotIntervalMinutes: true,
         },
       },
       users: {
@@ -305,6 +308,7 @@ export async function createBusinessForAdmin(
         freeCancellationWindow: 24,
         cancellationHasCost: false,
         bufferTime: null,
+        slotIntervalMinutes: 15,
       },
     })
 
@@ -371,6 +375,7 @@ export interface UpdateBusinessForAdminInput {
   cancellationHasCost?: boolean
   lateCancellationFee?: number | null
   bufferTime?: number | null
+  slotIntervalMinutes?: number
   ownerEmail?: string
   ownerPassword?: string
 }
@@ -430,7 +435,8 @@ export async function updateBusinessForAdmin(
       input.freeCancellationWindow !== undefined ||
       input.cancellationHasCost !== undefined ||
       input.lateCancellationFee !== undefined ||
-      input.bufferTime !== undefined
+      input.bufferTime !== undefined ||
+      input.slotIntervalMinutes !== undefined
 
     if (hasSettingsInput) {
       const existingSettings = existing.settings
@@ -458,6 +464,10 @@ export async function updateBusinessForAdmin(
         input.bufferTime !== undefined
           ? input.bufferTime
           : existingSettings?.bufferTime ?? null
+      const slotIntervalMinutes =
+        input.slotIntervalMinutes !== undefined
+          ? input.slotIntervalMinutes
+          : existingSettings?.slotIntervalMinutes ?? 15
 
       await tx.businessSettings.upsert({
         where: { businessId },
@@ -471,6 +481,7 @@ export async function updateBusinessForAdmin(
           cancellationHasCost,
           lateCancellationFee,
           bufferTime,
+          slotIntervalMinutes,
         },
         update: {
           paymentRequired,
@@ -480,6 +491,7 @@ export async function updateBusinessForAdmin(
           cancellationHasCost,
           lateCancellationFee,
           bufferTime,
+          slotIntervalMinutes,
         },
       })
     }

@@ -27,6 +27,21 @@ export async function getEmployeeIdByUserIdService(
   return employee?.id ?? null
 }
 
+/**
+ * Get the Employee id marked as owner for a given business (used to scope
+ * the owner's personal calendar when blocking hours).
+ * Returns null if there is no owner-employee configured.
+ */
+export async function getOwnerEmployeeIdForBusinessService(
+  businessId: string
+): Promise<string | null> {
+  const employee = await prisma.employee.findFirst({
+    where: { businessId, isOwner: true },
+    select: { id: true },
+  })
+  return employee?.id ?? null
+}
+
 export async function getEmployeesForBusinessService(
   businessId: string
 ): Promise<EmployeeListItem[]> {
