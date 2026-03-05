@@ -49,10 +49,26 @@ export async function getServices(): Promise<ServiceListItem[]> {
 
 export async function updateService(
   id: string,
-  body: { price?: number; duration?: number }
+  body: { price?: number; duration?: number; isActive?: boolean }
 ): Promise<ServiceListItem> {
   const { data } = await api.patch<ServiceListItem>(`/services/${id}`, body)
   return data
+}
+
+export type CreateServiceBody = {
+  name: string
+  price: number
+  duration: number
+  isActive?: boolean
+}
+
+export async function createService(body: CreateServiceBody): Promise<ServiceListItem> {
+  const { data } = await api.post<ServiceListItem>('/services', body)
+  return data
+}
+
+export async function deleteService(id: string): Promise<void> {
+  await api.delete(`/services/${id}`)
 }
 
 export async function getAppointments(): Promise<AppointmentListItem[]> {
@@ -113,6 +129,7 @@ export type CreateBlockedSlotBody = {
   startTime?: string
   endTime?: string
   reason?: string
+  scope?: 'BUSINESS' | 'SELF'
 }
 
 export async function createBlockedSlot(

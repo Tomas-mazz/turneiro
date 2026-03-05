@@ -39,6 +39,7 @@ type SetupFormState = {
   cancellationHasCost: boolean
   lateCancellationFee: number | ''
   bufferTime: number | ''
+  slotIntervalMinutes: number | ''
 }
 
 export default function AdminBusinessSetupPage() {
@@ -65,6 +66,7 @@ export default function AdminBusinessSetupPage() {
     cancellationHasCost: false,
     lateCancellationFee: '',
     bufferTime: '',
+    slotIntervalMinutes: 15,
   })
   const [workingHours, setWorkingHours] = useState<WorkingHoursItem[]>([])
   const [workingHoursLoading, setWorkingHoursLoading] = useState(false)
@@ -99,6 +101,7 @@ export default function AdminBusinessSetupPage() {
           cancellationHasCost: b.settings?.cancellationHasCost ?? false,
           lateCancellationFee: b.settings?.lateCancellationFee ?? '',
           bufferTime: b.settings?.bufferTime ?? '',
+          slotIntervalMinutes: b.settings?.slotIntervalMinutes ?? 15,
         })
       })
       .catch(() => setError('Negocio no encontrado'))
@@ -173,7 +176,13 @@ export default function AdminBusinessSetupPage() {
     e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
   ) => {
     const { name, value } = e.target
-    const numFields = ['depositPercentage', 'freeCancellationWindow', 'lateCancellationFee', 'bufferTime']
+    const numFields = [
+      'depositPercentage',
+      'freeCancellationWindow',
+      'lateCancellationFee',
+      'bufferTime',
+      'slotIntervalMinutes',
+    ]
     const parsed = numFields.includes(name)
       ? (value === '' ? '' : (Number(value) || 0))
       : value
@@ -197,6 +206,8 @@ export default function AdminBusinessSetupPage() {
       ? Number(form.lateCancellationFee)
       : null,
     bufferTime: form.bufferTime === '' ? null : Number(form.bufferTime),
+    slotIntervalMinutes:
+      form.slotIntervalMinutes === '' ? undefined : Number(form.slotIntervalMinutes),
     ...(form.paymentRequired && { depositPercentage: form.depositPercentage === '' ? null : Number(form.depositPercentage) }),
   })
 
@@ -504,6 +515,29 @@ export default function AdminBusinessSetupPage() {
               />
               <p className="mt-0.5 text-xs text-neutral-500">
                 Tiempo mínimo entre una cita y la siguiente
+              </p>
+            </div>
+
+            <div className="mt-4 w-40">
+              <label
+                htmlFor="slotIntervalMinutes"
+                className="mb-1 block text-sm font-medium text-neutral-700"
+              >
+                Intervalo base entre turnos (minutos)
+              </label>
+              <input
+                id="slotIntervalMinutes"
+                name="slotIntervalMinutes"
+                type="number"
+                min={5}
+                max={240}
+                value={form.slotIntervalMinutes === '' ? '' : form.slotIntervalMinutes}
+                onChange={handleChange}
+                placeholder="15"
+                className="w-full rounded-lg border border-neutral-300 px-3 py-2 focus:border-neutral-500 focus:ring-1 focus:ring-neutral-500"
+              />
+              <p className="mt-0.5 text-xs text-neutral-500">
+                Cada cuánto aparecen los horarios disponibles (ej. 15 = 09:00, 09:15, 09:30...).
               </p>
             </div>
           </fieldset>

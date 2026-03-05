@@ -45,6 +45,7 @@ async function main() {
       freeCancellationWindow: 24,
       cancellationHasCost: false,
       bufferTime: 0,
+      slotIntervalMinutes: 15,
     },
     update: {},
   })

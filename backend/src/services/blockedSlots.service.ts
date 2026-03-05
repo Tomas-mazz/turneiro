@@ -20,9 +20,14 @@ export class BlockedSlotNotFoundError extends Error {
 
 export async function listBlockedSlotsService(
   businessId: string,
-  query: ListBlockedSlotsQuery
+  query: ListBlockedSlotsQuery,
+  employeeId?: string | null
 ): Promise<BlockedSlotListItem[]> {
-  const where: { businessId: string; date?: { gte?: Date; lte?: Date } } = {
+  const where: {
+    businessId: string
+    date?: { gte?: Date; lte?: Date }
+    OR?: { employeeId: string | null }[]
+  } = {
     businessId,
   }
 
@@ -35,6 +40,13 @@ export async function listBlockedSlotsService(
       dateFilter.lte = toDate
     }
     where.date = dateFilter
+  }
+
+  // When an employeeId is provided, we want to return:
+  // - global business blocks (employeeId = null)
+  // - plus blocks specific to that employee.
+  if (employeeId) {
+    where.OR = [{ employeeId: null }, { employeeId }]
   }
 
   const slots = await prisma.blockedSlot.findMany({
@@ -64,7 +76,8 @@ export async function listBlockedSlotsService(
 
 export async function createBlockedSlotService(
   businessId: string,
-  data: CreateBlockedSlotInput
+  data: CreateBlockedSlotInput,
+  employeeId?: string | null
 ) {
   // Use noon UTC so the calendar date is stored correctly in any server timezone
   const dateOnly = new Date(data.date + 'T12:00:00.000Z')
@@ -77,6 +90,9 @@ export async function createBlockedSlotService(
       startTime: data.type === 'TIME_SLOT' ? data.startTime! : null,
       endTime: data.type === 'TIME_SLOT' ? data.endTime! : null,
       reason: data.reason ?? null,
+      // When employeeId is provided, this block applies only to that employee's calendar.
+      // When null/undefined, it is a business-wide block.
+      employeeId: employeeId ?? null,
     },
     select: {
       id: true,

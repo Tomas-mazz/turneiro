@@ -1,5 +1,9 @@
 import { prisma } from '../lib/prisma'
-import type { UpdateServiceInput, CreateServiceAdminInput, UpdateServiceAdminInput } from '../lib/schemas'
+import type {
+  UpdateServiceInput,
+  CreateServiceAdminInput,
+  UpdateServiceAdminInput,
+} from '../lib/schemas'
 
 export interface ServiceListItem {
   id: string
@@ -49,6 +53,7 @@ export async function updateServicePriceAndDurationService(
     data: {
       ...(data.price !== undefined && { price: data.price }),
       ...(data.duration !== undefined && { duration: data.duration }),
+      ...(data.isActive !== undefined && { isActive: data.isActive }),
     },
     select: {
       id: true,
@@ -82,6 +87,17 @@ export async function createServiceForAdmin(
     },
   })
   return service
+}
+
+/**
+ * Owner/staff dashboard: create service scoped to current business.
+ * Reuses the same input rules as admin create.
+ */
+export async function createServiceForBusiness(
+  businessId: string,
+  data: CreateServiceAdminInput
+): Promise<ServiceListItem> {
+  return createServiceForAdmin(businessId, data)
 }
 
 export async function updateServiceForAdmin(
@@ -119,6 +135,24 @@ export async function deleteServiceForAdmin(serviceId: string): Promise<void> {
   })
   if (!existing) {
     throw new ServiceNotFoundError('Servicio no encontrado')
+  }
+  await prisma.service.delete({
+    where: { id: serviceId },
+  })
+}
+
+/**
+ * Owner dashboard: delete a service that belongs to the current business.
+ */
+export async function deleteServiceForBusiness(
+  serviceId: string,
+  businessId: string
+): Promise<void> {
+  const existing = await prisma.service.findFirst({
+    where: { id: serviceId, businessId },
+  })
+  if (!existing) {
+    throw new ServiceNotFoundError('Servicio no encontrado o no pertenece a tu negocio')
   }
   await prisma.service.delete({
     where: { id: serviceId },

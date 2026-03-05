@@ -13,7 +13,7 @@ function minutesToTime(m: number): string {
   return `${h.toString().padStart(2, '0')}:${mn.toString().padStart(2, '0')}`
 }
 
-const SLOT_GRANULARITY_MINUTES = 15
+const DEFAULT_SLOT_INTERVAL_MINUTES = 15
 
 /** Merge overlapping intervals [start, end] (in minutes). Input sorted by start. */
 function mergeIntervals(intervals: [number, number][]): [number, number][] {
@@ -79,6 +79,11 @@ export async function getAvailabilityService(
     include: {
       services: { where: { id: serviceId, isActive: true } },
       workingHours: true,
+      settings: {
+        select: {
+          slotIntervalMinutes: true,
+        },
+      },
     },
   })
 
@@ -95,6 +100,10 @@ export async function getAvailabilityService(
   const lunchStart = working.lunchStart ? timeToMinutes(working.lunchStart) : null
   const lunchEnd = working.lunchEnd ? timeToMinutes(working.lunchEnd) : null
   const duration = service.duration
+  const slotInterval =
+    business.settings?.slotIntervalMinutes && business.settings.slotIntervalMinutes > 0
+      ? business.settings.slotIntervalMinutes
+      : DEFAULT_SLOT_INTERVAL_MINUTES
 
   const dayStart = new Date(date)
   dayStart.setHours(0, 0, 0, 0)
@@ -174,11 +183,7 @@ export async function getAvailabilityService(
   for (const [segStart, segEnd] of segments) {
     const free = subtractBusyFromSegment(segStart, segEnd, mergedBusy)
     for (const [freeStart, freeEnd] of free) {
-      for (
-        let t = freeStart;
-        t + duration <= freeEnd;
-        t += SLOT_GRANULARITY_MINUTES
-      ) {
+      for (let t = freeStart; t + duration <= freeEnd; t += slotInterval) {
         slotSet.add(minutesToTime(t))
       }
     }

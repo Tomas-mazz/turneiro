@@ -25,12 +25,23 @@ export const cancelAppointmentSchema = z.object({
   token: z.string().min(1, 'El token de cancelación es obligatorio'),
 })
 
-export const updateServiceSchema = z.object({
-  price: z.number().positive('El precio debe ser positivo').optional(),
-  duration: z.number().int().min(15, 'Duración mínima 15 min').max(120, 'Duración máxima 120 min').optional(),
-}).refine((data) => data.price !== undefined || data.duration !== undefined, {
-  message: 'Debe enviar al menos precio o duración',
-})
+export const updateServiceSchema = z
+  .object({
+    price: z.number().positive('El precio debe ser positivo').optional(),
+    duration: z
+      .number()
+      .int()
+      .min(15, 'Duración mínima 15 min')
+      .max(120, 'Duración máxima 120 min')
+      .optional(),
+    isActive: z.boolean().optional(),
+  })
+  .refine(
+    (data) => data.price !== undefined || data.duration !== undefined || data.isActive !== undefined,
+    {
+      message: 'Debe enviar al menos precio, duración o estado activo',
+    }
+  )
 
 export const ownerCancelAppointmentSchema = z.object({
   reason: z.string().min(1, 'El motivo de cancelación es obligatorio').max(500),
@@ -70,6 +81,7 @@ export type LoginInput = z.infer<typeof loginSchema>
 
 // Blocked slots (owner dashboard)
 const blockedSlotTypeEnum = z.enum(['FULL_DAY', 'TIME_SLOT'])
+const blockedScopeEnum = z.enum(['BUSINESS', 'SELF'])
 
 export const createBlockedSlotSchema = z
   .object({
@@ -78,6 +90,9 @@ export const createBlockedSlotSchema = z
     startTime: z.string().regex(timeRegex).optional(),
     endTime: z.string().regex(timeRegex).optional(),
     reason: z.string().max(500).optional(),
+    // Optional scope for owner to choose between business-wide or personal calendar.
+    // Staff and admin callers can omit this field.
+    scope: blockedScopeEnum.optional(),
   })
   .refine(
     (data) => {
@@ -145,7 +160,13 @@ export const createBusinessSchema = z.object({
 
 export const updateBusinessSchema = z.object({
   name: z.string().min(1).max(200).optional(),
-  slug: z.string().min(1).max(100).regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/).transform((s) => s.toLowerCase()).optional(),
+  slug: z
+    .string()
+    .min(1)
+    .max(100)
+    .regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/)
+    .transform((s) => s.toLowerCase())
+    .optional(),
   category: z.string().min(1).max(100).optional(),
   description: z.string().max(1000).optional().nullable(),
   phone: z.string().max(50).optional().nullable(),
@@ -162,6 +183,12 @@ export const updateBusinessSchema = z.object({
   cancellationHasCost: z.boolean().optional(),
   lateCancellationFee: z.number().min(0, 'Mínimo 0%').max(100, 'Máximo 100%').optional().nullable(),
   bufferTime: z.number().int().min(0, 'Mínimo 0 minutos').optional().nullable(),
+  slotIntervalMinutes: z
+    .number()
+    .int()
+    .min(5, 'Mínimo 5 minutos')
+    .max(240, 'Máximo 240 minutos')
+    .optional(),
   ownerEmail: z.union([z.string().email(), z.literal('')]).optional(),
   ownerPassword: z.string().optional(),
 })
