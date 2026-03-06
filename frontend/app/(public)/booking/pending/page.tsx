@@ -24,7 +24,7 @@ export default function BookingPendingPage() {
           Tu pago está en proceso. Te avisaremos cuando se confirme.
         </p>
         {businessSlug ? (
-          <Link href={`/${businessSlug}`} className="text-blue-600 underline">
+          <Link href="/" className="text-blue-600 underline">
             Volver al negocio
           </Link>
         ) : (

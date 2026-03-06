@@ -335,7 +335,7 @@ export function DashboardContent({ section = 'all' }: { section?: DashboardSecti
           {businessTitle}
         </h1>
         <Link
-          href={businessSlug ? `/${businessSlug}` : '/'}
+          href="/"
           className="inline-flex shrink-0 items-center gap-1.5 text-sm font-medium text-neutral-600 underline decoration-neutral-300 underline-offset-2 transition-colors hover:text-neutral-900 hover:decoration-neutral-500"
         >
           <span aria-hidden>←</span>
@@ -1179,7 +1179,7 @@ function DashboardHome() {
               {businessTitle}
             </h1>
             <Link
-              href={businessSlug ? `/${businessSlug}` : '/'}
+              href="/"
               className="inline-flex shrink-0 items-center gap-1.5 text-sm font-medium text-neutral-600 underline decoration-neutral-300 underline-offset-2 transition-colors hover:text-neutral-900 hover:decoration-neutral-500"
             >
               <span aria-hidden>←</span>
@@ -1296,4 +1296,5 @@ function DashboardHome() {
 
 export default function DashboardPage() {
   return <DashboardHome />
+
 }
