@@ -79,11 +79,20 @@ export default function RegisterPage() {
     }
   }
 
+  const mainClass = 'flex min-h-screen flex-col items-center justify-center p-4 transition-colors duration-300'
+  const mainStyle = { backgroundColor: 'hsl(0, 0%, 9%)' }
+  const cardClass = 'w-full max-w-sm rounded-2xl border border-neutral-700 bg-neutral-800 p-6 shadow-xl'
+  const titleClass = 'text-xl font-semibold text-white'
+  const subClass = 'text-sm text-neutral-400'
+  const labelClass = 'block text-sm font-medium text-neutral-300'
+  const inputClass =
+    'mt-1 w-full rounded-lg border border-neutral-600 bg-neutral-700/80 px-3 py-2.5 text-white placeholder-neutral-500 focus:border-neutral-500 focus:outline-none focus:ring-1 focus:ring-neutral-500'
+
   if (!slugReady) {
     return (
-      <main className="flex min-h-screen flex-col items-center justify-center bg-neutral-100 p-4">
-        <div className="w-full max-w-sm rounded-xl bg-white p-6 shadow">
-          <p className="text-center text-neutral-600">Cargando...</p>
+      <main className={mainClass} style={mainStyle}>
+        <div className={cardClass}>
+          <p className="text-center text-neutral-400">Cargando...</p>
         </div>
       </main>
     )
@@ -91,13 +100,13 @@ export default function RegisterPage() {
 
   if (!storeSlug) {
     return (
-      <main className="flex min-h-screen flex-col items-center justify-center bg-neutral-100 p-4">
-        <div className="w-full max-w-sm rounded-xl bg-white p-6 shadow">
-          <p className="text-center text-neutral-600">
+      <main className={mainClass} style={mainStyle}>
+        <div className={cardClass}>
+          <p className="text-center text-neutral-400">
             Entrá desde el enlace de la tienda para registrarte (ej. vasco-barber.localhost o tu tienda en turneros.com).
           </p>
           <p className="mt-4 text-center text-sm">
-            <Link href="/" className="font-medium text-neutral-900 underline underline-offset-2">
+            <Link href="/" className="font-medium text-neutral-300 underline underline-offset-2 hover:text-white">
               Volver
             </Link>
           </p>
@@ -107,15 +116,13 @@ export default function RegisterPage() {
   }
 
   return (
-    <main className="flex min-h-screen flex-col items-center justify-center bg-neutral-100 p-4">
-      <div className="w-full max-w-sm rounded-xl bg-white p-6 shadow">
-        <h1 className="text-xl font-semibold text-neutral-900">Crear cuenta</h1>
-        <p className="mt-1 text-sm text-neutral-500">
-          Nombre, email y contraseña
-        </p>
+    <main className={mainClass} style={mainStyle}>
+      <div className={cardClass}>
+        <h1 className={titleClass}>Crear cuenta</h1>
+        <p className={`mt-1 ${subClass}`}>Nombre, email y contraseña</p>
         <form onSubmit={handleSubmit} className="mt-6 space-y-4">
           <div>
-            <label htmlFor="register-name" className="block text-sm font-medium text-neutral-700">
+            <label htmlFor="register-name" className={labelClass}>
               Nombre
             </label>
             <input
@@ -124,13 +131,13 @@ export default function RegisterPage() {
               required
               value={name}
               onChange={(e) => setName(e.target.value)}
-              className="mt-1 w-full rounded-lg border border-neutral-300 px-3 py-2 text-neutral-900 placeholder-neutral-400 focus:border-neutral-500 focus:outline-none focus:ring-1 focus:ring-neutral-500"
+              className={inputClass}
               autoComplete="name"
               placeholder="Tu nombre"
             />
           </div>
           <div>
-            <label htmlFor="register-email" className="block text-sm font-medium text-neutral-700">
+            <label htmlFor="register-email" className={labelClass}>
               Email
             </label>
             <input
@@ -139,13 +146,13 @@ export default function RegisterPage() {
               required
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="mt-1 w-full rounded-lg border border-neutral-300 px-3 py-2 text-neutral-900 placeholder-neutral-400 focus:border-neutral-500 focus:outline-none focus:ring-1 focus:ring-neutral-500"
+              className={inputClass}
               autoComplete="email"
               placeholder="tu@email.com"
             />
           </div>
           <div>
-            <label htmlFor="register-password" className="block text-sm font-medium text-neutral-700">
+            <label htmlFor="register-password" className={labelClass}>
               Contraseña
             </label>
             <input
@@ -155,32 +162,32 @@ export default function RegisterPage() {
               minLength={6}
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="mt-1 w-full rounded-lg border border-neutral-300 px-3 py-2 text-neutral-900 placeholder-neutral-400 focus:border-neutral-500 focus:outline-none focus:ring-1 focus:ring-neutral-500"
+              className={inputClass}
               autoComplete="new-password"
               placeholder="Mínimo 6 caracteres"
             />
           </div>
-          {error && <p className="text-sm text-red-600">{error}</p>}
+          {error && <p className="text-sm text-red-400">{error}</p>}
           <button
             type="submit"
             disabled={loading}
-            className="w-full rounded-lg bg-neutral-900 py-2.5 font-medium text-white hover:bg-neutral-800 disabled:opacity-50"
+            className="w-full rounded-lg bg-white py-2.5 font-medium text-black hover:opacity-90 disabled:opacity-50"
           >
             {loading ? 'Registrando...' : 'Registrarse'}
           </button>
         </form>
 
-        <div className="my-4 flex items-center gap-3 text-neutral-400">
-          <span className="flex-1 border-t border-current opacity-50" />
+        <div className="my-4 flex items-center gap-3 text-neutral-500">
+          <span className="flex-1 border-t border-neutral-600" />
           <span className="text-xs font-medium">o</span>
-          <span className="flex-1 border-t border-current opacity-50" />
+          <span className="flex-1 border-t border-neutral-600" />
         </div>
 
         <div className="flex flex-col gap-2">
           <button
             type="button"
             disabled
-            className="w-full rounded-lg border border-neutral-300 bg-neutral-100 py-2.5 text-sm font-medium text-neutral-500 opacity-70"
+            className="w-full rounded-lg border border-neutral-500 bg-neutral-700/50 py-2.5 text-sm font-medium text-neutral-400 opacity-70"
             title="Próximamente"
           >
             Registrarse con Google
@@ -189,7 +196,7 @@ export default function RegisterPage() {
             <button
               type="button"
               disabled
-              className="w-full rounded-lg border border-neutral-300 bg-neutral-100 py-2.5 text-sm font-medium text-neutral-500 opacity-70"
+              className="w-full rounded-lg border border-neutral-500 bg-neutral-700/50 py-2.5 text-sm font-medium text-neutral-400 opacity-70"
               title="Próximamente"
             >
               Registrarse con Apple
@@ -197,9 +204,9 @@ export default function RegisterPage() {
           )}
         </div>
 
-        <p className="mt-4 text-center text-sm text-neutral-600">
+        <p className={`mt-4 text-center text-sm text-neutral-400`}>
           ¿Ya tienes cuenta?{' '}
-          <Link href="/" className="font-medium text-neutral-900 underline underline-offset-2 hover:no-underline">
+          <Link href="/" className="font-medium text-neutral-300 underline underline-offset-2 hover:text-white">
             Inicia sesión
           </Link>
         </p>
