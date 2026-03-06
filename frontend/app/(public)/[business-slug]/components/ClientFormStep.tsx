@@ -26,6 +26,8 @@ type ClientFormStepProps = {
   primaryColor: string
   isDarkTheme?: boolean
   onToggleTheme?: () => void
+  onOpenLogin?: () => void
+  onOpenRegister?: () => void
 }
 
 export function ClientFormStep({
@@ -50,6 +52,8 @@ export function ClientFormStep({
   primaryColor,
   isDarkTheme = true,
   onToggleTheme,
+  onOpenLogin,
+  onOpenRegister,
 }: ClientFormStepProps) {
   const backBtnClass = isDarkTheme
     ? 'bg-neutral-700/80 text-white hover:bg-neutral-600'
@@ -74,6 +78,8 @@ export function ClientFormStep({
         isDarkTheme={isDarkTheme}
         onToggleTheme={onToggleTheme}
         onGoToServices={onGoToServices}
+        onOpenLogin={onOpenLogin}
+        onOpenRegister={onOpenRegister}
       >
         <div className="mx-auto w-full max-w-xl md:max-w-2xl">
           <h2 className={`mb-4 min-w-0 truncate text-lg font-semibold md:mb-6 md:text-xl ${titleText}`}>
@@ -117,6 +123,8 @@ export function ClientFormStep({
       isDarkTheme={isDarkTheme}
       onToggleTheme={onToggleTheme}
       onGoToServices={onGoToServices}
+      onOpenLogin={onOpenLogin}
+      onOpenRegister={onOpenRegister}
     >
       <div className="mx-auto w-full max-w-xl md:max-w-2xl">
         <div className="mb-4 flex min-w-0 items-center gap-3 md:mb-6 md:gap-4">

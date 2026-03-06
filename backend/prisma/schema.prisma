@@ -60,12 +60,13 @@ model Employee {
   @@index([userId])
 }
 
-// User model - authentication for business owners/staff
+// User model - authentication for business owners/staff and end clients (USER)
 model User {
   id                 String   @id @default(cuid())
+  name               String?  // Optional; used for client (USER) registration
   email              String   @unique
   password           String // Hashed password
-  role               String // OWNER, ADMIN, STAFF
+  role               String // OWNER, ADMIN, STAFF, USER
   businessId         String?
   googleRefreshToken String? // Google OAuth refresh token for Calendar API
   googleCalendarId   String? // Google Calendar ID (usually "primary")

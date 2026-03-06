@@ -24,11 +24,11 @@ Recommended branch name for this work:
 
 ### Implemented (summary)
 
-- **`frontend/middleware.ts`**: Reads hostname; on store subdomain (`*.localhost` or `*.turneros.com`) or on plain `localhost` with `NEXT_PUBLIC_DEV_DEFAULT_STORE_SLUG` set, rewrites `/` to `/{storeSlug}` so the public booking page is the "home". Excluded paths: `/dashboard`, `/admin`, `/login`, `/booking`, `/cancel`, `/api`, `/_next`, and public files.
+- **`frontend/middleware.ts`**: Reads hostname; on store subdomain (`*.localhost` or `*.turneros.com`) or on plain `localhost` with `NEXT_PUBLIC_DEV_DEFAULT_STORE_SLUG` set, rewrites `/` to `/{storeSlug}` so the public booking page is the "home". Excluded paths: `/dashboard`, `/admin`, `/login`, `/register`, `/booking`, `/cancel`, `/api`, `/_next`, and public files.
 - **Dev default store**: Env `NEXT_PUBLIC_DEV_DEFAULT_STORE_SLUG` (e.g. `vasco-barber`) makes `http://localhost:3000/` show that store without subdomain. Documented in `frontend/.env.example` and set in `frontend/.env.local` for local use.
 - **"Back to store" links**: All former ``href={`/${businessSlug}`}`` updated to `href="/"` in dashboard layout, dashboard page, and booking pending/failure/success pages. On the same host, `/` is always the store.
 - **Backend CORS**: `backend/src/index.ts` CORS allows `FRONTEND_URL`, `*.localhost` (dev), and `*.turneros.com` (prod) so login and API work from store subdomains.
-- **Routes**: Per-store = only `/` (rewritten to `/[business-slug]`). Global on same host = `/dashboard`, `/admin`, `/login`, `/booking/*`, `/cancel`, `/api/*`, `/_next/*`.
+- **Routes**: Per-store = only `/` (rewritten to `/[business-slug]`). Global on same host = `/dashboard`, `/admin`, `/login`, `/register`, `/booking/*`, `/cancel`, `/api/*`, `/_next/*`.
 
 ### 1.1 Routes and domain design
 
@@ -38,7 +38,7 @@ Decisions:
 - Keep the main booking page at `/(public)/[business-slug]/page.tsx`.
 - In production, use a wildcard DNS like `*.turneros.com` pointing to this frontend.
 - Keep these as **global routes within the same subdomain**:
-  - `/dashboard`, `/admin`, `/login`, `/booking/*`, `/cancel`, plus framework internals like `/_next/*`, `/api/*`.
+  - `/dashboard`, `/admin`, `/login`, `/register`, `/booking/*`, `/cancel`, plus framework internals like `/_next/*`, `/api/*`.
 
 Checklist:
 - [X] Document clearly how `{storeSlug}` is derived:
@@ -53,7 +53,7 @@ Checklist:
 Implementation (done):
 - `frontend/middleware.ts` reads `request.nextUrl.hostname` and `Host` header.
 - Store slug from host: `*.localhost` → part before `.localhost`; `*.turneros.com` → part before `.turneros.com`. Plain `localhost`/`127.0.0.1` → use `NEXT_PUBLIC_DEV_DEFAULT_STORE_SLUG` if set.
-- If path is `/` and we have a store slug, rewrite to `/{storeSlug}`. Excluded: `/dashboard`, `/admin`, `/login`, `/booking`, `/cancel`, `/api`, `/_next`, and static/public files.
+- If path is `/` and we have a store slug, rewrite to `/{storeSlug}`. Excluded: `/dashboard`, `/admin`, `/login`, `/register`, `/booking`, `/cancel`, `/api`, `/_next`, and static/public files.
 
 Checklist:
 - [X] Design and document the exact hostname → `{storeSlug}` extraction logic. Done in middleware; dev uses `.localhost` or env default.
@@ -103,14 +103,20 @@ Requirements for the **store public header**:
   - Option to log out.
 - Clients are **not required** to log in to book; login is an optional enhancement.
 
+**Implemented (guest UX):**
+- **Header buttons**: “Iniciar sesión” and “Registrarse” appear to the left of the theme toggle on the store booking steps (service, date, form). Same border/theme style as the theme button (dark: `border-white bg-neutral-900`; light: `border-black bg-white`). Implemented in `BookingHeader`, `BookingLayout`, and passed from `BusinessBookingPage` via `ServiceStep`, `DateStep`, `ClientFormStep`.
+- **Login**: Opens a **mini-modal** (`LoginModal`) on the same page. Form: email, password, “Iniciar sesión”; separator “——— o ———”; placeholders for “Continuar con Google” and “Continuar con Apple” (Apple only when `navigator.userAgent` indicates Mac/iOS). Link “¿No tienes cuenta? Regístrate aquí” closes the modal and navigates to `/register`. Login uses existing `POST /auth/login`; token and user stored in `localStorage` via `lib/auth.ts`.
+- **Register**: Dedicated **page** at `/register` (not a modal). Middleware excludes `/register` from rewrite. Page derives `storeSlug` from hostname (e.g. `vasco-barber.localhost`, or `NEXT_PUBLIC_DEV_DEFAULT_STORE_SLUG` on plain localhost). Form: name, email, password; “Registrarse”; same separator and Google/Apple placeholders. “¿Ya tienes cuenta? Inicia sesión” links to `/`. On success: `POST /auth/register` with `businessSlug`, then store token/user and redirect to `/`.
+- **Backend**: `POST /auth/register` added. Accepts `name`, `email`, `password`, `businessSlug`. Creates `User` with `role: 'USER'` and `businessId` for that store; validates email uniqueness (“El email ya está registrado”). Returns `{ token, user }` like login. Prisma `User` has optional `name`. Rate limit: same as login (5/15 min).
+
 Checklist:
-- [ ] Define exactly what each role sees in the header/menu:
-  - OWNER.
-  - STAFF.
-  - USER (cliente).
-  - Guest (not logged in).
+- [X] Guest: show “Iniciar sesión” and “Registrarse” in header with theme-matched border. Done in `BookingHeader` + layout + steps + page state.
+- [X] Login via mini-modal on store page using existing `/auth/login`. Done: `LoginModal`, wired in `BusinessBookingPage`.
+- [X] Register on separate route `/register` with store-scoped `businessSlug`. Done: `(public)/register/page.tsx`, middleware, backend `registerService` + route.
+- [ ] **Pending:** When logged in, show **user name + role** in header and replace login/register buttons with a menu (dashboard, account, settings, logout) per role.
+- [ ] Define exactly what each role sees in the header/menu (OWNER, STAFF, USER, Guest).
 - [ ] Define target URLs for each menu option (dashboard, account, settings, etc.).
-- [ ] Confirm that login and dashboard will live under the same store subdomain.
+- [X] Confirm that login and dashboard live under the same store subdomain. Yes; `/login` and `/register` are global on same host.
 
 ### 2.2 Auth mechanics (token, storage, per-subdomain behaviour)
 
@@ -125,12 +131,10 @@ Decisions:
   - Shared login across multiple hostnames.
 
 Checklist:
-- [ ] Verify that the current login flow (`/(auth)/login`) works correctly when served under a store subdomain.
-- [ ] Decide whether login will stay as a dedicated `/login` page or also be accessible via a modal inside the store header using the same API.
-- [ ] Document how roles from `auth_user` are used in:
-  - `/(dashboard)/layout.tsx`.
-  - `/(admin)/layout.tsx`.
-  - Future header/menu logic on the public store page.
+- [X] Login available as mini-modal in store header using same `POST /auth/login` API. Dedicated `/login` page still exists for direct navigation.
+- [X] Register available at `/register` page; uses `POST /auth/register` with `businessSlug` from host.
+- [ ] **Pending:** Optionally validate in backend that login is for a user belonging to the current store (e.g. require `businessSlug` and check `user.businessId`), so cross-store login is rejected.
+- [ ] Document how roles from `auth_user` are used in `/(dashboard)/layout.tsx`, `/(admin)/layout.tsx`, and future header/menu logic on the public store page.
 
 ### 2.3 Client account page
 
@@ -148,6 +152,13 @@ Checklist:
 - [ ] Decide the final route for the client account page.
 - [ ] Define the minimal data model and fields for the first version.
 - [ ] Document how this page should behave with and without existing appointments.
+
+### 2.4 Remaining steps (post–MVP or follow-up)
+
+- **Header when logged in**: Hide “Iniciar sesión” / “Registrarse”; show user name + role; dropdown/menu with Dashboard (owners/staff), Account (clients), Settings (owners/staff), Log out.
+- **Open login from register**: From `/register`, “¿Ya tienes cuenta? Inicia sesión” goes to `/`; optionally support `/?login=1` (or similar) to auto-open the login modal.
+- **Strict per-store login**: Backend login could accept `businessSlug` and return 403 or clear error if `user.businessId` does not match that store.
+- **Social login (Google / Apple)**: Buttons are present in LoginModal and register page as placeholders (“Próximamente”). Implement OAuth flows and backend endpoints (e.g. `POST /auth/google`, `POST /auth/apple`) when needed.
 
 ---
 

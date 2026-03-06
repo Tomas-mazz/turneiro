@@ -48,6 +48,8 @@ type DateStepProps = {
   primaryColor: string
   isDarkTheme?: boolean
   onToggleTheme?: () => void
+  onOpenLogin?: () => void
+  onOpenRegister?: () => void
 }
 
 export function DateStep({
@@ -74,6 +76,8 @@ export function DateStep({
   primaryColor,
   isDarkTheme = true,
   onToggleTheme,
+  onOpenLogin,
+  onOpenRegister,
 }: DateStepProps) {
   const backBtnClass = isDarkTheme
     ? 'bg-neutral-700/80 text-white hover:bg-neutral-600'
@@ -150,6 +154,8 @@ export function DateStep({
       isDarkTheme={isDarkTheme}
       onToggleTheme={onToggleTheme}
       onGoToServices={onGoToServices}
+      onOpenLogin={onOpenLogin}
+      onOpenRegister={onOpenRegister}
     >
       <div className="flex w-full flex-col">
         {/* Back + service title */}

@@ -19,6 +19,8 @@ type ServiceStepProps = {
   primaryColor: string
   isDarkTheme?: boolean
   onToggleTheme?: () => void
+  onOpenLogin?: () => void
+  onOpenRegister?: () => void
 }
 
 export function ServiceStep({
@@ -30,6 +32,8 @@ export function ServiceStep({
   primaryColor,
   isDarkTheme = true,
   onToggleTheme,
+  onOpenLogin,
+  onOpenRegister,
 }: ServiceStepProps) {
   const titleColor = isDarkTheme ? 'text-neutral-300' : 'text-neutral-800'
   const serviceNameColor = isDarkTheme ? 'text-white' : 'text-neutral-900'
@@ -88,6 +92,8 @@ export function ServiceStep({
       isDarkTheme={isDarkTheme}
       onToggleTheme={onToggleTheme}
       onGoToServices={onGoToServices}
+      onOpenLogin={onOpenLogin}
+      onOpenRegister={onOpenRegister}
     >
       <div className="flex max-w-4xl flex-col gap-8 md:max-w-4xl md:flex-row md:gap-10 lg:max-w-6xl lg:gap-12">
         {/* Left: services list */}

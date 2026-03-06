@@ -1,8 +1,9 @@
 'use client'
 
 import { useEffect, useMemo, useState, useCallback } from 'react'
-import { useParams, usePathname } from 'next/navigation'
+import { useParams, usePathname, useRouter } from 'next/navigation'
 import { api } from '@/lib/api'
+import { setAuthToken, setAuthUser } from '@/lib/auth'
 import type { Business, Step, ServiceOption, CreatedAppointment } from './types'
 import { formatDateKey, getNowInArgentina } from './utils'
 import {
@@ -10,6 +11,7 @@ import {
   BookingDone,
   ClientFormStep,
   DateStep,
+  LoginModal,
   PaymentStep,
   ServiceStep,
 } from './components'
@@ -58,6 +60,8 @@ export default function BusinessBookingPage() {
   const [paymentError, setPaymentError] = useState<string | null>(null)
   const [paymentProvider, setPaymentProvider] = useState<'STRIPE' | 'MERCADOPAGO' | null>(null)
   const [themeMode, setThemeMode] = useState<ThemeMode>('DARK')
+  const [isLoginOpen, setIsLoginOpen] = useState(false)
+  const router = useRouter()
 
   const isDarkTheme = themeMode === 'DARK'
 
@@ -561,6 +565,8 @@ export default function BusinessBookingPage() {
           primaryColor={primaryColor}
           isDarkTheme={isDarkTheme}
           onToggleTheme={() => setThemeMode((prev) => (prev === 'DARK' ? 'LIGHT' : 'DARK'))}
+          onOpenLogin={() => setIsLoginOpen(true)}
+          onOpenRegister={() => router.push('/register')}
         />
       )}
 
@@ -592,6 +598,8 @@ export default function BusinessBookingPage() {
           primaryColor={primaryColor}
           isDarkTheme={isDarkTheme}
           onToggleTheme={() => setThemeMode((prev) => (prev === 'DARK' ? 'LIGHT' : 'DARK'))}
+          onOpenLogin={() => setIsLoginOpen(true)}
+          onOpenRegister={() => router.push('/register')}
         />
       )}
 
@@ -629,6 +637,8 @@ export default function BusinessBookingPage() {
           primaryColor={primaryColor}
           isDarkTheme={isDarkTheme}
           onToggleTheme={() => setThemeMode((prev) => (prev === 'DARK' ? 'LIGHT' : 'DARK'))}
+          onOpenLogin={() => setIsLoginOpen(true)}
+          onOpenRegister={() => router.push('/register')}
         />
       )}
 
@@ -660,6 +670,21 @@ export default function BusinessBookingPage() {
           <BookingDone appointment={createdAppointment} primaryColor={primaryColor} />
         </div>
       )}
+
+      <LoginModal
+        open={isLoginOpen}
+        onClose={() => setIsLoginOpen(false)}
+        onSuccess={(user, token) => {
+          setAuthToken(token)
+          setAuthUser(user)
+          setIsLoginOpen(false)
+        }}
+        onOpenRegister={() => {
+          setIsLoginOpen(false)
+          router.push('/register')
+        }}
+        isDarkTheme={isDarkTheme}
+      />
     </main>
   )
 }
