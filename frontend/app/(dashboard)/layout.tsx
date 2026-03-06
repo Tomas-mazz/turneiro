@@ -114,7 +114,7 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
         <div className="border-t border-sky-600 px-4 py-4">
           {businessSlug && (
             <Link
-              href={`/${businessSlug}`}
+              href="/"
               onClick={(event) => {
                 event.stopPropagation()
               }}
@@ -197,7 +197,7 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
                 })}
                 {businessSlug && (
                   <Link
-                    href={`/${businessSlug}`}
+                    href="/"
                     onClick={() => setIsMoreOpen(false)}
                     className="flex w-full items-center justify-between border-t border-sky-600 px-4 py-2.5 text-left text-sm text-sky-50 hover:bg-sky-600"
                   >

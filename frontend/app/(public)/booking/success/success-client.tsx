@@ -113,7 +113,7 @@ export function BookingSuccessClient() {
             </a>
           </p>
         )}
-        <Link href={`/${booking.businessSlug}`} className="mt-6 inline-block text-blue-600 underline">
+        <Link href="/" className="mt-6 inline-block text-blue-600 underline">
           Volver al negocio
         </Link>
       </div>

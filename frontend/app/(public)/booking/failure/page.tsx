@@ -28,7 +28,7 @@ export default function BookingFailurePage() {
           Podés intentar de nuevo o elegir otro método de pago.
         </p>
         {businessSlug ? (
-          <Link href={`/${businessSlug}`} className="text-blue-600 underline">
+          <Link href="/" className="text-blue-600 underline">
             Volver a reservar
           </Link>
         ) : (

@@ -33,7 +33,7 @@ Decisions:
   - `/dashboard`, `/admin`, `/login`, `/booking/*`, `/cancel`, plus framework internals like `/_next/*`, `/api/*`.
 
 Checklist:
-- [ ] Document clearly how `{storeSlug}` is derived:
+- [X] Document clearly how `{storeSlug}` is derived:
   - From hostname `{storeSlug}.turneros.com` on the frontend.
   - From `Business.slug` on the backend.
 - [ ] Document which routes are “per store” vs global/shared.
@@ -55,9 +55,9 @@ Implementation outline:
   - Framework/internal paths like `/_next/*`, `/api/*`, assets, etc.
 
 Checklist:
-- [ ] Design and document the exact hostname → `{storeSlug}` extraction logic.
-- [ ] List the routes that must be excluded from rewrites.
-- [ ] Note how to simulate subdomains in development (e.g. `/etc/hosts` entries like `vasco-barber.localhost`).
+- [X] Design and document the exact hostname → `{storeSlug}` extraction logic.
+- [X] List the routes that must be excluded from rewrites.
+- [X] Note how to simulate subdomains in development (e.g. `/etc/hosts` entries like `vasco-barber.localhost`) and how to use `NEXT_PUBLIC_DEV_DEFAULT_STORE_SLUG` for `localhost:3000/`.
 
 ### 1.3 Links that go “back to the store”
 
@@ -77,8 +77,8 @@ Decision:
   - (Optional for the future) If we ever add a central panel domain, construct `https://{storeSlug}.turneros.com/` instead.
 
 Checklist:
-- [ ] Enumerate all call sites that use `/${businessSlug}` for navigation.
-- [ ] Decide whether, for now, all of them should change to `/` assuming dashboard/login live in the same subdomain.
+- [X] Enumerate all call sites that use `/${businessSlug}` for navigation.
+- [X] Decide whether, for now, all of them should change to `/` assuming dashboard/login live in the same subdomain.
 - [ ] Document how these links should behave if a central domain is added later.
 
 ---

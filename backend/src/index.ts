@@ -12,10 +12,30 @@ const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:3000'
 
 // Middleware
 app.use(helmet({ crossOriginResourcePolicy: { policy: 'cross-origin' } }))
-app.use(cors({
-  origin: FRONTEND_URL,
-  credentials: true,
-}))
+app.use(
+  cors({
+    origin(origin, callback) {
+      // Allow server-to-server, CLI tools, etc.
+      if (!origin) return callback(null, true)
+
+      // Always allow the configured frontend URL explicitly.
+      if (origin === FRONTEND_URL) return callback(null, true)
+
+      // Allow localhost dev subdomains like http://vasco-barber.localhost:3000
+      if (origin.startsWith('http://') && origin.endsWith('.localhost:3000')) {
+        return callback(null, true)
+      }
+
+      // Allow production subdomains like https://store.turneros.com
+      if (origin.startsWith('https://') && origin.endsWith('.turneros.com')) {
+        return callback(null, true)
+      }
+
+      return callback(new Error('Not allowed by CORS'))
+    },
+    credentials: true,
+  }),
+)
 
 // Stripe webhook needs raw body - must come before express.json()
 import webhooksRoutes from './routes/webhooks'
