@@ -20,7 +20,15 @@ Recommended branch name for this work:
 
 ---
 
-## Step 1 – Store routing architecture (Model A)
+## Step 1 – Store routing architecture (Model A) ✅ DONE
+
+### Implemented (summary)
+
+- **`frontend/middleware.ts`**: Reads hostname; on store subdomain (`*.localhost` or `*.turneros.com`) or on plain `localhost` with `NEXT_PUBLIC_DEV_DEFAULT_STORE_SLUG` set, rewrites `/` to `/{storeSlug}` so the public booking page is the "home". Excluded paths: `/dashboard`, `/admin`, `/login`, `/booking`, `/cancel`, `/api`, `/_next`, and public files.
+- **Dev default store**: Env `NEXT_PUBLIC_DEV_DEFAULT_STORE_SLUG` (e.g. `vasco-barber`) makes `http://localhost:3000/` show that store without subdomain. Documented in `frontend/.env.example` and set in `frontend/.env.local` for local use.
+- **"Back to store" links**: All former ``href={`/${businessSlug}`}`` updated to `href="/"` in dashboard layout, dashboard page, and booking pending/failure/success pages. On the same host, `/` is always the store.
+- **Backend CORS**: `backend/src/index.ts` CORS allows `FRONTEND_URL`, `*.localhost` (dev), and `*.turneros.com` (prod) so login and API work from store subdomains.
+- **Routes**: Per-store = only `/` (rewritten to `/[business-slug]`). Global on same host = `/dashboard`, `/admin`, `/login`, `/booking/*`, `/cancel`, `/api/*`, `/_next/*`.
 
 ### 1.1 Routes and domain design
 
@@ -34,30 +42,23 @@ Decisions:
 
 Checklist:
 - [X] Document clearly how `{storeSlug}` is derived:
-  - From hostname `{storeSlug}.turneros.com` on the frontend.
+  - From hostname `{storeSlug}.turneros.com` on the frontend (prod) or `{storeSlug}.localhost` (dev); from `NEXT_PUBLIC_DEV_DEFAULT_STORE_SLUG` when host is plain `localhost`.
   - From `Business.slug` on the backend.
-- [ ] Document which routes are “per store” vs global/shared.
+- [X] Document which routes are "per store" vs global/shared. Per store = `/` (rewrite only). Global = all other app routes listed above.
 
 ### 1.2 Middleware: host → store slug
 
-**Goal:** When the user visits `/` on a store subdomain, internally render `/(public)/[business-slug]` for that store.
+**Goal:** When the user visits `/` on a store subdomain (or localhost with default slug), internally render `/(public)/[business-slug]` for that store.
 
-Implementation outline:
-- Create `frontend/middleware.ts`.
-- Read `request.nextUrl.hostname` (for example `vasco-barber.turneros.com`).
-- Detect if the hostname represents a store subdomain:
-  - Extract `{storeSlug}` from the part before `.turneros.com`.
-  - Exclude any special hostnames if we ever add them (e.g. `turneros.com` marketing, or others).
-- If the path is `/` and we are on a store subdomain:
-  - Rewrite internally to `/(public)/[business-slug]` for that store (URL stays `/` for the user).
-- Do **not** rewrite requests for:
-  - `/dashboard`, `/admin`, `/login`, `/booking/*`, `/cancel`.
-  - Framework/internal paths like `/_next/*`, `/api/*`, assets, etc.
+Implementation (done):
+- `frontend/middleware.ts` reads `request.nextUrl.hostname` and `Host` header.
+- Store slug from host: `*.localhost` → part before `.localhost`; `*.turneros.com` → part before `.turneros.com`. Plain `localhost`/`127.0.0.1` → use `NEXT_PUBLIC_DEV_DEFAULT_STORE_SLUG` if set.
+- If path is `/` and we have a store slug, rewrite to `/{storeSlug}`. Excluded: `/dashboard`, `/admin`, `/login`, `/booking`, `/cancel`, `/api`, `/_next`, and static/public files.
 
 Checklist:
-- [X] Design and document the exact hostname → `{storeSlug}` extraction logic.
-- [X] List the routes that must be excluded from rewrites.
-- [X] Note how to simulate subdomains in development (e.g. `/etc/hosts` entries like `vasco-barber.localhost`) and how to use `NEXT_PUBLIC_DEV_DEFAULT_STORE_SLUG` for `localhost:3000/`.
+- [X] Design and document the exact hostname → `{storeSlug}` extraction logic. Done in middleware; dev uses `.localhost` or env default.
+- [X] List the routes that must be excluded from rewrites. Done in middleware `excludedPrefixes`.
+- [X] Simulate subdomains in development: add e.g. `127.0.0.1 vasco-barber.localhost` in `/etc/hosts`; or set `NEXT_PUBLIC_DEV_DEFAULT_STORE_SLUG=vasco-barber` for `localhost:3000/`.
 
 ### 1.3 Links that go “back to the store”
 
@@ -79,7 +80,7 @@ Decision:
 Checklist:
 - [X] Enumerate all call sites that use `/${businessSlug}` for navigation.
 - [X] Decide whether, for now, all of them should change to `/` assuming dashboard/login live in the same subdomain.
-- [ ] Document how these links should behave if a central domain is added later.
+- [X] If a central domain is added later: "back to store" could point to `https://{storeSlug}.turneros.com/` when not on a store host; current implementation assumes same host.
 
 ---
 
