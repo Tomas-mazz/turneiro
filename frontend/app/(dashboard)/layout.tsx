@@ -81,7 +81,7 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
               Tu negocio
             </p>
             <p className="mt-1 text-sm font-semibold text-white line-clamp-2">
-              {businessName ?? 'Panel'}
+              {businessName ?? 'Configuración'}
             </p>
           </div>
           <nav className="space-y-1 text-sm">

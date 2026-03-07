@@ -9,7 +9,7 @@ const sections = [
     icon: <SettingsIcon className="size-8" />,
   },
   {
-    title: "Dashboard",
+    title: "Configuración",
     description: "Panel para empleados y dueños. Gestión de servicios y agenda.",
     href: "/dashboard",
     icon: <CalendarIcon className="size-8" />,

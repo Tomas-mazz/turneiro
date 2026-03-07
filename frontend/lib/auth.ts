@@ -3,7 +3,7 @@
 const AUTH_TOKEN_KEY = 'auth_token'
 const AUTH_USER_KEY = 'auth_user'
 
-export type AuthUser = { id: string; email: string; role: string; businessId: string | null }
+export type AuthUser = { id: string; email: string; role: string; businessId: string | null; name?: string | null }
 
 export function getAuthToken(): string | null {
   if (typeof window === 'undefined') return null

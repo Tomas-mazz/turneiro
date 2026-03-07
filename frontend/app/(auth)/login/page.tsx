@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import { api } from '@/lib/api'
 import { setAuthToken, setAuthUser } from '@/lib/auth'
 
-type LoginResponse = { token: string; user: { id: string; email: string; role: string; businessId: string | null } }
+type LoginResponse = { token: string; user: { id: string; email: string; role: string; businessId: string | null; name?: string | null } }
 
 export default function LoginPage() {
   const router = useRouter()

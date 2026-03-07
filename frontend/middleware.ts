@@ -45,6 +45,8 @@ export function middleware(req: NextRequest) {
     '/dashboard',
     '/admin',
     '/login',
+    '/register',
+    '/auth',
     '/booking',
     '/cancel',
     '/api',

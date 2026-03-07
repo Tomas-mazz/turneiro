@@ -10,7 +10,7 @@ export default function SettingsPage() {
   }, [router])
   return (
     <main className="flex min-h-[40vh] items-center justify-center p-8">
-      <p className="text-neutral-500">Redirigiendo al dashboard...</p>
+      <p className="text-neutral-500">Redirigiendo a configuración...</p>
     </main>
   )
 }

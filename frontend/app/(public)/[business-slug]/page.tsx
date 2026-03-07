@@ -1,8 +1,9 @@
 'use client'
 
 import { useEffect, useMemo, useState, useCallback } from 'react'
-import { useParams, usePathname } from 'next/navigation'
+import { useParams, usePathname, useRouter } from 'next/navigation'
 import { api } from '@/lib/api'
+import { getAuthUser, removeAuthToken, setAuthToken, setAuthUser } from '@/lib/auth'
 import type { Business, Step, ServiceOption, CreatedAppointment } from './types'
 import { formatDateKey, getNowInArgentina } from './utils'
 import {
@@ -10,6 +11,7 @@ import {
   BookingDone,
   ClientFormStep,
   DateStep,
+  LoginModal,
   PaymentStep,
   ServiceStep,
 } from './components'
@@ -58,6 +60,19 @@ export default function BusinessBookingPage() {
   const [paymentError, setPaymentError] = useState<string | null>(null)
   const [paymentProvider, setPaymentProvider] = useState<'STRIPE' | 'MERCADOPAGO' | null>(null)
   const [themeMode, setThemeMode] = useState<ThemeMode>('DARK')
+  const [isLoginOpen, setIsLoginOpen] = useState(false)
+  const [user, setUser] = useState(() => (typeof window !== 'undefined' ? getAuthUser() : null))
+  const router = useRouter()
+
+  useEffect(() => {
+    setUser(getAuthUser())
+  }, [])
+
+  const handleLogout = () => {
+    removeAuthToken()
+    setUser(null)
+    router.refresh()
+  }
 
   const isDarkTheme = themeMode === 'DARK'
 
@@ -75,6 +90,13 @@ export default function BusinessBookingPage() {
     if (typeof window !== 'undefined') window.history.back()
   }, [])
 
+  const handleOpenLogin = useCallback(() => {
+    setIsLoginOpen(true)
+    if (typeof window !== 'undefined') {
+      window.history.pushState({ step, loginOpen: true }, '', pathname ?? `/${slug}`)
+    }
+  }, [pathname, slug, step])
+
   useEffect(() => {
     if (typeof window === 'undefined') return
     window.history.replaceState({ step }, '', pathname ?? `/${slug}`)
@@ -84,6 +106,7 @@ export default function BusinessBookingPage() {
     if (typeof window === 'undefined') return
     const onPopState = (e: PopStateEvent) => {
       setStep(e.state?.step ?? 'hero')
+      setIsLoginOpen(false)
     }
     window.addEventListener('popstate', onPopState)
     return () => window.removeEventListener('popstate', onPopState)
@@ -561,6 +584,13 @@ export default function BusinessBookingPage() {
           primaryColor={primaryColor}
           isDarkTheme={isDarkTheme}
           onToggleTheme={() => setThemeMode((prev) => (prev === 'DARK' ? 'LIGHT' : 'DARK'))}
+          onOpenLogin={handleOpenLogin}
+          onOpenRegister={() => {
+            if (typeof window !== 'undefined') window.history.back()
+            router.push('/register')
+          }}
+          user={user}
+          onLogout={handleLogout}
         />
       )}
 
@@ -592,6 +622,13 @@ export default function BusinessBookingPage() {
           primaryColor={primaryColor}
           isDarkTheme={isDarkTheme}
           onToggleTheme={() => setThemeMode((prev) => (prev === 'DARK' ? 'LIGHT' : 'DARK'))}
+          onOpenLogin={handleOpenLogin}
+          onOpenRegister={() => {
+            if (typeof window !== 'undefined') window.history.back()
+            router.push('/register')
+          }}
+          user={user}
+          onLogout={handleLogout}
         />
       )}
 
@@ -629,6 +666,13 @@ export default function BusinessBookingPage() {
           primaryColor={primaryColor}
           isDarkTheme={isDarkTheme}
           onToggleTheme={() => setThemeMode((prev) => (prev === 'DARK' ? 'LIGHT' : 'DARK'))}
+          onOpenLogin={handleOpenLogin}
+          onOpenRegister={() => {
+            if (typeof window !== 'undefined') window.history.back()
+            router.push('/register')
+          }}
+          user={user}
+          onLogout={handleLogout}
         />
       )}
 
@@ -660,6 +704,24 @@ export default function BusinessBookingPage() {
           <BookingDone appointment={createdAppointment} primaryColor={primaryColor} />
         </div>
       )}
+
+      <LoginModal
+        open={isLoginOpen}
+        onClose={() => {
+          if (typeof window !== 'undefined') window.history.back()
+        }}
+        onSuccess={(loggedInUser, token) => {
+          setAuthToken(token)
+          setAuthUser(loggedInUser)
+          setUser(loggedInUser)
+        }}
+        onOpenRegister={() => {
+          if (typeof window !== 'undefined') window.history.back()
+          router.push('/register')
+        }}
+        isDarkTheme={isDarkTheme}
+        storeSlug={slug || null}
+      />
     </main>
   )
 }

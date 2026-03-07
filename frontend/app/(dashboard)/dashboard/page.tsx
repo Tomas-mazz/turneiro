@@ -97,10 +97,10 @@ export function DashboardContent({ section = 'all' }: { section?: DashboardSecti
   useEffect(() => {
     getMyBusiness()
       .then((b) => {
-        setBusinessTitle(`${b.name} - Panel`)
+        setBusinessTitle(`${b.name} - Configuración`)
         setBusinessSlug(b.slug)
       })
-      .catch(() => setBusinessTitle('Panel'))
+      .catch(() => setBusinessTitle('Configuración'))
   }, [])
 
   useEffect(() => {
@@ -329,7 +329,7 @@ export function DashboardContent({ section = 'all' }: { section?: DashboardSecti
 
   return (
     <main className="p-4 pb-10 sm:p-6 lg:p-8">
-      {/* Título principal: nombre del negocio + Panel; derecha: volver a página principal */}
+      {/* Título principal: nombre del negocio + Configuración; derecha: volver a página principal */}
       <header className="mb-6 flex flex-col gap-3 border-b border-neutral-200 pb-4 sm:mb-8 sm:flex-row sm:items-center sm:justify-between sm:pb-6">
         <h1 className="text-xl font-bold text-neutral-900 sm:text-2xl">
           {businessTitle}
@@ -1063,10 +1063,10 @@ function DashboardHome() {
 
     getMyBusiness()
       .then((b) => {
-        setBusinessTitle(`${b.name} - Panel`)
+        setBusinessTitle(`${b.name} - Configuración`)
         setBusinessSlug(b.slug)
       })
-      .catch(() => setBusinessTitle('Panel'))
+      .catch(() => setBusinessTitle('Configuración'))
 
     getGoogleCalendarStatus()
       .then((data) => setCalendarConnected(data.connected))
