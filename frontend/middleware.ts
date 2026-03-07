@@ -43,6 +43,7 @@ export function middleware(req: NextRequest) {
   // Do not interfere with global or internal routes.
   const excludedPrefixes = [
     '/dashboard',
+    '/setting',
     '/admin',
     '/login',
     '/register',

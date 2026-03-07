@@ -11,7 +11,7 @@ const sections = [
   {
     title: "Configuración",
     description: "Panel para empleados y dueños. Gestión de servicios y agenda.",
-    href: "/dashboard",
+    href: "/setting",
     icon: <CalendarIcon className="size-8" />,
   },
   {

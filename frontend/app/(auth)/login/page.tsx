@@ -22,7 +22,7 @@ export default function LoginPage() {
       const res = await api.post<LoginResponse>('/auth/login', { email, password })
       setAuthToken(res.data.token)
       setAuthUser(res.data.user)
-      const destination = res.data.user.role === 'ADMIN' ? '/admin' : '/dashboard'
+      const destination = res.data.user.role === 'ADMIN' ? '/admin' : '/setting'
       router.push(destination)
       router.refresh()
     } catch (err: unknown) {

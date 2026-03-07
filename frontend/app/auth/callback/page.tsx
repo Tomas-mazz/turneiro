@@ -1,12 +1,12 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { Suspense, useEffect, useState } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { api } from '@/lib/api'
 import { setAuthToken, setAuthUser } from '@/lib/auth'
 
-export default function AuthCallbackPage() {
+function AuthCallbackContent() {
   const searchParams = useSearchParams()
   const router = useRouter()
   const [status, setStatus] = useState<'loading' | 'ok' | 'error'>('loading')
@@ -64,5 +64,19 @@ export default function AuthCallbackPage() {
     <main className="flex min-h-screen flex-col items-center justify-center bg-neutral-900 p-4">
       <p className="text-neutral-400">Redirigiendo...</p>
     </main>
+  )
+}
+
+export default function AuthCallbackPage() {
+  return (
+    <Suspense
+      fallback={
+        <main className="flex min-h-screen flex-col items-center justify-center bg-neutral-900 p-4">
+          <p className="text-neutral-400">Cargando...</p>
+        </main>
+      }
+    >
+      <AuthCallbackContent />
+    </Suspense>
   )
 }

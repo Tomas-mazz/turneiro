@@ -200,7 +200,7 @@ export default function AdminLayout({
     }
     const user = getAuthUser()
     if (!user || user.role !== 'ADMIN') {
-      router.replace('/dashboard')
+      router.replace('/setting')
       return
     }
     setAllowed(true)

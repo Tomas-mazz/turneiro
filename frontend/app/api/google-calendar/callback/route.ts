@@ -11,7 +11,7 @@ export async function GET(request: NextRequest) {
 
   if (!code || !state) {
     const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
-    return NextResponse.redirect(`${appUrl}/dashboard?google_calendar_error=1`)
+    return NextResponse.redirect(`${appUrl}/setting?google_calendar_error=1`)
   }
 
   const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'

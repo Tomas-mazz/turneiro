@@ -277,7 +277,7 @@ export async function uploadAdminFile(file: File): Promise<{ url: string }> {
 export type CreateEmployeeAdminBody = {
   name: string
   photoUrl?: string
-  // Optional: when provided, backend creates a STAFF user so this employee can log into /dashboard
+  // Optional: when provided, backend creates a STAFF user so this employee can log into /setting
   staffEmail?: string
   staffPassword?: string
   // Optional: mark employee as the business owner (special handling in UI)

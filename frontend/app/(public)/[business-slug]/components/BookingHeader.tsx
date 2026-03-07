@@ -157,20 +157,12 @@ export function BookingHeader({
                   {isStaffOrOwner && (
                     <>
                       <Link
-                        href="/dashboard"
+                        href="/setting"
                         role="menuitem"
                         className={`block w-full px-4 py-2.5 text-left text-sm font-medium ${dropdownItemClass}`}
                         onClick={() => setAuthMenuOpen(false)}
                       >
                         Configuración
-                      </Link>
-                      <Link
-                        href="/dashboard/settings"
-                        role="menuitem"
-                        className={`block w-full px-4 py-2.5 text-left text-sm font-medium ${dropdownItemClass}`}
-                        onClick={() => setAuthMenuOpen(false)}
-                      >
-                        Ajustes de la tienda
                       </Link>
                     </>
                   )}

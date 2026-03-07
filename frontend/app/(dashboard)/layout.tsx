@@ -15,17 +15,17 @@ type NavItem = {
 }
 
 const OWNER_ITEMS: NavItem[] = [
-  { id: 'home', label: 'Inicio', href: '/dashboard' },
-  { id: 'services', label: 'Servicios', href: '/dashboard/services' },
-  { id: 'hours', label: 'Horarios', href: '/dashboard/hours' },
-  { id: 'block', label: 'Bloquear días u horarios', href: '/dashboard/blocking' },
-  { id: 'cancel', label: 'Cancelar turnos', href: '/dashboard/cancel' },
+  { id: 'home', label: 'Inicio', href: '/setting' },
+  { id: 'services', label: 'Servicios', href: '/setting/services' },
+  { id: 'hours', label: 'Horarios', href: '/setting/hours' },
+  { id: 'block', label: 'Bloquear días u horarios', href: '/setting/blocking' },
+  { id: 'cancel', label: 'Cancelar turnos', href: '/setting/cancel' },
 ]
 
 const STAFF_ITEMS: NavItem[] = [
-  { id: 'home', label: 'Inicio', href: '/dashboard' },
-  { id: 'block', label: 'Bloquear días u horarios', href: '/dashboard/blocking' },
-  { id: 'cancel', label: 'Cancelar turnos', href: '/dashboard/cancel' },
+  { id: 'home', label: 'Inicio', href: '/setting' },
+  { id: 'block', label: 'Bloquear días u horarios', href: '/setting/blocking' },
+  { id: 'cancel', label: 'Cancelar turnos', href: '/setting/cancel' },
 ]
 
 function DashboardShell({ children }: { children: React.ReactNode }) {
@@ -59,7 +59,7 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
 
   const items = role === 'OWNER' ? OWNER_ITEMS : STAFF_ITEMS
 
-  const effectivePath = pathname || '/dashboard'
+  const effectivePath = pathname || '/setting'
 
   const handleNavClick =
     (item: NavItem) =>
@@ -88,7 +88,7 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
             {items.map((item) => {
               const isActive =
                 item.id === 'home'
-                  ? effectivePath === '/dashboard' || effectivePath === '/dashboard/'
+                  ? effectivePath === '/setting' || effectivePath === '/setting/'
                   : effectivePath.startsWith(item.href)
               return (
                 <button
@@ -135,7 +135,7 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
             {items.slice(0, 2).map((item) => {
               const isActive =
                 item.id === 'home'
-                  ? effectivePath === '/dashboard' || effectivePath === '/dashboard/'
+                  ? effectivePath === '/setting' || effectivePath === '/setting/'
                   : effectivePath.startsWith(item.href)
               return (
                 <button
@@ -178,7 +178,7 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
                 {items.map((item) => {
                   const isActive =
                     item.id === 'home'
-                      ? effectivePath === '/dashboard' || effectivePath === '/dashboard/'
+                      ? effectivePath === '/setting' || effectivePath === '/setting/'
                       : effectivePath.startsWith(item.href)
                   return (
                     <button
