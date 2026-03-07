@@ -37,7 +37,7 @@ export async function oauthCallback(req: Request, res: Response) {
     const { code, state } = req.query
 
     if (!code || !state) {
-      return res.redirect(`${FRONTEND_URL}/dashboard?google_calendar_error=1`)
+      return res.redirect(`${FRONTEND_URL}/setting?google_calendar_error=1`)
     }
 
     const userId = state as string
@@ -47,7 +47,7 @@ export async function oauthCallback(req: Request, res: Response) {
       await googleCalendarService.getTokensFromCode(code as string)
 
     if (!refreshToken) {
-      return res.redirect(`${FRONTEND_URL}/dashboard?google_calendar_error=2`)
+      return res.redirect(`${FRONTEND_URL}/setting?google_calendar_error=2`)
     }
 
     // Get user's calendars to set default; fallback to 'primary' if list fails or is empty
@@ -76,10 +76,10 @@ export async function oauthCallback(req: Request, res: Response) {
       console.error('Resync staff calendar after OAuth:', err)
     )
 
-    return res.redirect(`${FRONTEND_URL}/dashboard?google_calendar=connected`)
+    return res.redirect(`${FRONTEND_URL}/setting?google_calendar=connected`)
   } catch (error) {
     console.error('oauthCallback error:', error)
-    return res.redirect(`${FRONTEND_URL}/dashboard?google_calendar_error=1`)
+    return res.redirect(`${FRONTEND_URL}/setting?google_calendar_error=1`)
   }
 }
 

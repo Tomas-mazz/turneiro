@@ -1,13 +1,12 @@
 'use client'
 
 import { Suspense } from 'react'
-import { DashboardContent } from '../page'
+import { DashboardContent } from '../DashboardContent'
 
-export default function DashboardCancelPage() {
+export default function SettingCancelPage() {
   return (
     <Suspense fallback={<div className="p-8 text-neutral-500">Cargando...</div>}>
       <DashboardContent section="cancel" />
     </Suspense>
   )
 }
-
