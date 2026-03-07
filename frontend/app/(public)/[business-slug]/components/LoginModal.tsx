@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { api } from '@/lib/api'
 import type { AuthUser } from '@/lib/auth'
+import { SocialLoginButtons } from './SocialLoginButtons'
 
 type LoginResponse = {
   token: string
@@ -15,11 +16,7 @@ type LoginModalProps = {
   onSuccess: (user: AuthUser, token: string) => void
   onOpenRegister: () => void
   isDarkTheme?: boolean
-}
-
-function isAppleUser(): boolean {
-  if (typeof navigator === 'undefined') return false
-  return /Macintosh|Mac OS X|iPhone|iPad/.test(navigator.userAgent)
+  storeSlug?: string | null
 }
 
 export function LoginModal({
@@ -28,13 +25,13 @@ export function LoginModal({
   onSuccess,
   onOpenRegister,
   isDarkTheme = true,
+  storeSlug = null,
 }: LoginModalProps) {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
   const panelRef = useRef<HTMLDivElement>(null)
-  const showApple = isAppleUser()
 
   useEffect(() => {
     if (!open) return
@@ -159,32 +156,7 @@ export function LoginModal({
           </button>
         </form>
 
-        <div className={`my-4 flex items-center gap-3 ${dividerColor}`}>
-          <span className="flex-1 border-t border-current opacity-50" />
-          <span className="text-xs font-medium">o</span>
-          <span className="flex-1 border-t border-current opacity-50" />
-        </div>
-
-        <div className="flex flex-col gap-2">
-          <button
-            type="button"
-            disabled
-            className="flex w-full items-center justify-center gap-2 rounded-lg border border-neutral-500 bg-neutral-700/50 py-2.5 text-sm font-medium text-neutral-400 opacity-70"
-            title="Próximamente"
-          >
-            Continuar con Google
-          </button>
-          {showApple && (
-            <button
-              type="button"
-              disabled
-              className="flex w-full items-center justify-center gap-2 rounded-lg border border-neutral-500 bg-neutral-700/50 py-2.5 text-sm font-medium text-neutral-400 opacity-70"
-              title="Próximamente"
-            >
-              Continuar con Apple
-            </button>
-          )}
-        </div>
+        <SocialLoginButtons storeSlug={storeSlug} isDarkTheme={isDarkTheme} />
 
         <p className={`mt-4 text-center text-sm ${labelColor}`}>
           ¿No tienes cuenta?{' '}

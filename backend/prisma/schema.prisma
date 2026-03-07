@@ -65,7 +65,7 @@ model User {
   id                 String   @id @default(cuid())
   name               String?  // Optional; used for client (USER) registration
   email              String   @unique
-  password           String // Hashed password
+  password           String?  // Hashed password; null for OAuth-only users (Google)
   role               String // OWNER, ADMIN, STAFF, USER
   businessId         String?
   googleRefreshToken String? // Google OAuth refresh token for Calendar API

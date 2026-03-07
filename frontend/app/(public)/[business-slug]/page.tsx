@@ -90,6 +90,13 @@ export default function BusinessBookingPage() {
     if (typeof window !== 'undefined') window.history.back()
   }, [])
 
+  const handleOpenLogin = useCallback(() => {
+    setIsLoginOpen(true)
+    if (typeof window !== 'undefined') {
+      window.history.pushState({ step, loginOpen: true }, '', pathname ?? `/${slug}`)
+    }
+  }, [pathname, slug, step])
+
   useEffect(() => {
     if (typeof window === 'undefined') return
     window.history.replaceState({ step }, '', pathname ?? `/${slug}`)
@@ -99,6 +106,7 @@ export default function BusinessBookingPage() {
     if (typeof window === 'undefined') return
     const onPopState = (e: PopStateEvent) => {
       setStep(e.state?.step ?? 'hero')
+      setIsLoginOpen(false)
     }
     window.addEventListener('popstate', onPopState)
     return () => window.removeEventListener('popstate', onPopState)
@@ -576,8 +584,11 @@ export default function BusinessBookingPage() {
           primaryColor={primaryColor}
           isDarkTheme={isDarkTheme}
           onToggleTheme={() => setThemeMode((prev) => (prev === 'DARK' ? 'LIGHT' : 'DARK'))}
-          onOpenLogin={() => setIsLoginOpen(true)}
-          onOpenRegister={() => router.push('/register')}
+          onOpenLogin={handleOpenLogin}
+          onOpenRegister={() => {
+            if (typeof window !== 'undefined') window.history.back()
+            router.push('/register')
+          }}
           user={user}
           onLogout={handleLogout}
         />
@@ -611,8 +622,11 @@ export default function BusinessBookingPage() {
           primaryColor={primaryColor}
           isDarkTheme={isDarkTheme}
           onToggleTheme={() => setThemeMode((prev) => (prev === 'DARK' ? 'LIGHT' : 'DARK'))}
-          onOpenLogin={() => setIsLoginOpen(true)}
-          onOpenRegister={() => router.push('/register')}
+          onOpenLogin={handleOpenLogin}
+          onOpenRegister={() => {
+            if (typeof window !== 'undefined') window.history.back()
+            router.push('/register')
+          }}
           user={user}
           onLogout={handleLogout}
         />
@@ -652,8 +666,11 @@ export default function BusinessBookingPage() {
           primaryColor={primaryColor}
           isDarkTheme={isDarkTheme}
           onToggleTheme={() => setThemeMode((prev) => (prev === 'DARK' ? 'LIGHT' : 'DARK'))}
-          onOpenLogin={() => setIsLoginOpen(true)}
-          onOpenRegister={() => router.push('/register')}
+          onOpenLogin={handleOpenLogin}
+          onOpenRegister={() => {
+            if (typeof window !== 'undefined') window.history.back()
+            router.push('/register')
+          }}
           user={user}
           onLogout={handleLogout}
         />
@@ -690,18 +707,20 @@ export default function BusinessBookingPage() {
 
       <LoginModal
         open={isLoginOpen}
-        onClose={() => setIsLoginOpen(false)}
+        onClose={() => {
+          if (typeof window !== 'undefined') window.history.back()
+        }}
         onSuccess={(loggedInUser, token) => {
           setAuthToken(token)
           setAuthUser(loggedInUser)
           setUser(loggedInUser)
-          setIsLoginOpen(false)
         }}
         onOpenRegister={() => {
-          setIsLoginOpen(false)
+          if (typeof window !== 'undefined') window.history.back()
           router.push('/register')
         }}
         isDarkTheme={isDarkTheme}
+        storeSlug={slug || null}
       />
     </main>
   )

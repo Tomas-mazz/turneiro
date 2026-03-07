@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { api } from '@/lib/api'
 import { setAuthToken, setAuthUser } from '@/lib/auth'
+import { SocialLoginButtons } from '@/app/(public)/[business-slug]/components/SocialLoginButtons'
 
 type RegisterResponse = {
   token: string
@@ -28,11 +29,6 @@ function getStoreSlugFromHost(): string | null {
   return null
 }
 
-function isAppleUser(): boolean {
-  if (typeof navigator === 'undefined') return false
-  return /Macintosh|Mac OS X|iPhone|iPad/.test(navigator.userAgent)
-}
-
 export default function RegisterPage() {
   const router = useRouter()
   const [storeSlug, setStoreSlug] = useState<string | null>(null)
@@ -42,7 +38,6 @@ export default function RegisterPage() {
   const [password, setPassword] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
-  const showApple = isAppleUser()
 
   useEffect(() => {
     setStoreSlug(getStoreSlugFromHost())
@@ -177,32 +172,7 @@ export default function RegisterPage() {
           </button>
         </form>
 
-        <div className="my-4 flex items-center gap-3 text-neutral-500">
-          <span className="flex-1 border-t border-neutral-600" />
-          <span className="text-xs font-medium">o</span>
-          <span className="flex-1 border-t border-neutral-600" />
-        </div>
-
-        <div className="flex flex-col gap-2">
-          <button
-            type="button"
-            disabled
-            className="w-full rounded-lg border border-neutral-500 bg-neutral-700/50 py-2.5 text-sm font-medium text-neutral-400 opacity-70"
-            title="Próximamente"
-          >
-            Registrarse con Google
-          </button>
-          {showApple && (
-            <button
-              type="button"
-              disabled
-              className="w-full rounded-lg border border-neutral-500 bg-neutral-700/50 py-2.5 text-sm font-medium text-neutral-400 opacity-70"
-              title="Próximamente"
-            >
-              Registrarse con Apple
-            </button>
-          )}
-        </div>
+        <SocialLoginButtons storeSlug={storeSlug} isDarkTheme />
 
         <p className={`mt-4 text-center text-sm text-neutral-400`}>
           ¿Ya tienes cuenta?{' '}
