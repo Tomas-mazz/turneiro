@@ -1,6 +1,7 @@
 'use client'
 
 import { BookingHeader } from './BookingHeader'
+import type { AuthUser } from '@/lib/auth'
 
 type BookingLayoutProps = {
   businessName: string
@@ -9,6 +10,8 @@ type BookingLayoutProps = {
   onGoToServices: () => void
   onOpenLogin?: () => void
   onOpenRegister?: () => void
+  user?: AuthUser | null
+  onLogout?: () => void
   children: React.ReactNode
 }
 
@@ -19,6 +22,8 @@ export function BookingLayout({
   onGoToServices,
   onOpenLogin,
   onOpenRegister,
+  user = null,
+  onLogout,
   children,
 }: BookingLayoutProps) {
   const bgColor = isDarkTheme ? 'hsl(0, 0%, 9%)' : 'rgb(255, 255, 255)'
@@ -36,6 +41,8 @@ export function BookingLayout({
         onGoToServices={onGoToServices}
         onOpenLogin={onOpenLogin}
         onOpenRegister={onOpenRegister}
+        user={user}
+        onLogout={onLogout}
       />
       <div className="mx-auto w-full max-w-4xl px-4 py-8 md:px-6 md:py-10 lg:max-w-6xl lg:px-8">
         {children}

@@ -38,6 +38,7 @@ export async function loginService(data: { email: string; password: string }) {
       email: user.email,
       role: user.role,
       businessId: user.businessId,
+      name: user.name,
     },
   }
 }
@@ -88,6 +89,7 @@ export async function registerService(data: {
       email: user.email,
       role: user.role,
       businessId: user.businessId,
+      name: user.name,
     },
   }
 }

@@ -11,7 +11,7 @@ This repo contains **only** the product for stores (frontend + backend), not the
 
 Selected model: **Model A – everything per store**
 - Public booking: `https://{storeSlug}.turneros.com/` (clients reserve appointments).
-- Owner/staff dashboard: `https://{storeSlug}.turneros.com/dashboard`.
+- Owner/staff configuration panel: `https://{storeSlug}.turneros.com/dashboard` (UI label: **Configuración**).
 - Login: `https://{storeSlug}.turneros.com/login`.
 - End client can book **without** logging in; login is optional and adds extra value.
 
@@ -114,9 +114,9 @@ Checklist:
 - [X] Guest: show “Iniciar sesión” and “Registrarse” in header (gray bg, no border; mobile: person icon + dropdown). Done in `BookingHeader` + layout + steps + page state.
 - [X] Login via mini-modal on store page using existing `/auth/login`. Done: `LoginModal`, wired in `BusinessBookingPage`.
 - [X] Register on separate route `/register` with store-scoped `businessSlug`. Done: `(public)/register/page.tsx`, middleware, backend `registerService` + route.
-- [ ] **Pending:** When logged in, show **user name + role** in header and replace login/register buttons with a menu (dashboard, account, settings, logout) per role.
-- [ ] Define exactly what each role sees in the header/menu (OWNER, STAFF, USER, Guest).
-- [ ] Define target URLs for each menu option (dashboard, account, settings, etc.).
+- [X] When logged in, show **user name + role** in header and replace login/register buttons with a menu (Configuración, account, settings, logout) per role. Done: BookingHeader shows name + role; dropdown with Configuración (/dashboard), Ajustes de la tienda (/dashboard/settings) for OWNER/STAFF; Mi cuenta (/account) for USER; Panel admin (/admin) for ADMIN; Cerrar sesión.
+- [X] Define exactly what each role sees in the header/menu (OWNER, STAFF, USER, Guest). OWNER/STAFF: Configuración, Ajustes de la tienda, Cerrar sesión. USER: Mi cuenta, Cerrar sesión. ADMIN: Panel admin, Cerrar sesión. Guest: Iniciar sesión, Registrarse.
+- [X] Define target URLs for each menu option (dashboard, account, settings, etc.). /dashboard, /dashboard/settings, /account, /admin.
 - [X] Confirm that login and dashboard live under the same store subdomain. Yes; `/login` and `/register` are global on same host.
 
 ### 2.2 Auth mechanics (token, storage, per-subdomain behaviour)

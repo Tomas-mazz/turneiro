@@ -6,7 +6,7 @@ import type { AuthUser } from '@/lib/auth'
 
 type LoginResponse = {
   token: string
-  user: { id: string; email: string; role: string; businessId: string | null }
+  user: { id: string; email: string; role: string; businessId: string | null; name?: string | null }
 }
 
 type LoginModalProps = {
@@ -153,7 +153,7 @@ export function LoginModal({
           <button
             type="submit"
             disabled={loading}
-            className="w-full rounded-lg bg-neutral-900 py-2.5 font-medium text-white hover:bg-neutral-800 disabled:opacity-50"
+            className="w-full rounded-lg bg-white py-2.5 font-medium text-black hover:opacity-90 disabled:opacity-50"
           >
             {loading ? 'Entrando...' : 'Iniciar sesión'}
           </button>

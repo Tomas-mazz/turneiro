@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState, useCallback } from 'react'
 import { useParams, usePathname, useRouter } from 'next/navigation'
 import { api } from '@/lib/api'
-import { setAuthToken, setAuthUser } from '@/lib/auth'
+import { getAuthUser, removeAuthToken, setAuthToken, setAuthUser } from '@/lib/auth'
 import type { Business, Step, ServiceOption, CreatedAppointment } from './types'
 import { formatDateKey, getNowInArgentina } from './utils'
 import {
@@ -61,7 +61,18 @@ export default function BusinessBookingPage() {
   const [paymentProvider, setPaymentProvider] = useState<'STRIPE' | 'MERCADOPAGO' | null>(null)
   const [themeMode, setThemeMode] = useState<ThemeMode>('DARK')
   const [isLoginOpen, setIsLoginOpen] = useState(false)
+  const [user, setUser] = useState(() => (typeof window !== 'undefined' ? getAuthUser() : null))
   const router = useRouter()
+
+  useEffect(() => {
+    setUser(getAuthUser())
+  }, [])
+
+  const handleLogout = () => {
+    removeAuthToken()
+    setUser(null)
+    router.refresh()
+  }
 
   const isDarkTheme = themeMode === 'DARK'
 
@@ -567,6 +578,8 @@ export default function BusinessBookingPage() {
           onToggleTheme={() => setThemeMode((prev) => (prev === 'DARK' ? 'LIGHT' : 'DARK'))}
           onOpenLogin={() => setIsLoginOpen(true)}
           onOpenRegister={() => router.push('/register')}
+          user={user}
+          onLogout={handleLogout}
         />
       )}
 
@@ -600,6 +613,8 @@ export default function BusinessBookingPage() {
           onToggleTheme={() => setThemeMode((prev) => (prev === 'DARK' ? 'LIGHT' : 'DARK'))}
           onOpenLogin={() => setIsLoginOpen(true)}
           onOpenRegister={() => router.push('/register')}
+          user={user}
+          onLogout={handleLogout}
         />
       )}
 
@@ -639,6 +654,8 @@ export default function BusinessBookingPage() {
           onToggleTheme={() => setThemeMode((prev) => (prev === 'DARK' ? 'LIGHT' : 'DARK'))}
           onOpenLogin={() => setIsLoginOpen(true)}
           onOpenRegister={() => router.push('/register')}
+          user={user}
+          onLogout={handleLogout}
         />
       )}
 
@@ -674,9 +691,10 @@ export default function BusinessBookingPage() {
       <LoginModal
         open={isLoginOpen}
         onClose={() => setIsLoginOpen(false)}
-        onSuccess={(user, token) => {
+        onSuccess={(loggedInUser, token) => {
           setAuthToken(token)
-          setAuthUser(user)
+          setAuthUser(loggedInUser)
+          setUser(loggedInUser)
           setIsLoginOpen(false)
         }}
         onOpenRegister={() => {

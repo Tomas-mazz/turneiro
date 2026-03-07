@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react'
 import Image from 'next/image'
+import type { AuthUser } from '@/lib/auth'
 import type { Business, ServiceOption } from '../types'
 import { BookingLayout } from './BookingLayout'
 
@@ -21,6 +22,8 @@ type ServiceStepProps = {
   onToggleTheme?: () => void
   onOpenLogin?: () => void
   onOpenRegister?: () => void
+  user?: AuthUser | null
+  onLogout?: () => void
 }
 
 export function ServiceStep({
@@ -34,6 +37,8 @@ export function ServiceStep({
   onToggleTheme,
   onOpenLogin,
   onOpenRegister,
+  user = null,
+  onLogout,
 }: ServiceStepProps) {
   const titleColor = isDarkTheme ? 'text-neutral-300' : 'text-neutral-800'
   const serviceNameColor = isDarkTheme ? 'text-white' : 'text-neutral-900'
@@ -94,6 +99,8 @@ export function ServiceStep({
       onGoToServices={onGoToServices}
       onOpenLogin={onOpenLogin}
       onOpenRegister={onOpenRegister}
+      user={user}
+      onLogout={onLogout}
     >
       <div className="flex max-w-4xl flex-col gap-8 md:max-w-4xl md:flex-row md:gap-10 lg:max-w-6xl lg:gap-12">
         {/* Left: services list */}

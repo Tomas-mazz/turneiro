@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import Image from 'next/image'
+import type { AuthUser } from '@/lib/auth'
 import type { Employee, ServiceOption } from '../types'
 import { formatDateKey } from '../utils'
 import { BookingLayout } from './BookingLayout'
@@ -50,6 +51,8 @@ type DateStepProps = {
   onToggleTheme?: () => void
   onOpenLogin?: () => void
   onOpenRegister?: () => void
+  user?: AuthUser | null
+  onLogout?: () => void
 }
 
 export function DateStep({
@@ -78,6 +81,8 @@ export function DateStep({
   onToggleTheme,
   onOpenLogin,
   onOpenRegister,
+  user = null,
+  onLogout,
 }: DateStepProps) {
   const backBtnClass = isDarkTheme
     ? 'bg-neutral-700/80 text-white hover:bg-neutral-600'
@@ -156,6 +161,8 @@ export function DateStep({
       onGoToServices={onGoToServices}
       onOpenLogin={onOpenLogin}
       onOpenRegister={onOpenRegister}
+      user={user}
+      onLogout={onLogout}
     >
       <div className="flex w-full flex-col">
         {/* Back + service title */}

@@ -8,7 +8,7 @@ import { setAuthToken, setAuthUser } from '@/lib/auth'
 
 type RegisterResponse = {
   token: string
-  user: { id: string; email: string; role: string; businessId: string | null }
+  user: { id: string; email: string; role: string; businessId: string | null; name?: string | null }
 }
 
 function getStoreSlugFromHost(): string | null {

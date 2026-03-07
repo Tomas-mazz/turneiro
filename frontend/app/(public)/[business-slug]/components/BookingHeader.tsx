@@ -1,7 +1,9 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
+import Link from 'next/link'
 import { useTypewriter } from '../hooks/useTypewriter'
+import type { AuthUser } from '@/lib/auth'
 
 type BookingHeaderProps = {
   businessName: string
@@ -10,6 +12,8 @@ type BookingHeaderProps = {
   onGoToServices: () => void
   onOpenLogin?: () => void
   onOpenRegister?: () => void
+  user?: AuthUser | null
+  onLogout?: () => void
 }
 
 const headerButtonClass = (isDark: boolean) =>
@@ -26,6 +30,25 @@ function PersonIcon({ className }: { className?: string }) {
   )
 }
 
+/** Icon for "not logged in" (guest): square open on the right with arrow pointing right */
+function LoginEntryIcon({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+      {/* Rectangle open on the right: left, top, bottom */}
+      <path d="M5 5v14M5 5h11M5 19h11" />
+      {/* Arrow shaft + arrowhead */}
+      <path d="M9 12h5M16 10l2 2-2 2" />
+    </svg>
+  )
+}
+
+const ROLE_LABEL: Record<string, string> = {
+  ADMIN: 'ADMIN',
+  OWNER: 'Dueño',
+  STAFF: 'Staff',
+  USER: 'Cliente',
+}
+
 export function BookingHeader({
   businessName,
   isDarkTheme = true,
@@ -33,12 +56,18 @@ export function BookingHeader({
   onGoToServices,
   onOpenLogin,
   onOpenRegister,
+  user = null,
+  onLogout,
 }: BookingHeaderProps) {
   const [authMenuOpen, setAuthMenuOpen] = useState(false)
   const authMenuRef = useRef<HTMLDivElement>(null)
   const displayName = useTypewriter(businessName)
   const borderColor = isDarkTheme ? 'border-neutral-600' : 'border-neutral-300'
   const btnClass = `rounded-xl transition-all duration-300 ease-out h-10 sm:h-11 px-3 sm:px-4 text-sm font-medium shrink-0 ${headerButtonClass(isDarkTheme)} focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-transparent focus-visible:ring-neutral-500`
+
+  const isStaffOrOwner = user?.role === 'OWNER' || user?.role === 'STAFF'
+  const displayUserName = user?.name?.trim() || user?.email || 'Usuario'
+  const roleLabel = user?.role ? ROLE_LABEL[user.role] ?? user.role : ''
 
   useEffect(() => {
     if (!authMenuOpen) return
@@ -63,11 +92,17 @@ export function BookingHeader({
     onOpenRegister?.()
     setAuthMenuOpen(false)
   }
+  const handleLogout = () => {
+    onLogout?.()
+    setAuthMenuOpen(false)
+  }
 
   const dropdownBg = isDarkTheme ? 'bg-neutral-700/95' : 'bg-neutral-100'
   const dropdownItemClass = isDarkTheme
     ? 'text-white hover:bg-neutral-600'
     : 'text-neutral-800 hover:bg-neutral-200'
+
+  const showGuestAuth = !user && (onOpenLogin ?? onOpenRegister)
 
   return (
     <header className={`w-full border-b ${borderColor} py-4 md:py-6`}>
@@ -84,8 +119,85 @@ export function BookingHeader({
           </span>
         </button>
         <div className="flex items-center gap-2 sm:gap-3">
-          {/* Mobile: single person icon that opens dropdown */}
-          {(onOpenLogin ?? onOpenRegister) && (
+          {/* Logged-in: user name + role and dropdown */}
+          {user && onLogout && (
+            <div className="relative" ref={authMenuRef}>
+              <button
+                type="button"
+                onClick={() => setAuthMenuOpen((o) => !o)}
+                className={`flex items-center justify-center gap-2 rounded-xl transition-all duration-300 ease-out h-10 w-10 shrink-0 md:h-11 md:w-auto md:min-w-0 md:max-w-[12rem] md:px-3 md:justify-start lg:max-w-[14rem] lg:px-4 text-sm font-medium ${headerButtonClass(isDarkTheme)} focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-transparent focus-visible:ring-neutral-500`}
+                aria-label="Menú de cuenta"
+                aria-expanded={authMenuOpen}
+              >
+                <PersonIcon className="h-5 w-5 shrink-0 md:h-5 md:w-5" />
+                <span className="min-w-0 truncate md:inline hidden">
+                  {displayUserName}
+                  {roleLabel && (
+                    <span className={isDarkTheme ? ' text-neutral-300' : ' text-neutral-600'}>
+                      {' '}({roleLabel})
+                    </span>
+                  )}
+                </span>
+              </button>
+              {authMenuOpen && (
+                <div
+                  className={`absolute right-0 top-full z-20 mt-2 min-w-[11rem] rounded-xl py-1 shadow-lg ${dropdownBg}`}
+                  role="menu"
+                >
+                  {user.role === 'ADMIN' && (
+                    <Link
+                      href="/admin"
+                      role="menuitem"
+                      className={`block w-full px-4 py-2.5 text-left text-sm font-medium ${dropdownItemClass}`}
+                      onClick={() => setAuthMenuOpen(false)}
+                    >
+                      Panel admin
+                    </Link>
+                  )}
+                  {isStaffOrOwner && (
+                    <>
+                      <Link
+                        href="/dashboard"
+                        role="menuitem"
+                        className={`block w-full px-4 py-2.5 text-left text-sm font-medium ${dropdownItemClass}`}
+                        onClick={() => setAuthMenuOpen(false)}
+                      >
+                        Configuración
+                      </Link>
+                      <Link
+                        href="/dashboard/settings"
+                        role="menuitem"
+                        className={`block w-full px-4 py-2.5 text-left text-sm font-medium ${dropdownItemClass}`}
+                        onClick={() => setAuthMenuOpen(false)}
+                      >
+                        Ajustes de la tienda
+                      </Link>
+                    </>
+                  )}
+                  {user.role === 'USER' && (
+                    <Link
+                      href="/account"
+                      role="menuitem"
+                      className={`block w-full px-4 py-2.5 text-left text-sm font-medium ${dropdownItemClass}`}
+                      onClick={() => setAuthMenuOpen(false)}
+                    >
+                      Mi cuenta
+                    </Link>
+                  )}
+                  <button
+                    type="button"
+                    role="menuitem"
+                    onClick={handleLogout}
+                    className={`w-full px-4 py-2.5 text-left text-sm font-medium ${dropdownItemClass}`}
+                  >
+                    Cerrar sesión
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
+          {/* Guest: mobile "entrar" icon dropdown */}
+          {showGuestAuth && (
             <div className="relative md:hidden" ref={authMenuRef}>
               <button
                 type="button"
@@ -94,7 +206,7 @@ export function BookingHeader({
                 aria-label="Cuenta"
                 aria-expanded={authMenuOpen}
               >
-                <PersonIcon className="h-5 w-5 sm:h-6 sm:w-6" />
+                <LoginEntryIcon className="h-5 w-5 sm:h-6 sm:w-6" />
               </button>
               {authMenuOpen && (
                 <div
@@ -125,13 +237,13 @@ export function BookingHeader({
               )}
             </div>
           )}
-          {/* Desktop: two text buttons */}
-          {onOpenLogin && (
+          {/* Guest: desktop text buttons */}
+          {showGuestAuth && onOpenLogin && (
             <button type="button" onClick={onOpenLogin} className={`${btnClass} hidden md:block`}>
               Iniciar sesión
             </button>
           )}
-          {onOpenRegister && (
+          {showGuestAuth && onOpenRegister && (
             <button type="button" onClick={onOpenRegister} className={`${btnClass} hidden md:block`}>
               Registrarse
             </button>
