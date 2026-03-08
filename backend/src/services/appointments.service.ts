@@ -2,7 +2,6 @@ import crypto from 'crypto'
 import { prisma } from '../lib/prisma'
 import { getAvailabilityService } from './availability.service'
 import type { CreateAppointmentInput } from '../lib/schemas'
-import * as stripeService from './stripe.service'
 import * as mercadopagoService from './mercadopago.service'
 import * as googleCalendarService from './google-calendar.service'
 import { sendAppointmentConfirmationEmail } from './email.service'
@@ -457,12 +456,7 @@ export async function cancelAppointmentService(token: string) {
     aptPaymentProvider
   ) {
     try {
-      if (aptPaymentProvider === 'STRIPE') {
-        const refund = await stripeService.processRefund(
-          aptPaymentIntentId
-        )
-        refundAmount = refund.amount
-      } else if (aptPaymentProvider === 'MERCADOPAGO') {
+      if (aptPaymentProvider === 'MERCADOPAGO') {
         const refund = await mercadopagoService.processRefund(
           aptPaymentIntentId
         )
@@ -684,10 +678,7 @@ export async function adminCancelAppointmentService(
     aptPaymentProvider
   ) {
     try {
-      if (aptPaymentProvider === 'STRIPE') {
-        const refund = await stripeService.processRefund(aptPaymentIntentId)
-        refundAmount = refund.amount
-      } else if (aptPaymentProvider === 'MERCADOPAGO') {
+      if (aptPaymentProvider === 'MERCADOPAGO') {
         const refund = await mercadopagoService.processRefund(
           aptPaymentIntentId
         )
@@ -787,12 +778,7 @@ export async function cancelAppointmentByOwnerService(
     aptPaymentProvider
   ) {
     try {
-      if (aptPaymentProvider === 'STRIPE') {
-        const refund = await stripeService.processRefund(
-          aptPaymentIntentId
-        )
-        refundAmount = refund.amount
-      } else if (aptPaymentProvider === 'MERCADOPAGO') {
+      if (aptPaymentProvider === 'MERCADOPAGO') {
         const refund = await mercadopagoService.processRefund(
           aptPaymentIntentId
         )

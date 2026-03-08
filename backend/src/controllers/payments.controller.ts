@@ -1,10 +1,9 @@
 import { Request, Response } from 'express'
 import { prisma } from '../lib/prisma'
-import * as stripeService from '../services/stripe.service'
 import * as mercadopagoService from '../services/mercadopago.service'
 
 /**
- * Create payment intent (Stripe) or preference (Mercado Pago)
+ * Create payment preference (Mercado Pago)
  */
 export async function createPaymentIntent(req: Request, res: Response) {
   try {
@@ -16,9 +15,9 @@ export async function createPaymentIntent(req: Request, res: Response) {
       })
     }
 
-    if (!['STRIPE', 'MERCADOPAGO'].includes(provider)) {
+    if (provider !== 'MERCADOPAGO') {
       return res.status(400).json({
-        error: 'Provider debe ser STRIPE o MERCADOPAGO',
+        error: 'Provider debe ser MERCADOPAGO',
       })
     }
 
@@ -69,55 +68,29 @@ export async function createPaymentIntent(req: Request, res: Response) {
       clientPhone: appointment.clientPhone,
     }
 
-    if (provider === 'STRIPE') {
-      const { clientSecret, paymentIntentId } =
-        await stripeService.createPaymentIntent(
-          paymentAmount,
-          'usd', // Default currency, can be made configurable
-          metadata
-        )
+    const { preferenceId, initPoint } =
+      await mercadopagoService.createPreference(
+        paymentAmount,
+        `${appointment.serviceName} - ${appointment.business.name}`,
+        metadata
+      )
 
-      // Update appointment with payment info
-      await prisma.appointment.update({
-        where: { id: appointmentId },
-        data: {
-          paymentProvider: 'STRIPE',
-          paymentIntentId,
-          paymentAmount,
-        },
-      })
+    // Update appointment with payment info
+    await prisma.appointment.update({
+      where: { id: appointmentId },
+      data: {
+        paymentProvider: 'MERCADOPAGO',
+        paymentIntentId: preferenceId,
+        paymentAmount,
+      },
+    })
 
-      return res.json({
-        clientSecret,
-        paymentIntentId,
-        amount: paymentAmount,
-        provider: 'STRIPE',
-      })
-    } else if (provider === 'MERCADOPAGO') {
-      const { preferenceId, initPoint } =
-        await mercadopagoService.createPreference(
-          paymentAmount,
-          `${appointment.serviceName} - ${appointment.business.name}`,
-          metadata
-        )
-
-      // Update appointment with payment info
-      await prisma.appointment.update({
-        where: { id: appointmentId },
-        data: {
-          paymentProvider: 'MERCADOPAGO',
-          paymentIntentId: preferenceId,
-          paymentAmount,
-        },
-      })
-
-      return res.json({
-        preferenceId,
-        initPoint,
-        amount: paymentAmount,
-        provider: 'MERCADOPAGO',
-      })
-    }
+    return res.json({
+      preferenceId,
+      initPoint,
+      amount: paymentAmount,
+      provider: 'MERCADOPAGO',
+    })
   } catch (error) {
     console.error('createPaymentIntent error:', error)
     return res.status(500).json({ error: 'Error al crear intención de pago' })
@@ -155,12 +128,7 @@ export async function confirmPayment(req: Request, res: Response) {
     // Verify payment status with provider
     let paymentVerified = false
 
-    if (aptPaymentProvider === 'STRIPE') {
-      const paymentIntent = await stripeService.getPaymentIntent(
-        paymentIntentId
-      )
-      paymentVerified = paymentIntent.status === 'succeeded'
-    } else if (aptPaymentProvider === 'MERCADOPAGO') {
+    if (aptPaymentProvider === 'MERCADOPAGO') {
       // For Mercado Pago, we rely on webhooks for confirmation
       // This endpoint is more for client-side confirmation UI
       paymentVerified = true

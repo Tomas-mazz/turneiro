@@ -31,7 +31,6 @@ app.use(
   }),
 )
 
-// Stripe webhook needs raw body - must come before express.json()
 import webhooksRoutes from './routes/webhooks'
 app.use('/api/webhooks', webhooksRoutes)
 
