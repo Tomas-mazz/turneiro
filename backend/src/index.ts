@@ -31,6 +31,11 @@ app.use(
         return callback(null, true)
       }
 
+      // Allow production subdomains like https://store.turneiro.com
+      if (origin.startsWith('https://') && origin.endsWith('.turneiro.com')) {
+        return callback(null, true)
+      }
+
       return callback(new Error('Not allowed by CORS'))
     },
     credentials: true,
