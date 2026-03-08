@@ -53,12 +53,9 @@ export default function BusinessBookingPage() {
   const [submitLoading, setSubmitLoading] = useState(false)
   const [submitError, setSubmitError] = useState<string | null>(null)
   const [createdAppointment, setCreatedAppointment] = useState<CreatedAppointment | null>(null)
-  const [paymentIntentId, setPaymentIntentId] = useState<string | null>(null)
-  const [paymentClientSecret, setPaymentClientSecret] = useState<string | null>(null)
   const [paymentAmount, setPaymentAmount] = useState<number | null>(null)
   const [paymentLoading, setPaymentLoading] = useState(false)
   const [paymentError, setPaymentError] = useState<string | null>(null)
-  const [paymentProvider, setPaymentProvider] = useState<'STRIPE' | 'MERCADOPAGO' | null>(null)
   const [themeMode, setThemeMode] = useState<ThemeMode>('DARK')
   const [isLoginOpen, setIsLoginOpen] = useState(false)
   const [user, setUser] = useState(() => (typeof window !== 'undefined' ? getAuthUser() : null))
@@ -429,35 +426,6 @@ export default function BusinessBookingPage() {
       .finally(() => setSubmitLoading(false))
   }
 
-  const handleCreateStripeIntent = () => {
-    if (!createdAppointment) return
-    setPaymentLoading(true)
-    setPaymentError(null)
-    setPaymentProvider('STRIPE')
-    api
-      .post<{ clientSecret: string; paymentIntentId: string; amount: number; provider: string }>(
-        '/payments/create-intent',
-        { appointmentId: createdAppointment.id, provider: 'STRIPE' }
-      )
-      .then((res) => {
-        setPaymentClientSecret(res.data.clientSecret)
-        setPaymentIntentId(res.data.paymentIntentId)
-        setPaymentAmount(res.data.amount)
-      })
-      .catch((err) => {
-        const status = err.response?.status
-        const msg = err.response?.data?.error
-        const isServerError = status >= 500
-        setPaymentError(
-          isServerError || isTechnicalError(msg)
-            ? 'No se pudo iniciar el pago. Por favor intentá de nuevo.'
-            : (msg || 'No se pudo iniciar el pago')
-        )
-        setPaymentProvider(null)
-      })
-      .finally(() => setPaymentLoading(false))
-  }
-
   const handleCreateMercadoPagoIntent = () => {
     if (!createdAppointment || !selectedService || !selectedDate || !selectedSlot) return
     setPaymentLoading(true)
@@ -491,13 +459,6 @@ export default function BusinessBookingPage() {
         )
       })
       .finally(() => setPaymentLoading(false))
-  }
-
-  const handleStripePaymentSuccess = () => {
-    goToStep('done')
-    setPaymentClientSecret(null)
-    setPaymentIntentId(null)
-    setPaymentProvider(null)
   }
 
   const primaryColor = business?.primaryColor || '#f5f5f5'
@@ -687,15 +648,9 @@ export default function BusinessBookingPage() {
             selectedSlot={selectedSlot}
             paymentAmount={paymentAmount}
             paymentError={paymentError}
-            paymentClientSecret={paymentClientSecret}
-            paymentIntentId={paymentIntentId}
             paymentLoading={paymentLoading}
-            onStripeIntent={handleCreateStripeIntent}
             onMercadoPagoIntent={handleCreateMercadoPagoIntent}
-            onStripeSuccess={handleStripePaymentSuccess}
-            onPaymentError={setPaymentError}
             onBack={handleBack}
-            primaryColor={primaryColor}
           />
         )}
 

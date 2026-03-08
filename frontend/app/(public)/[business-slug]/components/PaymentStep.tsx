@@ -1,12 +1,6 @@
 'use client'
 
-import { loadStripe } from '@stripe/stripe-js'
-import { Elements } from '@stripe/react-stripe-js'
-import { StripePaymentForm } from './StripePaymentForm'
 import type { CreatedAppointment } from '../types'
-
-const publishableKey = process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY
-const stripePromise = publishableKey ? loadStripe(publishableKey) : null
 
 type PaymentStepProps = {
   createdAppointment: CreatedAppointment
@@ -14,15 +8,9 @@ type PaymentStepProps = {
   selectedSlot: string
   paymentAmount: number | null
   paymentError: string | null
-  paymentClientSecret: string | null
-  paymentIntentId: string | null
   paymentLoading: boolean
-  onStripeIntent: () => void
   onMercadoPagoIntent: () => void
-  onStripeSuccess: () => void
-  onPaymentError: (msg: string) => void
   onBack?: () => void
-  primaryColor: string
 }
 
 export function PaymentStep({
@@ -31,15 +19,9 @@ export function PaymentStep({
   selectedSlot,
   paymentAmount,
   paymentError,
-  paymentClientSecret,
-  paymentIntentId,
   paymentLoading,
-  onStripeIntent,
   onMercadoPagoIntent,
-  onStripeSuccess,
-  onPaymentError,
   onBack,
-  primaryColor,
 }: PaymentStepProps) {
   return (
     <section className="py-12 px-4 max-w-lg mx-auto">
@@ -68,55 +50,25 @@ export function PaymentStep({
       )}
       {paymentError && <p className="text-sm text-red-600 mb-4">{paymentError}</p>}
 
-      {!paymentClientSecret ? (
-        <div className="space-y-3">
+      <div className="space-y-3">
+        <button
+          type="button"
+          onClick={onMercadoPagoIntent}
+          disabled={paymentLoading}
+          className="w-full py-3 rounded-lg font-medium border border-neutral-300 hover:bg-neutral-50 disabled:opacity-50"
+        >
+          {paymentLoading ? 'Cargando...' : 'Pagar con Mercado Pago'}
+        </button>
+        {onBack && (
           <button
             type="button"
-            onClick={onStripeIntent}
-            disabled={paymentLoading}
-            className="w-full py-3 rounded-lg font-medium border border-neutral-300 hover:bg-neutral-50 disabled:opacity-50"
+            onClick={onBack}
+            className="w-full py-3 rounded-lg font-medium border border-neutral-300 text-neutral-700 hover:bg-neutral-50"
           >
-            {paymentLoading ? 'Cargando...' : 'Pagar con tarjeta (Stripe)'}
+            Volver
           </button>
-          <button
-            type="button"
-            onClick={onMercadoPagoIntent}
-            disabled={paymentLoading}
-            className="w-full py-3 rounded-lg font-medium border border-neutral-300 hover:bg-neutral-50 disabled:opacity-50"
-          >
-            {paymentLoading ? 'Cargando...' : 'Pagar con Mercado Pago'}
-          </button>
-          {onBack && (
-            <button
-              type="button"
-              onClick={onBack}
-              className="w-full py-3 rounded-lg font-medium border border-neutral-300 text-neutral-700 hover:bg-neutral-50"
-            >
-              Volver
-            </button>
-          )}
-        </div>
-      ) : (
-        paymentClientSecret &&
-        paymentIntentId &&
-        stripePromise && (
-          <Elements
-            stripe={stripePromise}
-            options={{
-              clientSecret: paymentClientSecret,
-              appearance: { theme: 'stripe' },
-            }}
-          >
-            <StripePaymentForm
-              appointmentId={createdAppointment.id}
-              paymentIntentId={paymentIntentId}
-              onSuccess={onStripeSuccess}
-              onError={onPaymentError}
-              primaryColor={primaryColor}
-            />
-          </Elements>
-        )
-      )}
+        )}
+      </div>
     </section>
   )
 }
