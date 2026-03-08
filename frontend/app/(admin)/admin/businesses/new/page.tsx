@@ -216,6 +216,11 @@ export default function AdminNewBusinessPage() {
             <p className="mt-0.5 text-xs text-neutral-500">
               Solo letras minúsculas, números y guiones. La página de reservas será /{form.slug || 'slug'}.
             </p>
+            {form.slug && (
+              <p className="mt-0.5 text-xs text-neutral-600">
+                En producción: <span className="font-medium">https://{form.slug.trim()}.turneiro.com</span>
+              </p>
+            )}
           </div>
         </div>
 

@@ -341,6 +341,11 @@ export default function AdminBusinessSetupPage() {
         <p className="mt-1 text-sm text-neutral-500">
           {business?.name} · Paso {currentStep} de 5
         </p>
+        {business?.slug && (
+          <p className="mt-1 text-xs text-neutral-600">
+            URL de la tienda: <a href={`https://${business.slug}.turneiro.com`} target="_blank" rel="noopener noreferrer" className="font-medium text-neutral-700 underline hover:text-neutral-900">https://{business.slug}.turneiro.com</a>
+          </p>
+        )}
 
         {/* Progress stepper */}
         <nav className="mt-4 flex flex-wrap gap-2" aria-label="Pasos">
