@@ -1,4 +1,5 @@
 import path from 'path'
+import fs from 'fs'
 import express from 'express'
 import cors from 'cors'
 import helmet from 'helmet'
@@ -60,7 +61,18 @@ import uploadRoutes from './routes/upload'
 app.use('/api/businesses', businessesRoutes)
 app.use('/api/admin', adminRoutes)
 app.use('/api/admin/upload', uploadRoutes)
-app.use('/uploads', express.static(path.join(process.cwd(), 'uploads')))
+// On Vercel use /tmp (writable); locally use cwd/uploads
+const UPLOADS_DIR = process.env.VERCEL
+  ? path.join('/tmp', 'uploads')
+  : path.join(process.cwd(), 'uploads')
+try {
+  if (!fs.existsSync(UPLOADS_DIR)) {
+    fs.mkdirSync(UPLOADS_DIR, { recursive: true })
+  }
+} catch {
+  // ignore; upload route will return 503 if dir unavailable
+}
+app.use('/uploads', express.static(UPLOADS_DIR))
 app.use('/api/availability', availabilityRoutes)
 app.use('/api/appointments', appointmentsRoutes)
 app.use('/api/services', servicesRoutes)

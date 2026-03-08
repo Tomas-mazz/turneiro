@@ -4,10 +4,19 @@ import { Router, Request, Response } from 'express'
 import multer from 'multer'
 import { requireAdmin } from '../middleware/auth'
 
-const UPLOAD_DIR = path.join(process.cwd(), 'uploads')
+// On Vercel the filesystem is read-only except /tmp
+const UPLOAD_DIR = process.env.VERCEL
+  ? path.join('/tmp', 'uploads')
+  : path.join(process.cwd(), 'uploads')
 
-if (!fs.existsSync(UPLOAD_DIR)) {
-  fs.mkdirSync(UPLOAD_DIR, { recursive: true })
+let uploadsAvailable = false
+try {
+  if (!fs.existsSync(UPLOAD_DIR)) {
+    fs.mkdirSync(UPLOAD_DIR, { recursive: true })
+  }
+  uploadsAvailable = true
+} catch (e) {
+  console.warn('Uploads directory not available:', e)
 }
 
 const storage = multer.diskStorage({
@@ -35,6 +44,10 @@ router.post(
   '/',
   requireAdmin,
   (req: Request, res: Response, next) => {
+    if (!uploadsAvailable) {
+      res.status(503).json({ error: 'Subida de archivos no disponible en este entorno' })
+      return
+    }
     upload.single('file')(req, res, (err: unknown) => {
       if (err) {
         if (err instanceof multer.MulterError && err.code === 'LIMIT_FILE_SIZE') {
