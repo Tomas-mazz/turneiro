@@ -1,12 +1,6 @@
-import path from 'path'
-import express from 'express'
-import cors from 'cors'
-import helmet from 'helmet'
-import dotenv from 'dotenv'
+import app from './app'
+import { ensureFirstAdmin } from './ensureFirstAdmin'
 
-dotenv.config()
-
-const app = express()
 const PORT = process.env.PORT || 3001
 const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:3000'
 
