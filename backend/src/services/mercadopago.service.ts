@@ -1,15 +1,21 @@
 import { MercadoPagoConfig, Preference, Payment } from 'mercadopago'
 
-if (!process.env.MERCADOPAGO_ACCESS_TOKEN) {
-  throw new Error('MERCADOPAGO_ACCESS_TOKEN is not defined')
+const token = process.env.MERCADOPAGO_ACCESS_TOKEN
+
+let preferenceClient: Preference | null = null
+let paymentClient: Payment | null = null
+
+function getClients(): { preferenceClient: Preference; paymentClient: Payment } {
+  if (!token) {
+    throw new Error('Mercado Pago no configurado: falta MERCADOPAGO_ACCESS_TOKEN')
+  }
+  if (!preferenceClient || !paymentClient) {
+    const client = new MercadoPagoConfig({ accessToken: token })
+    preferenceClient = new Preference(client)
+    paymentClient = new Payment(client)
+  }
+  return { preferenceClient: preferenceClient!, paymentClient: paymentClient! }
 }
-
-const client = new MercadoPagoConfig({
-  accessToken: process.env.MERCADOPAGO_ACCESS_TOKEN,
-})
-
-const preferenceClient = new Preference(client)
-const paymentClient = new Payment(client)
 
 type MercadoPagoRefundBody = { amount?: number }
 type MercadoPagoRefundResponse = { id?: string | number }
@@ -30,8 +36,9 @@ export async function createPreference(
     clientPhone: string
   }
 ): Promise<{ preferenceId: string; initPoint: string }> {
+  const { preferenceClient: pref } = getClients()
   try {
-    const preference = await preferenceClient.create({
+    const preference = await pref.create({
       body: {
         items: [
           {
@@ -70,18 +77,16 @@ export async function processRefund(
   paymentId: string,
   amount?: number
 ): Promise<{ refundId: string; amount: number; status: string }> {
+  const { paymentClient: pay } = getClients()
   try {
-    // Get payment details first
-    const payment = await paymentClient.get({ id: Number(paymentId) })
-    
-    // Create refund through API using type assertion for refund method
+    const payment = await pay.get({ id: Number(paymentId) })
+
     const refundBody: MercadoPagoRefundBody = {}
     if (amount !== undefined) {
       refundBody.amount = amount
     }
 
-    // Use type assertion since SDK types might be incomplete
-    const refundClient = paymentClient as unknown as RefundCapablePaymentClient
+    const refundClient = pay as unknown as RefundCapablePaymentClient
     const refund = await refundClient.refund({
       id: Number(paymentId),
       body: refundBody,
@@ -106,15 +111,13 @@ export async function verifyWebhookSignature(
   xRequestId: string,
   dataId: string
 ): Promise<boolean> {
-  // Mercado Pago uses x-signature and x-request-id headers for webhook verification
-  // For now, we'll implement basic verification
-  // In production, you should implement HMAC verification with webhook secret
-  
+  if (!token) {
+    return false
+  }
   if (!xSignature || !xRequestId) {
     return false
   }
 
-  // Keep parameter for future HMAC payload checks
   void dataId
 
   // TODO: Implement full HMAC verification when Mercado Pago provides webhook secret
@@ -125,8 +128,9 @@ export async function verifyWebhookSignature(
  * Get payment details
  */
 export async function getPayment(paymentId: string): Promise<unknown> {
+  const { paymentClient: pay } = getClients()
   try {
-    const payment = await paymentClient.get({ id: Number(paymentId) })
+    const payment = await pay.get({ id: Number(paymentId) })
     return payment
   } catch (error) {
     console.error('Mercado Pago getPayment error:', error)
