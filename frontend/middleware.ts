@@ -26,6 +26,13 @@ function getStoreSlugFromHost(hostname: string): string | null {
     return base || null
   }
 
+  // Production: {storeSlug}.turneiro.com
+  if (lowerHost.endsWith('.turneiro.com')) {
+    const withoutPort = lowerHost.split(':')[0]
+    const base = withoutPort.replace(/\.turneiro\.com$/, '')
+    return base || null
+  }
+
   return null
 }
 
