@@ -73,14 +73,19 @@ export default function BusinessBookingPage() {
 
   const isDarkTheme = themeMode === 'DARK'
 
+  const getDisplayPath = useCallback(() => {
+    if (typeof window !== 'undefined') return window.location.pathname
+    return pathname ?? (slug ? `/${slug}` : '/')
+  }, [pathname, slug])
+
   const goToStep = useCallback(
     (nextStep: Step) => {
       setStep(nextStep)
       if (typeof window !== 'undefined') {
-        window.history.pushState({ step: nextStep }, '', pathname ?? `/${slug}`)
+        window.history.pushState({ step: nextStep }, '', getDisplayPath())
       }
     },
-    [pathname, slug]
+    [getDisplayPath]
   )
 
   const handleBack = useCallback(() => {
@@ -90,13 +95,13 @@ export default function BusinessBookingPage() {
   const handleOpenLogin = useCallback(() => {
     setIsLoginOpen(true)
     if (typeof window !== 'undefined') {
-      window.history.pushState({ step, loginOpen: true }, '', pathname ?? `/${slug}`)
+      window.history.pushState({ step, loginOpen: true }, '', getDisplayPath())
     }
-  }, [pathname, slug, step])
+  }, [getDisplayPath, step])
 
   useEffect(() => {
     if (typeof window === 'undefined') return
-    window.history.replaceState({ step }, '', pathname ?? `/${slug}`)
+    window.history.replaceState({ step }, '', getDisplayPath())
   }, []) // eslint-disable-line react-hooks/exhaustive-deps -- only set initial history entry once
 
   useEffect(() => {
@@ -212,7 +217,7 @@ export default function BusinessBookingPage() {
 
       if (nextStep !== step) {
         setStep(nextStep)
-        window.history.replaceState({ step: nextStep }, '', pathname ?? `/${slug}`)
+        window.history.replaceState({ step: nextStep }, '', getDisplayPath())
       }
     } catch {
       // Ignore corrupted storage, fallback to current step.
@@ -288,14 +293,14 @@ export default function BusinessBookingPage() {
     if (!hasCoreSelection && (step === 'form' || step === 'payment')) {
       const fallbackStep: Step = selectedService ? 'date' : 'service'
       setStep(fallbackStep)
-      window.history.replaceState({ step: fallbackStep }, '', pathname ?? `/${slug}`)
+      window.history.replaceState({ step: fallbackStep }, '', getDisplayPath())
       return
     }
 
     if (step === 'payment' && !createdAppointment) {
       const fallbackStep: Step = hasCoreSelection ? 'form' : selectedService ? 'date' : 'service'
       setStep(fallbackStep)
-      window.history.replaceState({ step: fallbackStep }, '', pathname ?? `/${slug}`)
+      window.history.replaceState({ step: fallbackStep }, '', getDisplayPath())
     }
   }, [
     step,
@@ -304,8 +309,7 @@ export default function BusinessBookingPage() {
     selectedDate,
     selectedSlot,
     createdAppointment,
-    pathname,
-    slug,
+    getDisplayPath,
   ])
 
   useEffect(() => {

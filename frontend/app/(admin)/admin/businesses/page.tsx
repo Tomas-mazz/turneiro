@@ -10,6 +10,18 @@ export default function AdminBusinessesPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
+  const getBusinessPublicUrl = (slug: string) => {
+    if (typeof window === 'undefined') return `https://${slug}.turneiro.com/`
+    const { protocol, hostname } = window.location
+    if (hostname === 'localhost' || hostname === '127.0.0.1') {
+      return `${protocol}//${slug}.localhost:3000/`
+    }
+    if (hostname.endsWith('.turneiro.com')) {
+      return `${protocol}//${slug}.turneiro.com/`
+    }
+    return `${protocol}//${slug}.turneiro.com/`
+  }
+
   useEffect(() => {
     getAdminBusinesses()
       .then(setBusinesses)
@@ -140,7 +152,7 @@ export default function AdminBusinessesPage() {
                     <td className="whitespace-nowrap px-4 py-3 text-right text-sm sm:px-6">
                       <span className="inline-flex gap-3">
                         <a
-                          href={`/${b.slug}`}
+                          href={getBusinessPublicUrl(b.slug)}
                           target="_blank"
                           rel="noopener noreferrer"
                           className="text-neutral-600 underline hover:text-neutral-900"
