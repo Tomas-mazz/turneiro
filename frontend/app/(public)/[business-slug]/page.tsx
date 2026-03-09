@@ -551,7 +551,6 @@ export default function BusinessBookingPage() {
           onToggleTheme={() => setThemeMode((prev) => (prev === 'DARK' ? 'LIGHT' : 'DARK'))}
           onOpenLogin={handleOpenLogin}
           onOpenRegister={() => {
-            if (typeof window !== 'undefined') window.history.back()
             router.push('/register')
           }}
           user={user}
@@ -589,7 +588,6 @@ export default function BusinessBookingPage() {
           onToggleTheme={() => setThemeMode((prev) => (prev === 'DARK' ? 'LIGHT' : 'DARK'))}
           onOpenLogin={handleOpenLogin}
           onOpenRegister={() => {
-            if (typeof window !== 'undefined') window.history.back()
             router.push('/register')
           }}
           user={user}
@@ -633,7 +631,6 @@ export default function BusinessBookingPage() {
           onToggleTheme={() => setThemeMode((prev) => (prev === 'DARK' ? 'LIGHT' : 'DARK'))}
           onOpenLogin={handleOpenLogin}
           onOpenRegister={() => {
-            if (typeof window !== 'undefined') window.history.back()
             router.push('/register')
           }}
           user={user}
@@ -675,7 +672,6 @@ export default function BusinessBookingPage() {
           setUser(loggedInUser)
         }}
         onOpenRegister={() => {
-          if (typeof window !== 'undefined') window.history.back()
           router.push('/register')
         }}
         isDarkTheme={isDarkTheme}

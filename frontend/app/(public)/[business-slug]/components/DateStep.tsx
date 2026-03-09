@@ -7,6 +7,7 @@ import type { Employee, ServiceOption } from '../types'
 import { formatDateKey } from '../utils'
 import { BookingLayout } from './BookingLayout'
 import { EmployeeSelectModal } from './EmployeeSelectModal'
+import { BookingStepper } from './BookingStepper'
 
 const WEEKDAY_ABBR = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb']
 
@@ -84,9 +85,6 @@ export function DateStep({
   user = null,
   onLogout,
 }: DateStepProps) {
-  const backBtnClass = isDarkTheme
-    ? 'bg-neutral-700/80 text-white hover:bg-neutral-600'
-    : 'border border-neutral-300 bg-neutral-100 text-neutral-700 hover:bg-neutral-200'
   const titleText = isDarkTheme ? 'text-white' : 'text-neutral-800'
   const subText = isDarkTheme ? 'text-neutral-400' : 'text-neutral-600'
   const actionBtnClass = isDarkTheme
@@ -165,20 +163,15 @@ export function DateStep({
       onLogout={onLogout}
     >
       <div className="flex w-full flex-col">
-        {/* Back + service title */}
-        <div className="mb-6 flex min-w-0 items-center gap-3 md:mb-8 md:gap-4">
-          <button
-            type="button"
-            onClick={onBack}
-            className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full transition-colors ${backBtnClass}`}
-            aria-label="Volver"
-          >
-            ←
-          </button>
-          <h2 className={`min-w-0 truncate text-lg font-semibold md:text-xl ${titleText}`}>
-            {selectedService.name} ({selectedService.duration} min)
-          </h2>
-        </div>
+        <BookingStepper
+          step="date"
+          isDarkTheme={isDarkTheme}
+          onStepChange={(target) => {
+            if (target === 'service') {
+              onGoToServices()
+            }
+          }}
+        />
 
         {/* Month + navigation */}
         <div className="flex flex-wrap items-center justify-between gap-4 md:gap-4">

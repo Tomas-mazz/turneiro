@@ -58,7 +58,7 @@ export function BookingHero({ name, coverPhoto, coverVideo, primaryColor, onRese
             />
           </>
         )}
-        <div className="absolute inset-0 bg-black/40" aria-hidden />
+        <div className="absolute inset-0 bg-black/70" aria-hidden />
       </div>
 
       {/* Title: centered in top half (same distance from top and from button) */}

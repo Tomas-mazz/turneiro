@@ -4,6 +4,7 @@ import type { AuthUser } from '@/lib/auth'
 import type { ServiceOption, CreatedAppointment } from '../types'
 import { BookingLayout } from './BookingLayout'
 import { CalendarIcon } from '@/app/_assets/icons'
+import { BookingStepper } from './BookingStepper'
 
 type ClientFormStepProps = {
   businessName: string
@@ -60,9 +61,6 @@ export function ClientFormStep({
   user = null,
   onLogout,
 }: ClientFormStepProps) {
-  const backBtnClass = isDarkTheme
-    ? 'bg-neutral-700/80 text-white hover:bg-neutral-600'
-    : 'border border-neutral-300 bg-neutral-100 text-neutral-700 hover:bg-neutral-200'
   const titleText = isDarkTheme ? 'text-white' : 'text-neutral-800'
   const subText = isDarkTheme ? 'text-neutral-400' : 'text-neutral-600'
   const inputClass = isDarkTheme
@@ -88,6 +86,22 @@ export function ClientFormStep({
         user={user}
         onLogout={onLogout}
       >
+        <BookingStepper
+          step="form"
+          isDarkTheme={isDarkTheme}
+          onStepChange={(target) => {
+            if (target === 'service') {
+              onGoToServices()
+            }
+            if (target === 'date') {
+              if (onBackToCalendar) {
+                onBackToCalendar()
+              } else if (onBack) {
+                onBack()
+              }
+            }
+          }}
+        />
         <div className="mx-auto w-full max-w-xl md:max-w-2xl">
           <h2 className={`mb-4 min-w-0 truncate text-lg font-semibold md:mb-6 md:text-xl ${titleText}`}>
             Reserva creada
@@ -135,22 +149,23 @@ export function ClientFormStep({
       user={user}
       onLogout={onLogout}
     >
+      <BookingStepper
+        step="form"
+        isDarkTheme={isDarkTheme}
+        onStepChange={(target) => {
+          if (target === 'service') {
+            onGoToServices()
+          }
+          if (target === 'date') {
+            if (onBackToCalendar) {
+              onBackToCalendar()
+            } else if (onBack) {
+              onBack()
+            }
+          }
+        }}
+      />
       <div className="mx-auto w-full max-w-xl md:max-w-2xl">
-        <div className="mb-4 flex min-w-0 items-center gap-3 md:mb-6 md:gap-4">
-          {onBack && (
-            <button
-              type="button"
-              onClick={onBack}
-              className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full transition-colors ${backBtnClass}`}
-              aria-label="Volver"
-            >
-              ←
-            </button>
-          )}
-          <h2 className={`min-w-0 truncate text-lg font-semibold md:text-xl ${titleText}`}>
-            Tus datos
-          </h2>
-        </div>
         <div className={`mb-6 rounded-2xl px-4 py-4 shadow-sm ${summaryCardClass}`}>
           <p className={`text-xs font-semibold uppercase tracking-wide ${subText}`}>
             Resumen de tu turno
