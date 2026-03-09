@@ -54,6 +54,8 @@ export function middleware(req: NextRequest) {
     '/admin',
     '/login',
     '/register',
+    '/verify-email',
+    '/account',
     '/auth',
     '/booking',
     '/cancel',
@@ -67,6 +69,19 @@ export function middleware(req: NextRequest) {
     )
   ) {
     return NextResponse.next()
+  }
+
+  // If someone lands on turneiro.com/{storeSlug}, bounce them to {storeSlug}.turneiro.com/.
+  // This prevents the "store as path" experience in production.
+  if (
+    (hostname === 'turneiro.com' || hostname === 'www.turneiro.com') &&
+    /^\/[a-z0-9-]+$/i.test(pathname)
+  ) {
+    const storeSlugFromPath = pathname.slice(1)
+    const url = req.nextUrl.clone()
+    url.hostname = `${storeSlugFromPath}.turneiro.com`
+    url.pathname = '/'
+    return NextResponse.redirect(url, 308)
   }
 
   // Dev convenience: on plain localhost, use a default store slug if configured.

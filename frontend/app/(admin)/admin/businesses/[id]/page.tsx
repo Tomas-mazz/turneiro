@@ -112,6 +112,15 @@ export default function AdminBusinessPage() {
 
   const DAY_NAMES = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado']
 
+  const getBusinessPublicUrl = (slug: string) => {
+    if (typeof window === 'undefined') return `https://${slug}.turneiro.com/`
+    const { protocol, hostname } = window.location
+    if (hostname === 'localhost' || hostname === '127.0.0.1') {
+      return `${protocol}//${slug}.localhost:3000/`
+    }
+    return `${protocol}//${slug}.turneiro.com/`
+  }
+
   useEffect(() => {
     if (!id) return
     getAdminBusiness(id)
@@ -633,7 +642,7 @@ export default function AdminBusinessPage() {
               <p className="mt-0.5 text-sm text-red-600" role="alert">{fieldErrors.slug}</p>
             )}
             <p className="mt-0.5 text-xs text-neutral-500">
-              Página de reservas: /{form.slug || 'slug'}
+              Página de reservas: https://{(form.slug || 'slug').trim()}.turneiro.com
             </p>
           </div>
         </div>
@@ -1581,7 +1590,7 @@ export default function AdminBusinessPage() {
             Cancelar
           </Link>
           <a
-            href={business ? `/${business.slug}` : '#'}
+            href={business ? getBusinessPublicUrl(business.slug) : '#'}
             target="_blank"
             rel="noopener noreferrer"
             className="rounded-lg border border-neutral-300 px-4 py-2.5 text-sm font-medium text-neutral-700 hover:bg-neutral-50"
