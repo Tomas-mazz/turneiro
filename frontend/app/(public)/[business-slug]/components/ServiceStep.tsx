@@ -5,6 +5,7 @@ import Image from 'next/image'
 import type { AuthUser } from '@/lib/auth'
 import type { Business, ServiceOption } from '../types'
 import { BookingLayout } from './BookingLayout'
+import { BookingStepper } from './BookingStepper'
 
 const DAY_NAMES = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado']
 
@@ -102,6 +103,7 @@ export function ServiceStep({
       user={user}
       onLogout={onLogout}
     >
+      <BookingStepper step="service" isDarkTheme={isDarkTheme} />
       <div className="flex max-w-4xl flex-col gap-8 md:max-w-4xl md:flex-row md:gap-10 lg:max-w-6xl lg:gap-12">
         {/* Left: services list */}
         <div className="min-w-0 flex-1">
