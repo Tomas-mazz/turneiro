@@ -4,7 +4,10 @@ import { getAvailabilityService } from './availability.service'
 import type { CreateAppointmentInput } from '../lib/schemas'
 import * as mercadopagoService from './mercadopago.service'
 import * as googleCalendarService from './google-calendar.service'
-import { sendAppointmentConfirmationEmail } from './email.service'
+import {
+  sendAppointmentConfirmationEmail,
+  sendEmployeeAppointmentNotification,
+} from './email.service'
 
 export class SlotUnavailableError extends Error {
   constructor(message: string = 'El horario ya no está disponible') {
@@ -406,6 +409,11 @@ export async function createAppointmentService(data: CreateAppointmentInput) {
   // Send confirmation email asynchronously (don't block response)
   sendAppointmentConfirmationEmail(appointment.id).catch(err => {
     console.error('Failed to send confirmation email:', err)
+  })
+
+  // Notify assigned employee asynchronously (don't block response)
+  sendEmployeeAppointmentNotification(appointment.id).catch(err => {
+    console.error('Failed to send employee notification email:', err)
   })
 
   return {
