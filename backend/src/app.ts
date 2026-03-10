@@ -1,5 +1,3 @@
-import path from 'path'
-import fs from 'fs'
 import express from 'express'
 import cors from 'cors'
 import helmet from 'helmet'
@@ -15,22 +13,35 @@ app.set('trust proxy', 1)
 app.disable('etag')
 const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:3000'
 
+function isAllowedOrigin(origin: string): boolean {
+  try {
+    const url = new URL(origin)
+    const hostname = url.hostname
+
+    // Exact match with configured frontend URL hostname
+    const frontendHostname = new URL(FRONTEND_URL).hostname
+    if (hostname === frontendHostname) return true
+
+    // Localhost pattern for multi-tenant local testing: <slug>.localhost:3000
+    if (hostname.endsWith('.localhost') || hostname.endsWith('.localhost:3000')) return true
+
+    // Allow both apex and any subdomain for turneiro.com
+    if (hostname === 'turneiro.com' || hostname.endsWith('.turneiro.com')) return true
+
+    return false
+  } catch {
+    return false
+  }
+}
+
 // Middleware
 app.use(helmet({ crossOriginResourcePolicy: { policy: 'cross-origin' } }))
 app.use(
   cors({
     origin(origin, callback) {
       if (!origin) return callback(null, true)
-      if (origin === FRONTEND_URL) return callback(null, true)
-      if (origin.startsWith('http://') && origin.endsWith('.localhost:3000')) {
-        return callback(null, true)
-      }
-      if (origin.startsWith('https://') && origin.endsWith('.turneros.com')) {
-        return callback(null, true)
-      }
-      if (origin.startsWith('https://') && origin.endsWith('.turneiro.com')) {
-        return callback(null, true)
-      }
+      if (isAllowedOrigin(origin)) return callback(null, true)
+      console.warn('Blocked CORS origin:', origin)
       return callback(new Error('Not allowed by CORS'))
     },
     credentials: true,
@@ -66,18 +77,6 @@ import uploadRoutes from './routes/upload'
 app.use('/api/businesses', businessesRoutes)
 app.use('/api/admin', adminRoutes)
 app.use('/api/admin/upload', uploadRoutes)
-// On Vercel use /tmp (writable); locally use cwd/uploads
-const UPLOADS_DIR = process.env.VERCEL
-  ? path.join('/tmp', 'uploads')
-  : path.join(process.cwd(), 'uploads')
-try {
-  if (!fs.existsSync(UPLOADS_DIR)) {
-    fs.mkdirSync(UPLOADS_DIR, { recursive: true })
-  }
-} catch {
-  // ignore; upload route will return 503 if dir unavailable
-}
-app.use('/uploads', express.static(UPLOADS_DIR))
 app.use('/api/availability', availabilityRoutes)
 app.use('/api/appointments', appointmentsRoutes)
 app.use('/api/services', servicesRoutes)

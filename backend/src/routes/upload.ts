@@ -1,35 +1,11 @@
-import path from 'path'
-import fs from 'fs'
 import { Router, Request, Response } from 'express'
 import multer from 'multer'
 import { requireAdmin } from '../middleware/auth'
-
-// On Vercel the filesystem is read-only except /tmp
-const UPLOAD_DIR = process.env.VERCEL
-  ? path.join('/tmp', 'uploads')
-  : path.join(process.cwd(), 'uploads')
-
-let uploadsAvailable = false
-try {
-  if (!fs.existsSync(UPLOAD_DIR)) {
-    fs.mkdirSync(UPLOAD_DIR, { recursive: true })
-  }
-  uploadsAvailable = true
-} catch (e) {
-  console.warn('Uploads directory not available:', e)
-}
-
-const storage = multer.diskStorage({
-  destination: (_req, _file, cb) => cb(null, UPLOAD_DIR),
-  filename: (_req, file, cb) => {
-    const ext = path.extname(file.originalname) || path.extname(file.mimetype) || ''
-    const base = Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 8)
-    cb(null, base + ext.toLowerCase())
-  },
-})
+import { cloudinary, CLOUDINARY_UPLOAD_FOLDER } from '../lib/cloudinary'
+import { Readable } from 'stream'
 
 const upload = multer({
-  storage,
+  storage: multer.memoryStorage(),
   limits: { fileSize: 20 * 1024 * 1024 },
   fileFilter: (_req, file, cb) => {
     const ok = file.mimetype.startsWith('image/') || file.mimetype.startsWith('video/')
@@ -44,10 +20,6 @@ router.post(
   '/',
   requireAdmin,
   (req: Request, res: Response, next) => {
-    if (!uploadsAvailable) {
-      res.status(503).json({ error: 'Subida de archivos no disponible en este entorno' })
-      return
-    }
     upload.single('file')(req, res, (err: unknown) => {
       if (err) {
         if (err instanceof multer.MulterError && err.code === 'LIMIT_FILE_SIZE') {
@@ -60,17 +32,53 @@ router.post(
       next()
     })
   },
-  (req: Request, res: Response) => {
+  async (req: Request, res: Response) => {
     const file = req.file
     if (!file) {
       res.status(400).json({ error: 'No se envió ningún archivo' })
       return
     }
-    const host = req.get('host') || 'localhost:3001'
-    const protocol = req.protocol || 'http'
-    const baseUrl = `${protocol}://${host}`
-    const url = `${baseUrl}/uploads/${file.filename}`
-    res.json({ url })
+
+    if (!process.env.CLOUDINARY_CLOUD_NAME || !process.env.CLOUDINARY_API_KEY || !process.env.CLOUDINARY_API_SECRET) {
+      res
+        .status(503)
+        .json({ error: 'Subida de archivos no disponible: Cloudinary no está configurado en el servidor' })
+      return
+    }
+
+    const isImage = file.mimetype.startsWith('image/')
+    const resourceType = isImage ? 'image' : 'video'
+
+    try {
+      const stream = Readable.from(file.buffer)
+      const uploadResult = await new Promise<{ secure_url: string }>((resolve, reject) => {
+        const uploadStream = cloudinary.uploader.upload_stream(
+          {
+            resource_type: resourceType,
+            folder: CLOUDINARY_UPLOAD_FOLDER,
+            transformation: isImage
+              ? [
+                  { width: 1920, height: 1080, crop: 'limit' },
+                  { fetch_format: 'auto', quality: 'auto' },
+                ]
+              : undefined,
+          },
+          (error, result) => {
+            if (error || !result) {
+              reject(error ?? new Error('Cloudinary upload failed'))
+              return
+            }
+            resolve({ secure_url: result.secure_url })
+          }
+        )
+        stream.pipe(uploadStream)
+      })
+
+      res.json({ url: uploadResult.secure_url })
+    } catch (err) {
+      console.error('Error uploading file to Cloudinary:', err)
+      res.status(500).json({ error: 'Error al subir el archivo' })
+    }
   }
 )
 
