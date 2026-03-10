@@ -6,7 +6,9 @@ import * as mercadopagoService from './mercadopago.service'
 import * as googleCalendarService from './google-calendar.service'
 import {
   sendAppointmentConfirmationEmail,
+  sendAppointmentConfirmationEmailUsingLoadedAppointment,
   sendEmployeeAppointmentNotification,
+  sendEmployeeAppointmentNotificationUsingLoadedAppointment,
 } from './email.service'
 
 export class SlotUnavailableError extends Error {
@@ -399,6 +401,15 @@ export async function createAppointmentService(data: CreateAppointmentInput) {
       status: 'UPCOMING',
       cancellationToken,
     },
+    // Include relations so async tasks can run without extra lookups when possible.
+    include: {
+      business: true,
+      employee: {
+        include: {
+          user: true,
+        },
+      },
+    },
   })
 
   // Sync to Google Calendar asynchronously (don't block response)
@@ -406,13 +417,15 @@ export async function createAppointmentService(data: CreateAppointmentInput) {
     console.error('Failed to sync to Google Calendar:', err)
   })
 
-  // Send confirmation email asynchronously (don't block response)
-  sendAppointmentConfirmationEmail(appointment.id).catch(err => {
+  // Send confirmation email asynchronously (don't block response).
+  // Use the loaded appointment to avoid an extra DB round-trip.
+  sendAppointmentConfirmationEmailUsingLoadedAppointment(appointment).catch(err => {
     console.error('Failed to send confirmation email:', err)
   })
 
-  // Notify assigned employee asynchronously (don't block response)
-  sendEmployeeAppointmentNotification(appointment.id).catch(err => {
+  // Notify assigned employee asynchronously (don't block response),
+  // also using the loaded appointment when possible.
+  sendEmployeeAppointmentNotificationUsingLoadedAppointment(appointment).catch(err => {
     console.error('Failed to send employee notification email:', err)
   })
 
