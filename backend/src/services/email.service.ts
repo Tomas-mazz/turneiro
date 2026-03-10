@@ -250,25 +250,25 @@ function buildAppointmentEmailHtml(args: {
 `
 }
 
-export async function sendAppointmentConfirmationEmail(appointmentId: string): Promise<void> {
-  const appointment = await prisma.appointment.findUnique({
-    where: { id: appointmentId },
-    include: {
-      business: true,
-      employee: true,
-    },
-  })
-
-  if (!appointment) {
-    console.warn('sendAppointmentConfirmationEmail: appointment not found', appointmentId)
-    return
+async function sendAppointmentConfirmationEmailForAppointment(appointment: any): Promise<void> {
+  // We accept `any` here to allow both Prisma-loaded and preloaded appointments.
+  const apt = appointment as {
+    id: string
+    clientEmail: string | null
+    clientName: string
+    startTime: Date
+    endTime: Date
+    cancellationToken: string | null
+    paymentStatus: string
+    price: number
+    paymentAmount: number | null
+    serviceName: string
+    business: { name: string; address?: string | null }
+    employee?: { name?: string | null } | null
   }
 
-  // Temporary type bridge: Prisma types may be stale until `prisma generate` runs.
-  const apt: any = appointment
-
   if (!apt.clientEmail) {
-    console.warn('sendAppointmentConfirmationEmail: appointment has no clientEmail', appointmentId)
+    console.warn('sendAppointmentConfirmationEmail: appointment has no clientEmail', apt.id)
     return
   }
 
@@ -279,11 +279,11 @@ export async function sendAppointmentConfirmationEmail(appointmentId: string): P
   })
 
   const frontendBaseUrl = process.env.FRONTEND_BASE_URL ?? 'http://localhost:3000'
-  const cancelUrl = appointment.cancellationToken
-    ? `${frontendBaseUrl}/cancel?token=${appointment.cancellationToken}`
+  const cancelUrl = apt.cancellationToken
+    ? `${frontendBaseUrl}/cancel?token=${apt.cancellationToken}`
     : frontendBaseUrl
 
-  const { dateLabel, timeLabel } = formatDateTimeRange(appointment.startTime, appointment.endTime)
+  const { dateLabel, timeLabel } = formatDateTimeRange(apt.startTime, apt.endTime)
 
   const html = buildAppointmentEmailHtml({
     businessName: apt.business.name,
@@ -305,7 +305,7 @@ export async function sendAppointmentConfirmationEmail(appointmentId: string): P
   const pass = process.env.SMTP_PASS
 
   if (!host || !user || !pass) {
-    console.warn('SMTP configuration missing; skipping confirmation email for appointment', appointmentId)
+    console.warn('SMTP configuration missing; skipping confirmation email for appointment', apt.id)
     return
   }
 
@@ -331,10 +331,42 @@ export async function sendAppointmentConfirmationEmail(appointmentId: string): P
       subject,
       html,
     })
-    console.log('✅ Confirmation email sent for appointment', appointmentId)
+    console.log('✅ Confirmation email sent for appointment', apt.id)
   } catch (err) {
-    console.error('Failed to send confirmation email for appointment', appointmentId, err)
+    console.error('Failed to send confirmation email for appointment', apt.id, err)
   }
+}
+
+/**
+ * Public API: load appointment from DB and send confirmation email.
+ * Kept for callers that only have the ID.
+ */
+export async function sendAppointmentConfirmationEmail(appointmentId: string): Promise<void> {
+  const appointment = await prisma.appointment.findUnique({
+    where: { id: appointmentId },
+    include: {
+      business: true,
+      employee: true,
+    },
+  })
+
+  if (!appointment) {
+    console.warn('sendAppointmentConfirmationEmail: appointment not found', appointmentId)
+    return
+  }
+
+  await sendAppointmentConfirmationEmailForAppointment(appointment)
+}
+
+/**
+ * Optimized API: use an already-loaded appointment (including business & employee)
+ * to send the confirmation email without hitting the database again.
+ */
+export async function sendAppointmentConfirmationEmailUsingLoadedAppointment(
+  appointment: any
+): Promise<void> {
+  if (!appointment) return
+  await sendAppointmentConfirmationEmailForAppointment(appointment)
 }
 
 /**
@@ -462,6 +494,98 @@ function buildEmployeeNotificationHtml(args: {
  * - Uses the staff user's email (employee.user.email) when available.
  * - If there is no employee or no email, it silently skips.
  */
+async function sendEmployeeAppointmentNotificationForAppointment(appointment: any): Promise<void> {
+  const apt = appointment as {
+    id: string
+    clientName: string
+    clientPhone: string
+    serviceName: string
+    startTime: Date
+    endTime: Date
+    business: { name: string }
+    employee?: { name?: string | null; user?: { email?: string | null; name?: string | null } | null } | null
+  }
+
+  const employee = apt.employee
+  const employeeUser = employee?.user as
+    | { email: string | null; name: string | null }
+    | null
+    | undefined
+
+  const employeeEmail = employeeUser?.email ?? null
+  const employeeName = employee?.name ?? employeeUser?.name ?? 'Empleado'
+
+  if (!employee || !employeeEmail) {
+    // No employee assigned or no email available: nothing to notify.
+    console.warn(
+      'sendEmployeeAppointmentNotification: no employee or employee email, skipping for appointment',
+      apt.id
+    )
+    return
+  }
+
+  const { dateLabel, timeLabel } = formatDateTimeRange(apt.startTime, apt.endTime)
+
+  // Build a day view URL for Google Calendar (does not depend on calendarId).
+  const year = apt.startTime.getFullYear()
+  const month = String(apt.startTime.getMonth() + 1).padStart(2, '0')
+  const day = String(apt.startTime.getDate()).padStart(2, '0')
+  const googleCalendarDayUrl = `https://calendar.google.com/calendar/r/day/${year}/${month}/${day}`
+
+  const html = buildEmployeeNotificationHtml({
+    businessName: apt.business.name,
+    employeeName,
+    clientName: apt.clientName,
+    clientPhone: apt.clientPhone,
+    serviceName: apt.serviceName,
+    dateLabel,
+    timeLabel,
+    googleCalendarDayUrl,
+  })
+
+  const host = process.env.SMTP_HOST
+  const port = process.env.SMTP_PORT ? Number(process.env.SMTP_PORT) : 587
+  const user = process.env.SMTP_USER
+  const pass = process.env.SMTP_PASS
+
+  if (!host || !user || !pass) {
+    console.warn(
+      'SMTP configuration missing; skipping employee notification email for appointment',
+      apt.id
+    )
+    return
+  }
+
+  const transporter = nodemailer.createTransport({
+    host,
+    port,
+    secure: port === 465,
+    auth: {
+      user,
+      pass,
+    },
+  })
+
+  const fromName = apt.business.name
+  const fromEmail = process.env.EMAIL_FROM || user
+  const subject = `Nuevo turno asignado - ${apt.business.name}`
+
+  try {
+    await transporter.sendMail({
+      from: `"${fromName}" <${fromEmail}>`,
+      to: employeeEmail,
+      subject,
+      html,
+    })
+    console.log('✅ Employee notification email sent for appointment', apt.id)
+  } catch (err) {
+    console.error('Failed to send employee notification email for appointment', apt.id, err)
+  }
+}
+
+/**
+ * Public API: load appointment from DB and notify employee.
+ */
 export async function sendEmployeeAppointmentNotification(
   appointmentId: string
 ): Promise<void> {
@@ -482,83 +606,17 @@ export async function sendEmployeeAppointmentNotification(
     return
   }
 
-  const employee = appointment.employee
-  const employeeUser = employee?.user as
-    | { email: string | null; name: string | null }
-    | null
-    | undefined
+  await sendEmployeeAppointmentNotificationForAppointment(appointment)
+}
 
-  const employeeEmail = employeeUser?.email ?? null
-  const employeeName = employee?.name ?? employeeUser?.name ?? 'Empleado'
-
-  if (!employee || !employeeEmail) {
-    // No employee assigned or no email available: nothing to notify.
-    console.warn(
-      'sendEmployeeAppointmentNotification: no employee or employee email, skipping for appointment',
-      appointmentId
-    )
-    return
-  }
-
-  const { dateLabel, timeLabel } = formatDateTimeRange(
-    appointment.startTime,
-    appointment.endTime
-  )
-
-  // Build a day view URL for Google Calendar (does not depend on calendarId).
-  const year = appointment.startTime.getFullYear()
-  const month = String(appointment.startTime.getMonth() + 1).padStart(2, '0')
-  const day = String(appointment.startTime.getDate()).padStart(2, '0')
-  const googleCalendarDayUrl = `https://calendar.google.com/calendar/r/day/${year}/${month}/${day}`
-
-  const html = buildEmployeeNotificationHtml({
-    businessName: appointment.business.name,
-    employeeName,
-    clientName: appointment.clientName,
-    clientPhone: appointment.clientPhone,
-    serviceName: appointment.serviceName,
-    dateLabel,
-    timeLabel,
-    googleCalendarDayUrl,
-  })
-
-  const host = process.env.SMTP_HOST
-  const port = process.env.SMTP_PORT ? Number(process.env.SMTP_PORT) : 587
-  const user = process.env.SMTP_USER
-  const pass = process.env.SMTP_PASS
-
-  if (!host || !user || !pass) {
-    console.warn(
-      'SMTP configuration missing; skipping employee notification email for appointment',
-      appointmentId
-    )
-    return
-  }
-
-  const transporter = nodemailer.createTransport({
-    host,
-    port,
-    secure: port === 465,
-    auth: {
-      user,
-      pass,
-    },
-  })
-
-  const fromName = appointment.business.name
-  const fromEmail = process.env.EMAIL_FROM || user
-  const subject = `Nuevo turno asignado - ${appointment.business.name}`
-
-  try {
-    await transporter.sendMail({
-      from: `"${fromName}" <${fromEmail}>`,
-      to: employeeEmail,
-      subject,
-      html,
-    })
-    console.log('✅ Employee notification email sent for appointment', appointmentId)
-  } catch (err) {
-    console.error('Failed to send employee notification email for appointment', appointmentId, err)
-  }
+/**
+ * Optimized API: use an already-loaded appointment (including business & employee.user)
+ * to notify the employee without re-querying the database.
+ */
+export async function sendEmployeeAppointmentNotificationUsingLoadedAppointment(
+  appointment: any
+): Promise<void> {
+  if (!appointment) return
+  await sendEmployeeAppointmentNotificationForAppointment(appointment)
 }
 
