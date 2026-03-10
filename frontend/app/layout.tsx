@@ -17,8 +17,11 @@ const montserrat = Montserrat({
 })
 
 export const metadata: Metadata = {
-  title: 'Appointments',
-  description: 'Booking platform',
+  title: 'Turineiro',
+  description: 'Turineiro - plataforma de reservas',
+  icons: {
+    icon: '/logos/pngegg.png',
+  },
 }
 
 export default function RootLayout({

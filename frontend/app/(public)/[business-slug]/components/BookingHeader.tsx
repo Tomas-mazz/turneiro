@@ -140,8 +140,8 @@ export function BookingHeader({
                 </span>
               </button>
               {authMenuOpen && (
-                <div
-                  className={`absolute right-0 top-full z-20 mt-2 min-w-[11rem] rounded-xl py-1 shadow-lg ${dropdownBg}`}
+              <div
+                  className={`absolute right-0 top-full z-20 mt-2 min-w-[11rem] rounded-xl py-1 shadow-lg overflow-hidden ${dropdownBg}`}
                   role="menu"
                 >
                   {user.role === 'ADMIN' && (
@@ -202,7 +202,7 @@ export function BookingHeader({
               </button>
               {authMenuOpen && (
                 <div
-                  className={`absolute right-0 top-full z-20 mt-2 min-w-[10rem] rounded-xl py-1 shadow-lg ${dropdownBg}`}
+                  className={`absolute right-0 top-full z-20 mt-2 min-w-[10rem] rounded-xl py-1 shadow-lg overflow-hidden ${dropdownBg}`}
                   role="menu"
                 >
                   {onOpenLogin && (
