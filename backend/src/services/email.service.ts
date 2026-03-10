@@ -497,6 +497,7 @@ function buildEmployeeNotificationHtml(args: {
 async function sendEmployeeAppointmentNotificationForAppointment(appointment: any): Promise<void> {
   const apt = appointment as {
     id: string
+    businessId: string
     clientName: string
     clientPhone: string
     serviceName: string
@@ -512,13 +513,30 @@ async function sendEmployeeAppointmentNotificationForAppointment(appointment: an
     | null
     | undefined
 
-  const employeeEmail = employeeUser?.email ?? null
-  const employeeName = employee?.name ?? employeeUser?.name ?? 'Empleado'
+  let targetEmail: string | null = null
+  let targetName: string = 'Empleado'
 
-  if (!employee || !employeeEmail) {
-    // No employee assigned or no email available: nothing to notify.
+  if (employee && employeeUser?.email) {
+    targetEmail = employeeUser.email
+    targetName = employee?.name ?? employeeUser.name ?? 'Empleado'
+  } else {
+    // Fallback: notify the business owner when there is no employee
+    // or the employee has no linked user/email.
+    const owner = await prisma.user.findFirst({
+      where: { businessId: apt.businessId, role: 'OWNER' },
+      select: { email: true, name: true },
+    })
+
+    if (owner?.email) {
+      targetEmail = owner.email
+      targetName = owner.name ?? 'Dueño'
+    }
+  }
+
+  if (!targetEmail) {
+    // No employee or owner email available: nothing to notify.
     console.warn(
-      'sendEmployeeAppointmentNotification: no employee or employee email, skipping for appointment',
+      'sendEmployeeAppointmentNotification: no employee or owner email, skipping for appointment',
       apt.id
     )
     return
@@ -534,7 +552,7 @@ async function sendEmployeeAppointmentNotificationForAppointment(appointment: an
 
   const html = buildEmployeeNotificationHtml({
     businessName: apt.business.name,
-    employeeName,
+    employeeName: targetName,
     clientName: apt.clientName,
     clientPhone: apt.clientPhone,
     serviceName: apt.serviceName,
@@ -573,7 +591,7 @@ async function sendEmployeeAppointmentNotificationForAppointment(appointment: an
   try {
     await transporter.sendMail({
       from: `"${fromName}" <${fromEmail}>`,
-      to: employeeEmail,
+      to: targetEmail,
       subject,
       html,
     })
