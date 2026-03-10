@@ -8,6 +8,7 @@ export const loginLimiter = rateLimit({
   message: { error: 'Too many login attempts. Try again in 15 minutes.' },
   standardHeaders: true,
   legacyHeaders: false,
+  validate: false,
 })
 
 export const createAppointmentLimiter = rateLimit({
@@ -16,6 +17,7 @@ export const createAppointmentLimiter = rateLimit({
   message: { error: 'Too many booking requests from this address. Try again in 15 minutes.' },
   standardHeaders: true,
   legacyHeaders: false,
+  validate: false,
 })
 
 export const createPaymentIntentLimiter = rateLimit({
@@ -24,4 +26,5 @@ export const createPaymentIntentLimiter = rateLimit({
   message: { error: 'Too many payment requests. Try again in 15 minutes.' },
   standardHeaders: true,
   legacyHeaders: false,
+  validate: false,
 })
