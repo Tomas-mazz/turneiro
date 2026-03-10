@@ -215,7 +215,6 @@ export function ClientFormStep({
               onChange={(e) => onClientEmail(e.target.value)}
               className={inputClass}
               placeholder="tuusuario@gmail.com"
-              pattern="^[a-zA-Z0-9._%+-]+@gmail\\.com$"
             />
           </div>
           <div>
