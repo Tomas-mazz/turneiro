@@ -26,25 +26,19 @@ export class CancellationNotAllowedError extends Error {
 }
 
 /**
- * Helper: Sync appointment to the appropriate Google Calendar.
+ * Core helper: given a fully-loaded appointment (with business and employee.user),
+ * sync it to the appropriate Google Calendar.
  * If the appointment is assigned to an employee with a linked User who has Google Calendar connected, use that calendar.
  * Otherwise fall back to the business owner's calendar.
+ *
+ * NOTE: We accept a preloaded appointment to avoid extra DB round-trips in hot paths
+ * like appointment creation. A thin wrapper below can still fetch by ID when needed.
  */
-async function syncToGoogleCalendar(
-  appointmentId: string,
+async function syncToGoogleCalendarForLoadedAppointment(
+  appointment: any,
   businessId: string
 ): Promise<void> {
   try {
-    const appointment = await prisma.appointment.findUnique({
-      where: { id: appointmentId },
-      include: {
-        business: true,
-        employee: { include: { user: true } },
-      },
-    })
-
-    if (!appointment) return
-
     let targetUser: { id: string; googleRefreshToken: string | null; googleCalendarId: string | null } | null = null
     const isStaffEmployee = appointment.employeeId && appointment.employee && !appointment.employee.isOwner
 
@@ -126,7 +120,7 @@ async function syncToGoogleCalendar(
     }
 
     await prisma.appointment.update({
-      where: { id: appointmentId },
+      where: { id: appointment.id },
       data: {
         googleEventId: eventId,
         syncedToUserId: targetUser.id,
@@ -134,7 +128,7 @@ async function syncToGoogleCalendar(
       },
     })
 
-    console.log(`✅ Appointment ${appointmentId} synced to Google Calendar (user ${targetUser.id})`)
+    console.log(`✅ Appointment ${appointment.id} synced to Google Calendar (user ${targetUser.id})`)
   } catch (error) {
     console.error('Error syncing to Google Calendar:', error)
     // Don't throw - we don't want to fail appointment creation if GC sync fails
@@ -142,18 +136,38 @@ async function syncToGoogleCalendar(
 }
 
 /**
- * Helper: Delete event from the Google Calendar it was synced to (syncedToUserId or owner).
+ * Thin wrapper: fetch appointment by ID and delegate to the core helper.
+ * Kept for backwards compatibility in case other callers need it.
  */
-async function deleteFromGoogleCalendar(
+async function syncToGoogleCalendar(
   appointmentId: string,
   businessId: string
 ): Promise<void> {
   try {
     const appointment = await prisma.appointment.findUnique({
       where: { id: appointmentId },
-      include: { syncedToUser: true },
+      include: {
+        business: true,
+        employee: { include: { user: true } },
+      },
     })
 
+    if (!appointment) return
+
+    await syncToGoogleCalendarForLoadedAppointment(appointment, businessId)
+  } catch (error) {
+    console.error('Error syncing to Google Calendar:', error)
+  }
+}
+
+/**
+ * Helper: Delete event from the Google Calendar it was synced to (syncedToUserId or owner).
+ */
+async function deleteFromGoogleCalendarForLoadedAppointment(
+  appointment: any,
+  businessId: string
+): Promise<void> {
+  try {
     const googleEventId = appointment?.googleEventId
     let refreshToken: string | null = null
     let calendarId: string | null = null
@@ -199,6 +213,28 @@ async function deleteFromGoogleCalendar(
         }
       }
     }
+  } catch (error) {
+    console.error('Error deleting from Google Calendar:', error)
+  }
+}
+
+/**
+ * Thin wrapper: fetch appointment by ID and delegate to the core helper.
+ * Kept for backwards compatibility in case other callers need it.
+ */
+async function deleteFromGoogleCalendar(
+  appointmentId: string,
+  businessId: string
+): Promise<void> {
+  try {
+    const appointment = await prisma.appointment.findUnique({
+      where: { id: appointmentId },
+      include: { syncedToUser: true },
+    })
+
+    if (!appointment) return
+
+    await deleteFromGoogleCalendarForLoadedAppointment(appointment, businessId)
   } catch (error) {
     console.error('Error deleting from Google Calendar:', error)
   }
@@ -413,7 +449,7 @@ export async function createAppointmentService(data: CreateAppointmentInput) {
   })
 
   // Sync to Google Calendar asynchronously (don't block response)
-  syncToGoogleCalendar(appointment.id, business.id).catch(err => {
+  syncToGoogleCalendarForLoadedAppointment(appointment, business.id).catch(err => {
     console.error('Failed to sync to Google Calendar:', err)
   })
 
@@ -500,7 +536,7 @@ export async function cancelAppointmentService(token: string) {
   })
 
   // Delete from Google Calendar asynchronously
-  deleteFromGoogleCalendar(appointment.id, appointment.businessId).catch(err =>
+  deleteFromGoogleCalendarForLoadedAppointment(appointment, appointment.businessId).catch(err =>
     console.error('Failed to delete from Google Calendar:', err)
   )
 
@@ -722,7 +758,7 @@ export async function adminCancelAppointmentService(
   })
 
   // Delete from Google Calendar asynchronously
-  deleteFromGoogleCalendar(appointmentId, appointment.businessId).catch(err =>
+  deleteFromGoogleCalendarForLoadedAppointment(appointment, appointment.businessId).catch(err =>
     console.error('Failed to delete from Google Calendar (admin):', err)
   )
 
@@ -823,7 +859,7 @@ export async function cancelAppointmentByOwnerService(
   })
 
   // Delete from Google Calendar asynchronously
-  deleteFromGoogleCalendar(appointmentId, businessId).catch(err =>
+  deleteFromGoogleCalendarForLoadedAppointment(appointment, businessId).catch(err =>
     console.error('Failed to delete from Google Calendar:', err)
   )
 
