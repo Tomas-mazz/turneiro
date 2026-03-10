@@ -3,16 +3,16 @@
 ## Context
 
 This repo contains **only** the product for stores (frontend + backend), not the marketing site:
-- Each store will live under its own **subdomain** of `turneros.com`, for example:
-  - `vasco-barber.turneros.com`
-  - `another-store.turneros.com`
+Each store lives under its own **subdomain** of `turneiro.com`, for example:
+  - `vasco-barber.turneiro.com`
+  - `another-store.turneiro.com`
 - The corporate site of the company will live in a **separate repo** with domain:
   - `turneros.com`
 
 Selected model: **Model A – everything per store**
-- Public booking: `https://{storeSlug}.turneros.com/` (clients reserve appointments).
-- Owner/staff configuration panel: `https://{storeSlug}.turneros.com/dashboard` (UI label: **Configuración**).
-- Login: `https://{storeSlug}.turneros.com/login`.
+- Public booking: `https://{storeSlug}.turneiro.com/` (clients reserve appointments).
+- Owner/staff configuration panel: `https://{storeSlug}.turneiro.com/dashboard` (UI label: **Configuración**).
+- Login: `https://{storeSlug}.turneiro.com/login`.
 - End client can book **without** logging in; login is optional and adds extra value.
 
 Recommended branch name for this work:
@@ -24,7 +24,7 @@ Recommended branch name for this work:
 
 ### Implemented (summary)
 
-- **`frontend/middleware.ts`**: Reads hostname; on store subdomain (`*.localhost` or `*.turneros.com`) or on plain `localhost` with `NEXT_PUBLIC_DEV_DEFAULT_STORE_SLUG` set, rewrites `/` to `/{storeSlug}` so the public booking page is the "home". Excluded paths: `/dashboard`, `/admin`, `/login`, `/register`, `/booking`, `/cancel`, `/api`, `/_next`, and public files.
+- **`frontend/middleware.ts`**: Reads hostname; on store subdomain (`*.localhost` or `*.turneiro.com`) or on plain `localhost` with `NEXT_PUBLIC_DEV_DEFAULT_STORE_SLUG` set, rewrites `/` to `/{storeSlug}` so the public booking page is the "home". Excluded paths: `/dashboard`, `/admin`, `/login`, `/register`, `/booking`, `/cancel`, `/api`, `/_next`, and public files.
 - **Dev default store**: Env `NEXT_PUBLIC_DEV_DEFAULT_STORE_SLUG` (e.g. `vasco-barber`) makes `http://localhost:3000/` show that store without subdomain. Documented in `frontend/.env.example` and set in `frontend/.env.local` for local use.
 - **"Back to store" links**: All former ``href={`/${businessSlug}`}`` updated to `href="/"` in dashboard layout, dashboard page, and booking pending/failure/success pages. On the same host, `/` is always the store.
 - **Backend CORS**: `backend/src/index.ts` CORS allows `FRONTEND_URL`, `*.localhost` (dev), and `*.turneros.com` (prod) so login and API work from store subdomains.
@@ -36,7 +36,7 @@ Recommended branch name for this work:
 
 Decisions:
 - Keep the main booking page at `/(public)/[business-slug]/page.tsx`.
-- In production, use a wildcard DNS like `*.turneros.com` pointing to this frontend.
+- In production, use a wildcard DNS like `*.turneiro.com` pointing to this frontend.
 - Keep these as **global routes within the same subdomain**:
   - `/dashboard`, `/admin`, `/login`, `/register`, `/booking/*`, `/cancel`, plus framework internals like `/_next/*`, `/api/*`.
 
@@ -52,7 +52,7 @@ Checklist:
 
 Implementation (done):
 - `frontend/middleware.ts` reads `request.nextUrl.hostname` and `Host` header.
-- Store slug from host: `*.localhost` → part before `.localhost`; `*.turneros.com` → part before `.turneros.com`. Plain `localhost`/`127.0.0.1` → use `NEXT_PUBLIC_DEV_DEFAULT_STORE_SLUG` if set.
+- Store slug from host: `*.localhost` → part before `.localhost`; `*.turneiro.com` → part before `.turneiro.com`. Plain `localhost`/`127.0.0.1` → use `NEXT_PUBLIC_DEV_DEFAULT_STORE_SLUG` if set.
 - If path is `/` and we have a store slug, rewrite to `/{storeSlug}`. Excluded: `/dashboard`, `/admin`, `/login`, `/register`, `/booking`, `/cancel`, `/api`, `/_next`, and static/public files.
 
 Checklist:
@@ -70,12 +70,12 @@ Current behaviour: several places build links like ``href={`/${businessSlug}`}``
 - `app/(public)/booking/success/success-client.tsx`.
 
 In the new subdomain model:
-- When we are on `https://{storeSlug}.turneros.com`, the natural “back to store” link is just `/` on the **same host**.
+- When we are on `https://{storeSlug}.turneiro.com`, the natural “back to store” link is just `/` on the **same host**.
 
 Decision:
 - Introduce a simple rule/helper for “go back to store” links:
   - When running inside a store subdomain → use `href="/"`.
-  - (Optional for the future) If we ever add a central panel domain, construct `https://{storeSlug}.turneros.com/` instead.
+- (Optional for the future) If we ever add a central panel domain, construct `https://{storeSlug}.turneiro.com/` instead.
 
 Checklist:
 - [X] Enumerate all call sites that use `/${businessSlug}` for navigation.

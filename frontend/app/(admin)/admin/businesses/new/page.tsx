@@ -29,14 +29,12 @@ export default function AdminNewBusinessPage() {
     phone: '',
     email: '',
     address: '',
-    logo: '',
     coverPhoto: '',
     coverVideo: '',
     paymentRequired: false,
     ownerEmail: '',
     ownerPassword: '',
   })
-  const [logoUploading, setLogoUploading] = useState(false)
   const [coverUploading, setCoverUploading] = useState(false)
   const [coverUploadError, setCoverUploadError] = useState<string | null>(null)
 
@@ -54,21 +52,6 @@ export default function AdminNewBusinessPage() {
         delete next[name]
         return next
       })
-    }
-  }
-
-  const handleLogoFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (!file || !file.type.startsWith('image/')) return
-    setLogoUploading(true)
-    try {
-      const { url } = await uploadAdminFile(file)
-      setForm((prev) => ({ ...prev, logo: url }))
-    } catch {
-      setError('Error al subir el logo')
-    } finally {
-      setLogoUploading(false)
-      e.target.value = ''
     }
   }
 
@@ -115,7 +98,6 @@ export default function AdminNewBusinessPage() {
       if (form.phone?.trim()) body.phone = form.phone.trim()
       if (form.email?.trim()) body.email = form.email.trim()
       if (form.address?.trim()) body.address = form.address.trim()
-      if (form.logo?.trim()) body.logo = form.logo.trim()
       if (form.coverPhoto?.trim()) body.coverPhoto = form.coverPhoto.trim()
       if (form.coverVideo?.trim()) body.coverVideo = form.coverVideo.trim()
       if (form.ownerEmail?.trim()) body.ownerEmail = form.ownerEmail.trim()
@@ -176,7 +158,7 @@ export default function AdminNewBusinessPage() {
             Marca y presentación
           </legend>
           <p className="mb-4 text-xs text-neutral-500">
-            Nombre, descripción, logo y portada se muestran en la página pública de reservas.
+            Nombre, descripción e imagen/video de portada se muestran en la página pública de reservas.
           </p>
         <div className="grid gap-4 sm:grid-cols-2">
           <div>
@@ -312,25 +294,6 @@ export default function AdminNewBusinessPage() {
           />
           {fieldErrors.address && (
             <p className="mt-0.5 text-sm text-red-600" role="alert">{fieldErrors.address}</p>
-          )}
-        </div>
-
-        <div>
-          <label className="mb-1 block text-sm font-medium text-neutral-700">
-            Logo
-          </label>
-          <input
-            type="file"
-            accept="image/*"
-            onChange={handleLogoFile}
-            disabled={logoUploading}
-            className="block w-full text-sm text-neutral-600 file:mr-3 file:rounded-lg file:border-0 file:bg-neutral-100 file:px-4 file:py-2 file:text-sm file:font-medium file:text-neutral-700 hover:file:bg-neutral-200"
-          />
-          {logoUploading && <p className="mt-1 text-sm text-neutral-500">Subiendo...</p>}
-          {form.logo && (
-            <p className="mt-1 text-sm text-green-600">
-              Logo cargado. <button type="button" onClick={() => setForm((p) => ({ ...p, logo: '' }))} className="underline">Quitar</button>
-            </p>
           )}
         </div>
 

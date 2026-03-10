@@ -75,7 +75,6 @@ export default function AdminBusinessPage() {
     ownerEmail: '',
     ownerPassword: '',
   })
-  const [logoUploading, setLogoUploading] = useState(false)
   const [coverUploading, setCoverUploading] = useState(false)
   const [coverUploadError, setCoverUploadError] = useState<string | null>(null)
   const [services, setServices] = useState<ServiceListItem[]>([])
@@ -453,21 +452,6 @@ export default function AdminBusinessPage() {
     }
   }
 
-  const handleLogoFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (!file || !file.type.startsWith('image/')) return
-    setLogoUploading(true)
-    try {
-      const { url } = await uploadAdminFile(file)
-      setForm((prev) => ({ ...prev, logo: url }))
-    } catch {
-      setError('Error al subir el logo')
-    } finally {
-      setLogoUploading(false)
-      e.target.value = ''
-    }
-  }
-
   const handleCoverFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file) return
@@ -513,7 +497,6 @@ export default function AdminBusinessPage() {
       if (form.phone !== undefined) body.phone = (form.phone ?? '').toString().trim() || null
       if (form.email !== undefined) body.email = (form.email ?? '').toString().trim() || null
       if (form.address !== undefined) body.address = (form.address ?? '').toString().trim() || null
-      if (form.logo !== undefined) body.logo = form.logo?.trim() || null
       if (form.coverPhoto !== undefined) body.coverPhoto = form.coverPhoto?.trim() || null
       if (form.coverVideo !== undefined) body.coverVideo = form.coverVideo?.trim() || null
       if (form.paymentRequired) {
@@ -605,7 +588,7 @@ export default function AdminBusinessPage() {
             Marca y presentación
           </legend>
           <p className="mb-4 text-xs text-neutral-500">
-            Nombre, descripción, logo y portada se muestran en la página pública de reservas.
+            Nombre, descripción e imagen/video de portada se muestran en la página pública de reservas.
           </p>
         <div className="grid gap-4 sm:grid-cols-2">
           <div>
@@ -735,25 +718,6 @@ export default function AdminBusinessPage() {
           />
           {fieldErrors.address && (
             <p className="mt-0.5 text-sm text-red-600" role="alert">{fieldErrors.address}</p>
-          )}
-        </div>
-
-        <div>
-          <label className="mb-1 block text-sm font-medium text-neutral-700">
-            Logo
-          </label>
-          <input
-            type="file"
-            accept="image/*"
-            onChange={handleLogoFile}
-            disabled={logoUploading}
-            className="block w-full text-sm text-neutral-600 file:mr-3 file:rounded-lg file:border-0 file:bg-neutral-100 file:px-4 file:py-2 file:text-sm file:font-medium file:text-neutral-700 hover:file:bg-neutral-200"
-          />
-          {logoUploading && <p className="mt-1 text-sm text-neutral-500">Subiendo...</p>}
-          {(form.logo ?? '') && (
-            <p className="mt-1 text-sm text-green-600">
-              Logo cargado. <button type="button" onClick={() => setForm((p) => ({ ...p, logo: '' }))} className="underline">Quitar</button>
-            </p>
           )}
         </div>
 

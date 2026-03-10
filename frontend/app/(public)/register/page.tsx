@@ -19,10 +19,6 @@ function getStoreSlugFromHost(): string | null {
     const base = hostname.replace(/\.localhost$/, '')
     return base || null
   }
-  if (hostname.endsWith('.turneros.com')) {
-    const base = hostname.replace(/\.turneros\.com$/, '')
-    return base || null
-  }
   if (hostname.endsWith('.turneiro.com')) {
     const base = hostname.replace(/\.turneiro\.com$/, '')
     return base || null
@@ -102,7 +98,7 @@ export default function RegisterPage() {
       <main className={mainClass} style={mainStyle}>
         <div className={cardClass}>
           <p className="text-center text-neutral-400">
-            Entrá desde el enlace de la tienda para registrarte (ej. vasco-barber.localhost o tu tienda en turneros.com o turneiro.com).
+            Entrá desde el enlace de la tienda para registrarte (ej. vasco-barber.localhost o tu tienda en turneiro.com).
           </p>
           <p className="mt-4 text-center text-sm">
             <Link href="/" className="font-medium text-neutral-300 underline underline-offset-2 hover:text-white">
