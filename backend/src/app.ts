@@ -8,6 +8,9 @@ import dotenv from 'dotenv'
 dotenv.config()
 
 const app = express()
+// Behind Vercel/other proxies, trust X-Forwarded-* headers so rate limiting
+// and IP-based logic work correctly.
+app.set('trust proxy', 1)
 // Avoid 304 responses without CORS headers in browsers.
 app.disable('etag')
 const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:3000'
