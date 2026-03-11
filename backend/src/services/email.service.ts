@@ -1,7 +1,63 @@
 import nodemailer from 'nodemailer'
+import type { Transporter } from 'nodemailer'
 import { prisma } from '../lib/prisma'
 
 type AppointmentPaymentMode = 'UNPAID' | 'DEPOSIT' | 'FULL'
+
+let cachedTransporter: Transporter | null = null
+
+function getTransporter(): Transporter | null {
+  if (cachedTransporter) return cachedTransporter
+
+  const host = process.env.SMTP_HOST
+  const port = process.env.SMTP_PORT ? Number(process.env.SMTP_PORT) : 587
+  const user = process.env.SMTP_USER
+  const pass = process.env.SMTP_PASS
+
+  if (!host || !user || !pass) return null
+
+  cachedTransporter = nodemailer.createTransport({
+    host,
+    port,
+    secure: port === 465,
+    pool: true,
+    maxConnections: 3,
+    maxMessages: 50,
+    auth: { user, pass },
+    connectionTimeout: 10000,
+    greetingTimeout: 10000,
+    socketTimeout: 30000,
+  })
+
+  return cachedTransporter
+}
+
+async function sendMailWithRetry(
+  mailOptions: nodemailer.SendMailOptions,
+  maxRetries = 3
+): Promise<void> {
+  const transport = getTransporter()
+  if (!transport) {
+    console.warn('SMTP not configured; skipping email')
+    return
+  }
+
+  let lastError: Error | null = null
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      await transport.sendMail(mailOptions)
+      return
+    } catch (err: any) {
+      lastError = err
+      console.warn(`Email send attempt ${attempt} failed:`, err.message)
+      if (attempt < maxRetries) {
+        const backoffMs = 1000 * Math.pow(2, attempt - 1)
+        await new Promise((r) => setTimeout(r, backoffMs))
+      }
+    }
+  }
+  throw lastError
+}
 
 function resolvePaymentMode(params: {
   paymentStatus: string
@@ -299,33 +355,12 @@ async function sendAppointmentConfirmationEmailForAppointment(appointment: any):
     paymentAmount: apt.paymentAmount ?? null,
   })
 
-  const host = process.env.SMTP_HOST
-  const port = process.env.SMTP_PORT ? Number(process.env.SMTP_PORT) : 587
-  const user = process.env.SMTP_USER
-  const pass = process.env.SMTP_PASS
-
-  if (!host || !user || !pass) {
-    console.warn('SMTP configuration missing; skipping confirmation email for appointment', apt.id)
-    return
-  }
-
-  const transporter = nodemailer.createTransport({
-    host,
-    port,
-    secure: port === 465,
-    auth: {
-      user,
-      pass,
-    },
-  })
-
   const fromName = appointment.business.name
-  const fromEmail = process.env.EMAIL_FROM || user
-
+  const fromEmail = process.env.EMAIL_FROM || process.env.SMTP_USER || ''
   const subject = `Confirmación de tu turno - ${apt.business.name}`
 
   try {
-    await transporter.sendMail({
+    await sendMailWithRetry({
       from: `"${fromName}" <${fromEmail}>`,
       to: apt.clientEmail,
       subject,
@@ -489,12 +524,20 @@ function buildEmployeeNotificationHtml(args: {
 `
 }
 
+export interface PreloadedOwner {
+  email: string | null
+  name: string | null
+}
+
 /**
  * Notify the assigned employee when a client books an appointment.
  * - Uses the staff user's email (employee.user.email) when available.
- * - If there is no employee or no email, it silently skips.
+ * - If there is no employee or no email, falls back to the preloaded owner or fetches from DB.
  */
-async function sendEmployeeAppointmentNotificationForAppointment(appointment: any): Promise<void> {
+async function sendEmployeeAppointmentNotificationForAppointment(
+  appointment: any,
+  preloadedOwner?: PreloadedOwner | null
+): Promise<void> {
   const apt = appointment as {
     id: string
     businessId: string
@@ -520,21 +563,22 @@ async function sendEmployeeAppointmentNotificationForAppointment(appointment: an
     targetEmail = employeeUser.email
     targetName = employee?.name ?? employeeUser.name ?? 'Empleado'
   } else {
-    // Fallback: notify the business owner when there is no employee
-    // or the employee has no linked user/email.
-    const owner = await prisma.user.findFirst({
-      where: { businessId: apt.businessId, role: 'OWNER' },
-      select: { email: true, name: true },
-    })
-
-    if (owner?.email) {
-      targetEmail = owner.email
-      targetName = owner.name ?? 'Dueño'
+    if (preloadedOwner?.email) {
+      targetEmail = preloadedOwner.email
+      targetName = preloadedOwner.name ?? 'Dueño'
+    } else {
+      const owner = await prisma.user.findFirst({
+        where: { businessId: apt.businessId, role: 'OWNER' },
+        select: { email: true, name: true },
+      })
+      if (owner?.email) {
+        targetEmail = owner.email
+        targetName = owner.name ?? 'Dueño'
+      }
     }
   }
 
   if (!targetEmail) {
-    // No employee or owner email available: nothing to notify.
     console.warn(
       'sendEmployeeAppointmentNotification: no employee or owner email, skipping for appointment',
       apt.id
@@ -544,7 +588,6 @@ async function sendEmployeeAppointmentNotificationForAppointment(appointment: an
 
   const { dateLabel, timeLabel } = formatDateTimeRange(apt.startTime, apt.endTime)
 
-  // Build a day view URL for Google Calendar (does not depend on calendarId).
   const year = apt.startTime.getFullYear()
   const month = String(apt.startTime.getMonth() + 1).padStart(2, '0')
   const day = String(apt.startTime.getDate()).padStart(2, '0')
@@ -561,35 +604,12 @@ async function sendEmployeeAppointmentNotificationForAppointment(appointment: an
     googleCalendarDayUrl,
   })
 
-  const host = process.env.SMTP_HOST
-  const port = process.env.SMTP_PORT ? Number(process.env.SMTP_PORT) : 587
-  const user = process.env.SMTP_USER
-  const pass = process.env.SMTP_PASS
-
-  if (!host || !user || !pass) {
-    console.warn(
-      'SMTP configuration missing; skipping employee notification email for appointment',
-      apt.id
-    )
-    return
-  }
-
-  const transporter = nodemailer.createTransport({
-    host,
-    port,
-    secure: port === 465,
-    auth: {
-      user,
-      pass,
-    },
-  })
-
   const fromName = apt.business.name
-  const fromEmail = process.env.EMAIL_FROM || user
+  const fromEmail = process.env.EMAIL_FROM || process.env.SMTP_USER || ''
   const subject = `Nuevo turno asignado - ${apt.business.name}`
 
   try {
-    await transporter.sendMail({
+    await sendMailWithRetry({
       from: `"${fromName}" <${fromEmail}>`,
       to: targetEmail,
       subject,
@@ -630,11 +650,13 @@ export async function sendEmployeeAppointmentNotification(
 /**
  * Optimized API: use an already-loaded appointment (including business & employee.user)
  * to notify the employee without re-querying the database.
+ * Accepts optional preloaded owner to avoid extra DB query when employee has no email.
  */
 export async function sendEmployeeAppointmentNotificationUsingLoadedAppointment(
-  appointment: any
+  appointment: any,
+  preloadedOwner?: PreloadedOwner | null
 ): Promise<void> {
   if (!appointment) return
-  await sendEmployeeAppointmentNotificationForAppointment(appointment)
+  await sendEmployeeAppointmentNotificationForAppointment(appointment, preloadedOwner)
 }
 
