@@ -1,0 +1,256 @@
+import { Router, Request, Response } from 'express'
+import { Receiver } from '@upstash/qstash'
+import { prisma } from '../lib/prisma'
+import {
+  sendAppointmentConfirmationEmailUsingLoadedAppointment,
+  sendEmployeeAppointmentNotificationUsingLoadedAppointment,
+} from '../services/email.service'
+import * as googleCalendarService from '../services/google-calendar.service'
+import type { AppointmentJobPayload } from '../services/queue.service'
+
+const router = Router()
+
+const qstashCurrentSigningKey = process.env.QSTASH_CURRENT_SIGNING_KEY
+const qstashNextSigningKey = process.env.QSTASH_NEXT_SIGNING_KEY
+
+async function verifyQStashSignature(req: Request): Promise<boolean> {
+  if (!qstashCurrentSigningKey || !qstashNextSigningKey) {
+    console.warn('QStash signing keys not configured; skipping signature verification')
+    return true
+  }
+
+  const receiver = new Receiver({
+    currentSigningKey: qstashCurrentSigningKey,
+    nextSigningKey: qstashNextSigningKey,
+  })
+
+  const signature = req.headers['upstash-signature'] as string
+  if (!signature) {
+    return false
+  }
+
+  try {
+    const body = JSON.stringify(req.body)
+    const isValid = await receiver.verify({ signature, body })
+    return isValid
+  } catch {
+    return false
+  }
+}
+
+async function loadAppointmentWithRelations(appointmentId: string) {
+  return prisma.appointment.findUnique({
+    where: { id: appointmentId },
+    include: {
+      business: true,
+      employee: {
+        include: {
+          user: true,
+        },
+      },
+    },
+  })
+}
+
+router.post('/send-confirmation-email', async (req: Request, res: Response) => {
+  const isValid = await verifyQStashSignature(req)
+  if (!isValid) {
+    return res.status(401).json({ error: 'Invalid signature' })
+  }
+
+  const payload = req.body as AppointmentJobPayload
+
+  try {
+    const appointment = await loadAppointmentWithRelations(payload.appointmentId)
+    if (!appointment) {
+      console.warn('Job: appointment not found', payload.appointmentId)
+      return res.status(200).json({ success: false, reason: 'appointment_not_found' })
+    }
+
+    await sendAppointmentConfirmationEmailUsingLoadedAppointment(appointment)
+    return res.status(200).json({ success: true })
+  } catch (err) {
+    console.error('Job send-confirmation-email failed:', err)
+    return res.status(500).json({ error: 'Job failed' })
+  }
+})
+
+router.post('/send-employee-notification', async (req: Request, res: Response) => {
+  const isValid = await verifyQStashSignature(req)
+  if (!isValid) {
+    return res.status(401).json({ error: 'Invalid signature' })
+  }
+
+  const payload = req.body as AppointmentJobPayload
+
+  try {
+    const appointment = await loadAppointmentWithRelations(payload.appointmentId)
+    if (!appointment) {
+      console.warn('Job: appointment not found', payload.appointmentId)
+      return res.status(200).json({ success: false, reason: 'appointment_not_found' })
+    }
+
+    await sendEmployeeAppointmentNotificationUsingLoadedAppointment(appointment, payload.preloadedOwner)
+    return res.status(200).json({ success: true })
+  } catch (err) {
+    console.error('Job send-employee-notification failed:', err)
+    return res.status(500).json({ error: 'Job failed' })
+  }
+})
+
+router.post('/sync-google-calendar', async (req: Request, res: Response) => {
+  const isValid = await verifyQStashSignature(req)
+  if (!isValid) {
+    return res.status(401).json({ error: 'Invalid signature' })
+  }
+
+  const payload = req.body as AppointmentJobPayload
+
+  try {
+    const appointment = await loadAppointmentWithRelations(payload.appointmentId)
+    if (!appointment) {
+      console.warn('Job: appointment not found', payload.appointmentId)
+      return res.status(200).json({ success: false, reason: 'appointment_not_found' })
+    }
+
+    await syncAppointmentToGoogleCalendar(appointment, payload.businessId, payload.preloadedOwner)
+    return res.status(200).json({ success: true })
+  } catch (err) {
+    console.error('Job sync-google-calendar failed:', err)
+    return res.status(500).json({ error: 'Job failed' })
+  }
+})
+
+interface LoadedAppointment {
+  id: string
+  employeeId: string | null
+  serviceName: string
+  clientName: string
+  clientPhone: string
+  price: number
+  status: string
+  startTime: Date
+  endTime: Date
+  business: { name: string }
+  employee?: {
+    isOwner: boolean
+    name?: string | null
+    user?: {
+      id: string
+      googleRefreshToken: string | null
+      googleCalendarId: string | null
+    } | null
+  } | null
+}
+
+async function syncAppointmentToGoogleCalendar(
+  appointment: LoadedAppointment,
+  businessId: string,
+  preloadedOwner?: AppointmentJobPayload['preloadedOwner']
+): Promise<void> {
+  let targetUser: { id: string; googleRefreshToken: string | null; googleCalendarId: string | null } | null = null
+  const isStaffEmployee = appointment.employeeId && appointment.employee && !appointment.employee.isOwner
+
+  if (isStaffEmployee && appointment.employee?.user) {
+    const staffUser = appointment.employee.user
+    if (staffUser.googleRefreshToken && staffUser.googleCalendarId) {
+      targetUser = {
+        id: staffUser.id,
+        googleRefreshToken: staffUser.googleRefreshToken,
+        googleCalendarId: staffUser.googleCalendarId,
+      }
+    }
+  }
+
+  let ownerData = preloadedOwner
+  if (!targetUser) {
+    if (!ownerData) {
+      ownerData = await prisma.user.findFirst({
+        where: { businessId, role: 'OWNER' },
+        select: {
+          id: true,
+          email: true,
+          name: true,
+          googleRefreshToken: true,
+          googleCalendarId: true,
+        },
+      })
+    }
+    if (ownerData?.googleRefreshToken && ownerData?.googleCalendarId) {
+      targetUser = {
+        id: ownerData.id,
+        googleRefreshToken: ownerData.googleRefreshToken,
+        googleCalendarId: ownerData.googleCalendarId,
+      }
+    }
+  }
+
+  if (!targetUser?.googleRefreshToken || !targetUser?.googleCalendarId) {
+    console.log('Google Calendar not connected for business or assigned employee:', businessId)
+    return
+  }
+
+  const summaryForStaff = `${appointment.serviceName} - ${appointment.clientName}`
+  const summaryOwnerOwn = `${appointment.serviceName} - ${appointment.clientName} (con dueño)`
+  const summaryOwnerCopyStaff = `${appointment.serviceName} - ${appointment.clientName} (con ${appointment.employee?.name ?? 'empleado'})`
+
+  const eventPayload = {
+    description: `Cliente: ${appointment.clientName}\nTeléfono: ${appointment.clientPhone}\nPrecio: $${appointment.price}\nEstado: ${appointment.status}`,
+    startTime: appointment.startTime,
+    endTime: appointment.endTime,
+    location: appointment.business.name,
+  }
+
+  const eventId = await googleCalendarService.createCalendarEvent(
+    targetUser.googleRefreshToken,
+    targetUser.googleCalendarId,
+    {
+      ...eventPayload,
+      summary: isStaffEmployee ? summaryForStaff : summaryOwnerOwn,
+    }
+  )
+
+  let ownerCalendarEventId: string | null = null
+  if (isStaffEmployee) {
+    if (!ownerData) {
+      ownerData = await prisma.user.findFirst({
+        where: { businessId, role: 'OWNER' },
+        select: {
+          id: true,
+          email: true,
+          name: true,
+          googleRefreshToken: true,
+          googleCalendarId: true,
+        },
+      })
+    }
+    if (ownerData?.googleRefreshToken && ownerData?.googleCalendarId) {
+      try {
+        ownerCalendarEventId = await googleCalendarService.createCalendarEvent(
+          ownerData.googleRefreshToken,
+          ownerData.googleCalendarId,
+          {
+            ...eventPayload,
+            summary: summaryOwnerCopyStaff,
+            colorId: '9',
+          }
+        )
+      } catch (err) {
+        console.error('Failed to create owner calendar copy for staff appointment:', err)
+      }
+    }
+  }
+
+  await prisma.appointment.update({
+    where: { id: appointment.id },
+    data: {
+      googleEventId: eventId,
+      syncedToUserId: targetUser.id,
+      ...(ownerCalendarEventId ? { ownerCalendarEventId } : {}),
+    },
+  })
+
+  console.log(`✅ Appointment ${appointment.id} synced to Google Calendar (user ${targetUser.id})`)
+}
+
+export default router
