@@ -35,7 +35,7 @@ api.interceptors.response.use(
   (error) => Promise.reject(error)
 )
 
-export type MyBusinessInfo = { name: string; slug: string }
+export type MyBusinessInfo = { name: string; slug: string; logo: string | null }
 
 export async function getMyBusiness(): Promise<MyBusinessInfo> {
   const { data } = await api.get<MyBusinessInfo>('/businesses/mine')
@@ -381,6 +381,7 @@ export async function updateMyProfile(body: { name?: string; photoUrl?: string |
 }
 
 export interface BusinessImages {
+  logo: string | null
   coverPhoto: string | null
   coverVideo: string | null
   coverPhotoMobile: string | null
@@ -393,6 +394,7 @@ export async function getBusinessImages(): Promise<BusinessImages> {
 }
 
 export async function updateBusinessImages(body: {
+  logo?: string | null
   coverPhoto?: string | null
   coverVideo?: string | null
   coverPhotoMobile?: string | null

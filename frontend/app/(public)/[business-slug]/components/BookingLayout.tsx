@@ -5,6 +5,7 @@ import type { AuthUser } from '@/lib/auth'
 
 type BookingLayoutProps = {
   businessName: string
+  logo?: string | null
   isDarkTheme?: boolean
   onToggleTheme?: () => void
   onGoToServices: () => void
@@ -17,6 +18,7 @@ type BookingLayoutProps = {
 
 export function BookingLayout({
   businessName,
+  logo,
   isDarkTheme = true,
   onToggleTheme,
   onGoToServices,
@@ -36,6 +38,7 @@ export function BookingLayout({
     >
       <BookingHeader
         businessName={businessName}
+        logo={logo}
         isDarkTheme={isDarkTheme}
         onToggleTheme={onToggleTheme}
         onGoToServices={onGoToServices}

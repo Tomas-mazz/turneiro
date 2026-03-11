@@ -8,6 +8,7 @@ import { BookingStepper } from './BookingStepper'
 
 type ClientFormStepProps = {
   businessName: string
+  logo?: string | null
   selectedService: ServiceOption
   selectedDate: string
   selectedSlot: string
@@ -36,6 +37,7 @@ type ClientFormStepProps = {
 
 export function ClientFormStep({
   businessName,
+  logo,
   selectedService,
   selectedDate,
   selectedSlot,
@@ -78,6 +80,7 @@ export function ClientFormStep({
     return (
       <BookingLayout
         businessName={businessName}
+        logo={logo}
         isDarkTheme={isDarkTheme}
         onToggleTheme={onToggleTheme}
         onGoToServices={onGoToServices}
@@ -141,6 +144,7 @@ export function ClientFormStep({
   return (
     <BookingLayout
       businessName={businessName}
+      logo={logo}
       isDarkTheme={isDarkTheme}
       onToggleTheme={onToggleTheme}
       onGoToServices={onGoToServices}

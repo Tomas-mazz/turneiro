@@ -5,17 +5,18 @@ import type { Prisma } from '@prisma/client'
 export interface MyBusinessInfo {
   name: string
   slug: string
+  logo: string | null
 }
 
 /**
- * Get current user's business name and slug (for dashboard header).
+ * Get current user's business name, slug, and logo (for dashboard header/loading).
  */
 export async function getMyBusinessService(
   businessId: string
 ): Promise<MyBusinessInfo | null> {
   const business = await prisma.business.findUnique({
     where: { id: businessId },
-    select: { name: true, slug: true },
+    select: { name: true, slug: true, logo: true },
   })
   return business
 }
@@ -573,6 +574,7 @@ export async function deleteBusinessForAdmin(businessId: string): Promise<void> 
 }
 
 export interface BusinessImages {
+  logo: string | null
   coverPhoto: string | null
   coverVideo: string | null
   coverPhotoMobile: string | null
@@ -585,6 +587,7 @@ export async function getBusinessImagesService(
   const business = await prisma.business.findUnique({
     where: { id: businessId },
     select: {
+      logo: true,
       coverPhoto: true,
       coverVideo: true,
       coverPhotoMobile: true,
@@ -595,6 +598,7 @@ export async function getBusinessImagesService(
 }
 
 export interface UpdateBusinessImagesInput {
+  logo?: string | null
   coverPhoto?: string | null
   coverVideo?: string | null
   coverPhotoMobile?: string | null
@@ -614,12 +618,14 @@ export async function updateBusinessImagesService(
   const updated = await prisma.business.update({
     where: { id: businessId },
     data: {
+      ...(data.logo !== undefined && { logo: data.logo?.trim() || null }),
       ...(data.coverPhoto !== undefined && { coverPhoto: data.coverPhoto?.trim() || null }),
       ...(data.coverVideo !== undefined && { coverVideo: data.coverVideo?.trim() || null }),
       ...(data.coverPhotoMobile !== undefined && { coverPhotoMobile: data.coverPhotoMobile?.trim() || null }),
       ...(data.coverVideoMobile !== undefined && { coverVideoMobile: data.coverVideoMobile?.trim() || null }),
     },
     select: {
+      logo: true,
       coverPhoto: true,
       coverVideo: true,
       coverPhotoMobile: true,

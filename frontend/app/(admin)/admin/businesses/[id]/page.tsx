@@ -81,6 +81,8 @@ export default function AdminBusinessPage() {
   const [coverDesktopUploadError, setCoverDesktopUploadError] = useState<string | null>(null)
   const [coverMobileUploading, setCoverMobileUploading] = useState(false)
   const [coverMobileUploadError, setCoverMobileUploadError] = useState<string | null>(null)
+  const [logoUploading, setLogoUploading] = useState(false)
+  const [logoUploadError, setLogoUploadError] = useState<string | null>(null)
   const [services, setServices] = useState<ServiceListItem[]>([])
   const [servicesLoading, setServicesLoading] = useState(false)
   const [newService, setNewService] = useState({ name: '', price: '', duration: '30', isActive: true })
@@ -510,6 +512,26 @@ export default function AdminBusinessPage() {
     }
   }
 
+  const handleLogoFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    if (!file.type.startsWith('image/')) {
+      setLogoUploadError('Solo se permiten imágenes')
+      return
+    }
+    setLogoUploadError(null)
+    setLogoUploading(true)
+    try {
+      const { url } = await uploadAdminFile(file)
+      setForm((prev) => ({ ...prev, logo: url }))
+    } catch {
+      setLogoUploadError('Error al subir el archivo')
+    } finally {
+      setLogoUploading(false)
+      e.target.value = ''
+    }
+  }
+
   const handleSubmit = async () => {
     if (!id) return
     setError(null)
@@ -533,6 +555,7 @@ export default function AdminBusinessPage() {
       if (form.coverVideo !== undefined) body.coverVideo = form.coverVideo?.trim() || null
       if (form.coverPhotoMobile !== undefined) body.coverPhotoMobile = form.coverPhotoMobile?.trim() || null
       if (form.coverVideoMobile !== undefined) body.coverVideoMobile = form.coverVideoMobile?.trim() || null
+      if (form.logo !== undefined) body.logo = form.logo?.trim() || null
       if (form.paymentRequired) {
         body.paymentType = form.paymentType
         body.depositPercentage = form.depositPercentage === '' ? null : Number(form.depositPercentage)
@@ -797,6 +820,40 @@ export default function AdminBusinessPage() {
               </p>
             )}
           </div>
+        </div>
+
+        <div>
+          <label className="mb-1 block text-sm font-medium text-neutral-700">
+            Logo del negocio
+          </label>
+          <p className="mb-2 text-xs text-neutral-500">
+            Aparecerá en el header de la página y como ícono de carga.
+          </p>
+          {form.logo && (
+            <div className="mb-3 flex items-center gap-4">
+              <img
+                src={form.logo}
+                alt="Logo"
+                className="h-16 w-16 rounded-lg object-contain border border-neutral-200 bg-white"
+              />
+              <button
+                type="button"
+                onClick={() => setForm((p) => ({ ...p, logo: '' }))}
+                className="text-sm text-red-600 hover:text-red-700 underline"
+              >
+                Quitar logo
+              </button>
+            </div>
+          )}
+          <input
+            type="file"
+            accept="image/*"
+            onChange={handleLogoFile}
+            disabled={logoUploading}
+            className="block w-full text-sm text-neutral-600 file:mr-3 file:rounded-lg file:border-0 file:bg-neutral-100 file:px-4 file:py-2 file:text-sm file:font-medium file:text-neutral-700 hover:file:bg-neutral-200"
+          />
+          {logoUploading && <p className="mt-1 text-sm text-neutral-500">Subiendo...</p>}
+          {logoUploadError && <p className="mt-1 text-sm text-red-600">{logoUploadError}</p>}
         </div>
 
         </fieldset>

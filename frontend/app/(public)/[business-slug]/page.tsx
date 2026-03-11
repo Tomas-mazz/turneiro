@@ -15,6 +15,7 @@ import {
   PaymentStep,
   ServiceStep,
 } from './components'
+import { LoadingSpinner } from '@/components/LoadingSpinner'
 
 type ThemeMode = 'DARK' | 'LIGHT'
 
@@ -501,11 +502,7 @@ export default function BusinessBookingPage() {
   ])
 
   if (loading) {
-    return (
-      <main className="min-h-screen flex items-center justify-center bg-neutral-100">
-        <p className="text-neutral-600">Cargando...</p>
-      </main>
-    )
+    return <LoadingSpinner bgColor="bg-neutral-100" />
   }
 
   if (error || !business) {
@@ -563,6 +560,7 @@ export default function BusinessBookingPage() {
       {step === 'date' && selectedService && (
         <DateStep
           businessName={business.name}
+          logo={business.logo}
           selectedService={selectedService}
           employees={business.employees ?? []}
           calendarMonth={calendarMonth}
@@ -600,6 +598,7 @@ export default function BusinessBookingPage() {
       {step === 'form' && selectedService && selectedDate && selectedSlot && (
         <ClientFormStep
           businessName={business.name}
+          logo={business.logo}
           selectedService={selectedService}
           selectedDate={selectedDate}
           selectedSlot={selectedSlot}
