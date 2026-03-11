@@ -59,7 +59,9 @@ export default function SettingPage() {
   const handleConnectGoogleCalendar = async () => {
     setCalendarLoading(true)
     try {
-      const { authUrl } = await getGoogleCalendarAuthUrl()
+      // Pass full URL (including subdomain) so OAuth redirects back here
+      const returnUrl = window.location.origin + '/setting'
+      const { authUrl } = await getGoogleCalendarAuthUrl(returnUrl)
       window.location.href = authUrl
     } catch {
       setCalendarMessage({

@@ -15,7 +15,8 @@ export async function initiateOAuth(req: AuthRequest, res: Response) {
     }
 
     const userId = req.user.userId
-    const authUrl = googleCalendarService.getAuthUrl(userId)
+    const returnUrl = req.query.returnUrl as string | undefined
+    const authUrl = googleCalendarService.getAuthUrl(userId, returnUrl)
 
     return res.json({
       authUrl,
@@ -33,6 +34,8 @@ const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:3000'
  * OAuth callback - exchange code for tokens and save, then redirect to dashboard
  */
 export async function oauthCallback(req: Request, res: Response) {
+  let returnUrl = '/setting'
+
   try {
     const { code, state } = req.query
 
@@ -40,14 +43,28 @@ export async function oauthCallback(req: Request, res: Response) {
       return res.redirect(`${FRONTEND_URL}/setting?google_calendar_error=1`)
     }
 
-    const userId = state as string
+    // Parse state (JSON with userId and returnUrl)
+    let userId: string
+    try {
+      const parsed = JSON.parse(state as string)
+      userId = parsed.userId
+      if (parsed.returnUrl) {
+        returnUrl = parsed.returnUrl
+      }
+    } catch {
+      // Fallback for old format (just userId string)
+      userId = state as string
+    }
 
     // Exchange code for tokens
     const { refreshToken } =
       await googleCalendarService.getTokensFromCode(code as string)
 
     if (!refreshToken) {
-      return res.redirect(`${FRONTEND_URL}/setting?google_calendar_error=2`)
+      const errorRedirect = returnUrl.startsWith('http')
+        ? `${returnUrl}?google_calendar_error=2`
+        : `${FRONTEND_URL}${returnUrl}?google_calendar_error=2`
+      return res.redirect(errorRedirect)
     }
 
     // Get user's calendars to set default; fallback to 'primary' if list fails or is empty
@@ -76,10 +93,17 @@ export async function oauthCallback(req: Request, res: Response) {
       console.error('Resync staff calendar after OAuth:', err)
     )
 
-    return res.redirect(`${FRONTEND_URL}/setting?google_calendar=connected`)
+    // Redirect to the original URL (could be full URL with subdomain or relative path)
+    const successRedirect = returnUrl.startsWith('http')
+      ? `${returnUrl}?google_calendar=connected`
+      : `${FRONTEND_URL}${returnUrl}?google_calendar=connected`
+    return res.redirect(successRedirect)
   } catch (error) {
     console.error('oauthCallback error:', error)
-    return res.redirect(`${FRONTEND_URL}/setting?google_calendar_error=1`)
+    const errorRedirect = returnUrl.startsWith('http')
+      ? `${returnUrl}?google_calendar_error=1`
+      : `${FRONTEND_URL}${returnUrl}?google_calendar_error=1`
+    return res.redirect(errorRedirect)
   }
 }
 

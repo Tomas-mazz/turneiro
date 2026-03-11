@@ -99,8 +99,10 @@ export async function cancelAppointmentByOwner(
 
 export type GoogleCalendarStatus = { connected: boolean; calendarId: string | null }
 
-export async function getGoogleCalendarAuthUrl(): Promise<{ authUrl: string }> {
-  const { data } = await api.get<{ authUrl: string }>('/google-calendar/auth')
+export async function getGoogleCalendarAuthUrl(returnUrl?: string): Promise<{ authUrl: string }> {
+  const { data } = await api.get<{ authUrl: string }>('/google-calendar/auth', {
+    params: returnUrl ? { returnUrl } : undefined,
+  })
   return data
 }
 
