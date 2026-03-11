@@ -6,7 +6,7 @@ import {
   sendEmployeeAppointmentNotificationUsingLoadedAppointment,
 } from '../services/email.service'
 import * as googleCalendarService from '../services/google-calendar.service'
-import type { AppointmentJobPayload } from '../services/queue.service'
+import type { AppointmentJobPayload, DeleteCalendarEventPayload } from '../services/queue.service'
 
 const router = Router()
 
@@ -251,6 +251,82 @@ async function syncAppointmentToGoogleCalendar(
   })
 
   console.log(`✅ Appointment ${appointment.id} synced to Google Calendar (user ${targetUser.id})`)
+}
+
+router.post('/delete-google-calendar-event', async (req: Request, res: Response) => {
+  const isValid = await verifyQStashSignature(req)
+  if (!isValid) {
+    return res.status(401).json({ error: 'Invalid signature' })
+  }
+
+  const payload = req.body as DeleteCalendarEventPayload
+
+  try {
+    await deleteCalendarEventForAppointment(payload)
+    return res.status(200).json({ success: true })
+  } catch (err) {
+    console.error('Job delete-google-calendar-event failed:', err)
+    return res.status(500).json({ error: 'Job failed' })
+  }
+})
+
+async function deleteCalendarEventForAppointment(
+  payload: DeleteCalendarEventPayload
+): Promise<void> {
+  const { businessId, googleEventId, ownerCalendarEventId, syncedToUserId } = payload
+
+  if (googleEventId) {
+    let refreshToken: string | null = null
+    let calendarId: string | null = null
+
+    if (syncedToUserId) {
+      const syncedUser = await prisma.user.findUnique({
+        where: { id: syncedToUserId },
+        select: { googleRefreshToken: true, googleCalendarId: true },
+      })
+      if (syncedUser?.googleRefreshToken && syncedUser?.googleCalendarId) {
+        refreshToken = syncedUser.googleRefreshToken
+        calendarId = syncedUser.googleCalendarId
+      }
+    }
+
+    if (!refreshToken || !calendarId) {
+      const owner = await prisma.user.findFirst({
+        where: { businessId, role: 'OWNER' },
+        select: { googleRefreshToken: true, googleCalendarId: true },
+      })
+      refreshToken = owner?.googleRefreshToken ?? null
+      calendarId = owner?.googleCalendarId ?? null
+    }
+
+    if (refreshToken && calendarId) {
+      try {
+        await googleCalendarService.deleteCalendarEvent(refreshToken, calendarId, googleEventId)
+        console.log(`✅ Event deleted from Google Calendar: ${googleEventId}`)
+      } catch (err) {
+        console.error('Failed to delete calendar event:', err)
+      }
+    }
+  }
+
+  if (ownerCalendarEventId) {
+    const owner = await prisma.user.findFirst({
+      where: { businessId, role: 'OWNER' },
+      select: { googleRefreshToken: true, googleCalendarId: true },
+    })
+    if (owner?.googleRefreshToken && owner?.googleCalendarId) {
+      try {
+        await googleCalendarService.deleteCalendarEvent(
+          owner.googleRefreshToken,
+          owner.googleCalendarId,
+          ownerCalendarEventId
+        )
+        console.log(`✅ Owner calendar copy deleted: ${ownerCalendarEventId}`)
+      } catch (err) {
+        console.error('Failed to delete owner calendar copy:', err)
+      }
+    }
+  }
 }
 
 export default router
