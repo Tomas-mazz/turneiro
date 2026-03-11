@@ -130,6 +130,8 @@ export interface AdminBusinessDetail {
   logo: string | null
   coverPhoto: string | null
   coverVideo: string | null
+  coverPhotoMobile: string | null
+  coverVideoMobile: string | null
   theme: string
   primaryColor: string
   phone: string | null
@@ -160,6 +162,8 @@ type BusinessByIdAdminRow = {
   logo: string | null
   coverPhoto: string | null
   coverVideo: string | null
+  coverPhotoMobile: string | null
+  coverVideoMobile: string | null
   theme: string
   primaryColor: string
   phone: string | null
@@ -197,6 +201,8 @@ export async function getBusinessByIdForAdmin(
       logo: true,
       coverPhoto: true,
       coverVideo: true,
+      coverPhotoMobile: true,
+      coverVideoMobile: true,
       theme: true,
       primaryColor: true,
       phone: true,
@@ -236,6 +242,8 @@ export async function getBusinessByIdForAdmin(
     logo: business.logo,
     coverPhoto: business.coverPhoto,
     coverVideo: business.coverVideo,
+    coverPhotoMobile: business.coverPhotoMobile,
+    coverVideoMobile: business.coverVideoMobile,
     theme: business.theme ?? 'DARK',
     primaryColor: business.primaryColor,
     phone: business.phone,
@@ -259,6 +267,8 @@ export interface CreateBusinessForAdminInput {
   logo?: string | null
   coverPhoto?: string | null
   coverVideo?: string | null
+  coverPhotoMobile?: string | null
+  coverVideoMobile?: string | null
   theme?: 'DARK' | 'LIGHT'
   paymentRequired: boolean
   ownerEmail?: string
@@ -293,6 +303,8 @@ export async function createBusinessForAdmin(
       logo: input.logo && input.logo.trim() ? input.logo.trim() : null,
       coverPhoto: input.coverPhoto && input.coverPhoto.trim() ? input.coverPhoto.trim() : null,
       coverVideo: input.coverVideo && input.coverVideo.trim() ? input.coverVideo.trim() : null,
+      coverPhotoMobile: input.coverPhotoMobile && input.coverPhotoMobile.trim() ? input.coverPhotoMobile.trim() : null,
+      coverVideoMobile: input.coverVideoMobile && input.coverVideoMobile.trim() ? input.coverVideoMobile.trim() : null,
       theme: input.theme ?? 'DARK',
       primaryColor: input.theme === 'LIGHT' ? BUTTON_COLOR_LIGHT_THEME : BUTTON_COLOR_DARK_THEME,
     }
@@ -367,6 +379,8 @@ export interface UpdateBusinessForAdminInput {
   logo?: string | null
   coverPhoto?: string | null
   coverVideo?: string | null
+  coverPhotoMobile?: string | null
+  coverVideoMobile?: string | null
   theme?: 'DARK' | 'LIGHT'
   paymentRequired?: boolean
   paymentType?: 'PERCENTAGE' | 'FULL'
@@ -416,6 +430,8 @@ export async function updateBusinessForAdmin(
     if (input.logo !== undefined) updateData.logo = input.logo && input.logo.trim() ? input.logo.trim() : null
     if (input.coverPhoto !== undefined) updateData.coverPhoto = input.coverPhoto && input.coverPhoto.trim() ? input.coverPhoto.trim() : null
     if (input.coverVideo !== undefined) updateData.coverVideo = input.coverVideo && input.coverVideo.trim() ? input.coverVideo.trim() : null
+    if (input.coverPhotoMobile !== undefined) updateData.coverPhotoMobile = input.coverPhotoMobile && input.coverPhotoMobile.trim() ? input.coverPhotoMobile.trim() : null
+    if (input.coverVideoMobile !== undefined) updateData.coverVideoMobile = input.coverVideoMobile && input.coverVideoMobile.trim() ? input.coverVideoMobile.trim() : null
     if (input.theme !== undefined) {
       updateData.theme = input.theme
       updateData.primaryColor = input.theme === 'LIGHT' ? BUTTON_COLOR_LIGHT_THEME : BUTTON_COLOR_DARK_THEME
