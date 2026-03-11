@@ -65,6 +65,8 @@ export default function AdminBusinessPage() {
     logo: '',
     coverPhoto: '',
     coverVideo: '',
+    coverPhotoMobile: '',
+    coverVideoMobile: '',
     paymentRequired: false,
     paymentType: 'FULL',
     depositPercentage: '',
@@ -75,8 +77,10 @@ export default function AdminBusinessPage() {
     ownerEmail: '',
     ownerPassword: '',
   })
-  const [coverUploading, setCoverUploading] = useState(false)
-  const [coverUploadError, setCoverUploadError] = useState<string | null>(null)
+  const [coverDesktopUploading, setCoverDesktopUploading] = useState(false)
+  const [coverDesktopUploadError, setCoverDesktopUploadError] = useState<string | null>(null)
+  const [coverMobileUploading, setCoverMobileUploading] = useState(false)
+  const [coverMobileUploadError, setCoverMobileUploadError] = useState<string | null>(null)
   const [services, setServices] = useState<ServiceListItem[]>([])
   const [servicesLoading, setServicesLoading] = useState(false)
   const [newService, setNewService] = useState({ name: '', price: '', duration: '30', isActive: true })
@@ -136,6 +140,8 @@ export default function AdminBusinessPage() {
           logo: b.logo ?? '',
           coverPhoto: b.coverPhoto ?? '',
           coverVideo: b.coverVideo ?? '',
+          coverPhotoMobile: b.coverPhotoMobile ?? '',
+          coverVideoMobile: b.coverVideoMobile ?? '',
           paymentRequired: b.settings?.paymentRequired ?? false,
           paymentType: b.settings?.paymentType === 'PERCENTAGE' ? 'PERCENTAGE' : 'FULL',
           depositPercentage: b.settings?.depositPercentage ?? '',
@@ -452,17 +458,17 @@ export default function AdminBusinessPage() {
     }
   }
 
-  const handleCoverFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleCoverDesktopFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file) return
     const isVideo = file.type.startsWith('video/')
     const isImage = file.type.startsWith('image/')
     if (!isVideo && !isImage) {
-      setCoverUploadError('Elegí una imagen o un video')
+      setCoverDesktopUploadError('Elegí una imagen o un video')
       return
     }
-    setCoverUploadError(null)
-    setCoverUploading(true)
+    setCoverDesktopUploadError(null)
+    setCoverDesktopUploading(true)
     try {
       const { url } = await uploadAdminFile(file)
       setForm((prev) => ({
@@ -471,9 +477,35 @@ export default function AdminBusinessPage() {
         coverVideo: isVideo ? url : '',
       }))
     } catch {
-      setCoverUploadError('Error al subir el archivo')
+      setCoverDesktopUploadError('Error al subir el archivo')
     } finally {
-      setCoverUploading(false)
+      setCoverDesktopUploading(false)
+      e.target.value = ''
+    }
+  }
+
+  const handleCoverMobileFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    const isVideo = file.type.startsWith('video/')
+    const isImage = file.type.startsWith('image/')
+    if (!isVideo && !isImage) {
+      setCoverMobileUploadError('Elegí una imagen o un video')
+      return
+    }
+    setCoverMobileUploadError(null)
+    setCoverMobileUploading(true)
+    try {
+      const { url } = await uploadAdminFile(file)
+      setForm((prev) => ({
+        ...prev,
+        coverPhotoMobile: isImage ? url : '',
+        coverVideoMobile: isVideo ? url : '',
+      }))
+    } catch {
+      setCoverMobileUploadError('Error al subir el archivo')
+    } finally {
+      setCoverMobileUploading(false)
       e.target.value = ''
     }
   }
@@ -499,6 +531,8 @@ export default function AdminBusinessPage() {
       if (form.address !== undefined) body.address = (form.address ?? '').toString().trim() || null
       if (form.coverPhoto !== undefined) body.coverPhoto = form.coverPhoto?.trim() || null
       if (form.coverVideo !== undefined) body.coverVideo = form.coverVideo?.trim() || null
+      if (form.coverPhotoMobile !== undefined) body.coverPhotoMobile = form.coverPhotoMobile?.trim() || null
+      if (form.coverVideoMobile !== undefined) body.coverVideoMobile = form.coverVideoMobile?.trim() || null
       if (form.paymentRequired) {
         body.paymentType = form.paymentType
         body.depositPercentage = form.depositPercentage === '' ? null : Number(form.depositPercentage)
@@ -721,24 +755,48 @@ export default function AdminBusinessPage() {
           )}
         </div>
 
-        <div>
-          <label className="mb-1 block text-sm font-medium text-neutral-700">
-            Imagen o video de portada
-          </label>
-          <input
-            type="file"
-            accept="image/*,video/mp4,video/webm"
-            onChange={handleCoverFile}
-            disabled={coverUploading}
-            className="block w-full text-sm text-neutral-600 file:mr-3 file:rounded-lg file:border-0 file:bg-neutral-100 file:px-4 file:py-2 file:text-sm file:font-medium file:text-neutral-700 hover:file:bg-neutral-200"
-          />
-          {coverUploading && <p className="mt-1 text-sm text-neutral-500">Subiendo...</p>}
-          {coverUploadError && <p className="mt-1 text-sm text-red-600">{coverUploadError}</p>}
-          {((form.coverPhoto ?? '') || (form.coverVideo ?? '')) && (
-            <p className="mt-1 text-sm text-green-600">
-              Portada cargada. <button type="button" onClick={() => setForm((p) => ({ ...p, coverPhoto: '', coverVideo: '' }))} className="underline">Quitar</button>
+        <div className="grid gap-4 sm:grid-cols-2">
+          <div>
+            <label className="mb-1 block text-sm font-medium text-neutral-700">
+              Imagen o video de portada (desktop)
+            </label>
+            <input
+              type="file"
+              accept="image/*,video/mp4,video/webm"
+              onChange={handleCoverDesktopFile}
+              disabled={coverDesktopUploading}
+              className="block w-full text-sm text-neutral-600 file:mr-3 file:rounded-lg file:border-0 file:bg-neutral-100 file:px-4 file:py-2 file:text-sm file:font-medium file:text-neutral-700 hover:file:bg-neutral-200"
+            />
+            {coverDesktopUploading && <p className="mt-1 text-sm text-neutral-500">Subiendo...</p>}
+            {coverDesktopUploadError && <p className="mt-1 text-sm text-red-600">{coverDesktopUploadError}</p>}
+            {((form.coverPhoto ?? '') || (form.coverVideo ?? '')) && (
+              <p className="mt-1 text-sm text-green-600">
+                Portada desktop cargada. <button type="button" onClick={() => setForm((p) => ({ ...p, coverPhoto: '', coverVideo: '' }))} className="underline">Quitar</button>
+              </p>
+            )}
+          </div>
+          <div>
+            <label className="mb-1 block text-sm font-medium text-neutral-700">
+              Imagen o video de portada (mobile)
+            </label>
+            <p className="mb-2 text-xs text-neutral-500">
+              Si no se sube, se usará la de desktop.
             </p>
-          )}
+            <input
+              type="file"
+              accept="image/*,video/mp4,video/webm"
+              onChange={handleCoverMobileFile}
+              disabled={coverMobileUploading}
+              className="block w-full text-sm text-neutral-600 file:mr-3 file:rounded-lg file:border-0 file:bg-neutral-100 file:px-4 file:py-2 file:text-sm file:font-medium file:text-neutral-700 hover:file:bg-neutral-200"
+            />
+            {coverMobileUploading && <p className="mt-1 text-sm text-neutral-500">Subiendo...</p>}
+            {coverMobileUploadError && <p className="mt-1 text-sm text-red-600">{coverMobileUploadError}</p>}
+            {((form.coverPhotoMobile ?? '') || (form.coverVideoMobile ?? '')) && (
+              <p className="mt-1 text-sm text-green-600">
+                Portada mobile cargada. <button type="button" onClick={() => setForm((p) => ({ ...p, coverPhotoMobile: '', coverVideoMobile: '' }))} className="underline">Quitar</button>
+              </p>
+            )}
+          </div>
         </div>
 
         </fieldset>
