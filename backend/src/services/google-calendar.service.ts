@@ -20,8 +20,10 @@ export function createOAuth2Client(): OAuth2Client {
 
 /**
  * Get authorization URL for OAuth flow
+ * @param userId - User ID to associate with OAuth
+ * @param returnUrl - URL to redirect back to after OAuth completes
  */
-export function getAuthUrl(userId: string): string {
+export function getAuthUrl(userId: string, returnUrl?: string): string {
   const oauth2Client = createOAuth2Client()
   
   const scopes = [
@@ -29,10 +31,15 @@ export function getAuthUrl(userId: string): string {
     'https://www.googleapis.com/auth/calendar.events',
   ]
 
+  const state = JSON.stringify({
+    userId,
+    returnUrl: returnUrl || '/setting',
+  })
+
   return oauth2Client.generateAuthUrl({
     access_type: 'offline',
     scope: scopes,
-    state: userId, // Pass userId to identify user after OAuth
+    state,
     prompt: 'consent', // Force consent to get refresh token
   })
 }
