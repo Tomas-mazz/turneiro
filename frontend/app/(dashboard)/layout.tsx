@@ -16,19 +16,19 @@ type NavItem = {
 
 const OWNER_ITEMS: NavItem[] = [
   { id: 'home', label: 'Inicio', href: '/setting' },
+  { id: 'profile', label: 'Mi perfil', href: '/setting/profile' },
   { id: 'services', label: 'Servicios', href: '/setting/services' },
   { id: 'hours', label: 'Horarios', href: '/setting/hours' },
   { id: 'block', label: 'Bloquear días u horarios', href: '/setting/blocking' },
   { id: 'cancel', label: 'Cancelar turnos', href: '/setting/cancel' },
   { id: 'images', label: 'Imágenes', href: '/setting/images' },
-  { id: 'profile', label: 'Mi perfil', href: '/setting/profile' },
 ]
 
 const STAFF_ITEMS: NavItem[] = [
   { id: 'home', label: 'Inicio', href: '/setting' },
+  { id: 'profile', label: 'Mi perfil', href: '/setting/profile' },
   { id: 'block', label: 'Bloquear días u horarios', href: '/setting/blocking' },
   { id: 'cancel', label: 'Cancelar turnos', href: '/setting/cancel' },
-  { id: 'profile', label: 'Mi perfil', href: '/setting/profile' },
 ]
 
 function DashboardShell({ children }: { children: React.ReactNode }) {
