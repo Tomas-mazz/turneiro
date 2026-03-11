@@ -12,7 +12,7 @@ import {
   PreloadedOwner,
 } from './email.service'
 import { enqueueAppointmentJobs, enqueueDeleteCalendarEvent, isQueueEnabled } from './queue.service'
-import { zonedTimeToUtc } from 'date-fns-tz'
+import { fromZonedTime } from 'date-fns-tz'
 
 const ARGENTINA_TIMEZONE = 'America/Argentina/Buenos_Aires'
 
@@ -22,7 +22,7 @@ const ARGENTINA_TIMEZONE = 'America/Argentina/Buenos_Aires'
  */
 function createArgentinaDate(dateStr: string, timeStr: string): Date {
   const dateTimeStr = `${dateStr}T${timeStr}:00`
-  return zonedTimeToUtc(dateTimeStr, ARGENTINA_TIMEZONE)
+  return fromZonedTime(dateTimeStr, ARGENTINA_TIMEZONE)
 }
 
 interface PreloadedOwnerWithCalendar extends PreloadedOwner {
