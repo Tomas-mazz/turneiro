@@ -60,3 +60,17 @@ export function requireAdmin(
     next()
   })
 }
+
+export function requireOwnerOnly(
+  req: AuthRequest,
+  res: Response,
+  next: NextFunction
+): void {
+  requireAuth(req, res, () => {
+    if (!req.user || req.user.role !== 'OWNER') {
+      res.status(403).json({ error: 'Acceso denegado. Solo dueños del negocio.' })
+      return
+    }
+    next()
+  })
+}

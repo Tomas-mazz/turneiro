@@ -571,3 +571,60 @@ export async function deleteBusinessForAdmin(businessId: string): Promise<void> 
     where: { id: businessId },
   })
 }
+
+export interface BusinessImages {
+  coverPhoto: string | null
+  coverVideo: string | null
+  coverPhotoMobile: string | null
+  coverVideoMobile: string | null
+}
+
+export async function getBusinessImagesService(
+  businessId: string
+): Promise<BusinessImages | null> {
+  const business = await prisma.business.findUnique({
+    where: { id: businessId },
+    select: {
+      coverPhoto: true,
+      coverVideo: true,
+      coverPhotoMobile: true,
+      coverVideoMobile: true,
+    },
+  })
+  return business
+}
+
+export interface UpdateBusinessImagesInput {
+  coverPhoto?: string | null
+  coverVideo?: string | null
+  coverPhotoMobile?: string | null
+  coverVideoMobile?: string | null
+}
+
+export async function updateBusinessImagesService(
+  businessId: string,
+  data: UpdateBusinessImagesInput
+): Promise<BusinessImages> {
+  const business = await prisma.business.findUnique({
+    where: { id: businessId },
+  })
+  if (!business) {
+    throw new Error('Negocio no encontrado')
+  }
+  const updated = await prisma.business.update({
+    where: { id: businessId },
+    data: {
+      ...(data.coverPhoto !== undefined && { coverPhoto: data.coverPhoto?.trim() || null }),
+      ...(data.coverVideo !== undefined && { coverVideo: data.coverVideo?.trim() || null }),
+      ...(data.coverPhotoMobile !== undefined && { coverPhotoMobile: data.coverPhotoMobile?.trim() || null }),
+      ...(data.coverVideoMobile !== undefined && { coverVideoMobile: data.coverVideoMobile?.trim() || null }),
+    },
+    select: {
+      coverPhoto: true,
+      coverVideo: true,
+      coverPhotoMobile: true,
+      coverVideoMobile: true,
+    },
+  })
+  return updated
+}

@@ -1,5 +1,14 @@
 import { Request, Response, NextFunction } from 'express'
-import { getBusinessBySlugService, getMyBusinessService } from '../services/businesses.service'
+import {
+  getBusinessBySlugService,
+  getMyBusinessService,
+  getBusinessImagesService,
+  updateBusinessImagesService,
+} from '../services/businesses.service'
+import {
+  getMyProfileService,
+  updateMyProfileService,
+} from '../services/employees.service'
 import type { AuthRequest } from '../middleware/auth'
 import { getBusinessContextOrRespond } from '../lib/requestGuards'
 
@@ -35,4 +44,75 @@ export async function getBusinessBySlug(req: Request, res: Response, next: NextF
 export async function getBusinesses(req: Request, res: Response) {
   // TODO: Implement
   res.json({ message: 'Not implemented' })
+}
+
+export async function getMyProfile(req: AuthRequest, res: Response, next: NextFunction) {
+  try {
+    const ctx = getBusinessContextOrRespond(req, res)
+    if (!ctx) return
+    const { staffEmployeeId } = ctx
+    if (!staffEmployeeId) {
+      res.status(404).json({ error: 'No tienes un perfil de empleado configurado' })
+      return
+    }
+    const profile = await getMyProfileService(staffEmployeeId)
+    if (!profile) {
+      res.status(404).json({ error: 'Perfil no encontrado' })
+      return
+    }
+    res.json(profile)
+  } catch (err) {
+    next(err)
+  }
+}
+
+export async function updateMyProfile(req: AuthRequest, res: Response, next: NextFunction) {
+  try {
+    const ctx = getBusinessContextOrRespond(req, res)
+    if (!ctx) return
+    const { staffEmployeeId } = ctx
+    if (!staffEmployeeId) {
+      res.status(404).json({ error: 'No tienes un perfil de empleado configurado' })
+      return
+    }
+    const { name, photoUrl } = req.body
+    const updated = await updateMyProfileService(staffEmployeeId, { name, photoUrl })
+    res.json(updated)
+  } catch (err) {
+    next(err)
+  }
+}
+
+export async function getBusinessImages(req: AuthRequest, res: Response, next: NextFunction) {
+  try {
+    const ctx = getBusinessContextOrRespond(req, res)
+    if (!ctx) return
+    const { businessId } = ctx
+    const images = await getBusinessImagesService(businessId)
+    if (!images) {
+      res.status(404).json({ error: 'Negocio no encontrado' })
+      return
+    }
+    res.json(images)
+  } catch (err) {
+    next(err)
+  }
+}
+
+export async function updateBusinessImages(req: AuthRequest, res: Response, next: NextFunction) {
+  try {
+    const ctx = getBusinessContextOrRespond(req, res)
+    if (!ctx) return
+    const { businessId } = ctx
+    const { coverPhoto, coverVideo, coverPhotoMobile, coverVideoMobile } = req.body
+    const updated = await updateBusinessImagesService(businessId, {
+      coverPhoto,
+      coverVideo,
+      coverPhotoMobile,
+      coverVideoMobile,
+    })
+    res.json(updated)
+  } catch (err) {
+    next(err)
+  }
 }

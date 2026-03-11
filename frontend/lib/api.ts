@@ -363,3 +363,41 @@ export async function adminUpdateAppointmentStatus(
   )
   return data
 }
+
+export interface MyProfile {
+  id: string
+  name: string
+  photoUrl: string | null
+}
+
+export async function getMyProfile(): Promise<MyProfile> {
+  const { data } = await api.get<MyProfile>('/businesses/profile')
+  return data
+}
+
+export async function updateMyProfile(body: { name?: string; photoUrl?: string | null }): Promise<MyProfile> {
+  const { data } = await api.patch<MyProfile>('/businesses/profile', body)
+  return data
+}
+
+export interface BusinessImages {
+  coverPhoto: string | null
+  coverVideo: string | null
+  coverPhotoMobile: string | null
+  coverVideoMobile: string | null
+}
+
+export async function getBusinessImages(): Promise<BusinessImages> {
+  const { data } = await api.get<BusinessImages>('/businesses/images')
+  return data
+}
+
+export async function updateBusinessImages(body: {
+  coverPhoto?: string | null
+  coverVideo?: string | null
+  coverPhotoMobile?: string | null
+  coverVideoMobile?: string | null
+}): Promise<BusinessImages> {
+  const { data } = await api.patch<BusinessImages>('/businesses/images', body)
+  return data
+}
