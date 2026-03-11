@@ -1,4 +1,7 @@
 import { prisma } from '../lib/prisma'
+import { toZonedTime } from 'date-fns-tz'
+
+const ARGENTINA_TIMEZONE = 'America/Argentina/Buenos_Aires'
 
 /** Parse "HH:MM" to minutes since midnight */
 function timeToMinutes(s: string): number {
@@ -156,15 +159,15 @@ export async function getAvailabilityService(
     return []
   }
 
-  // Build busy intervals (minutes since midnight) from appointments and TIME_SLOT blocks
+  // Build busy intervals (minutes since midnight in Argentina timezone) from appointments and TIME_SLOT blocks
   const busyIntervals: [number, number][] = []
   for (const a of appointments) {
-    const aStart = new Date(a.startTime)
-    const aEnd = new Date(a.endTime)
+    const aStartArg = toZonedTime(new Date(a.startTime), ARGENTINA_TIMEZONE)
+    const aEndArg = toZonedTime(new Date(a.endTime), ARGENTINA_TIMEZONE)
     const dayStartMin = 0
     const dayEndMin = 24 * 60
-    const startMin = Math.max(dayStartMin, aStart.getHours() * 60 + aStart.getMinutes())
-    const endMin = Math.min(dayEndMin, aEnd.getHours() * 60 + aEnd.getMinutes())
+    const startMin = Math.max(dayStartMin, aStartArg.getHours() * 60 + aStartArg.getMinutes())
+    const endMin = Math.min(dayEndMin, aEndArg.getHours() * 60 + aEndArg.getMinutes())
     if (endMin > startMin) busyIntervals.push([startMin, endMin])
   }
   for (const b of blockedSlots) {
