@@ -409,7 +409,7 @@ export default function AdminNewBusinessPage() {
               <img
                 src={form.logo}
                 alt="Logo"
-                className="h-16 w-16 rounded-lg object-contain border border-neutral-200 bg-white"
+                className="h-16 w-16 rounded-full object-cover border border-neutral-200"
               />
               <button
                 type="button"

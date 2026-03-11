@@ -35,7 +35,7 @@ export function LoadingSpinner({
         <img
           src={logo}
           alt="Cargando"
-          className={`${sizeClasses[size]} object-contain animate-heartbeat`}
+          className={`${sizeClasses[size]} rounded-full object-cover animate-heartbeat`}
         />
       </div>
     )

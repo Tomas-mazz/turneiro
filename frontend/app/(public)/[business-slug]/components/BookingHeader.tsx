@@ -119,7 +119,7 @@ export function BookingHeader({
             <img
               src={logo}
               alt=""
-              className="h-10 w-10 shrink-0 rounded-lg object-contain md:h-12 md:w-12"
+              className="h-10 w-10 shrink-0 rounded-full object-cover md:h-12 md:w-12"
             />
           )}
           <span className={`truncate text-2xl font-bold md:text-3xl ${isDarkTheme ? 'text-white' : 'text-neutral-900'}`}>
