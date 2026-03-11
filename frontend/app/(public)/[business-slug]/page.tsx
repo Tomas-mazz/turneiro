@@ -534,6 +534,8 @@ export default function BusinessBookingPage() {
           name={business.name}
           coverPhoto={business.coverPhoto}
           coverVideo={business.coverVideo ?? null}
+          coverPhotoMobile={business.coverPhotoMobile ?? null}
+          coverVideoMobile={business.coverVideoMobile ?? null}
           primaryColor={primaryColor}
           onReservar={() => goToStep('service')}
         />

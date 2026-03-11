@@ -9,33 +9,70 @@ type BookingHeroProps = {
   name: string
   coverPhoto: string | null
   coverVideo?: string | null
+  coverPhotoMobile?: string | null
+  coverVideoMobile?: string | null
   primaryColor: string
   onReservar: () => void
 }
 
-export function BookingHero({ name, coverPhoto, coverVideo, primaryColor, onReservar }: BookingHeroProps) {
+export function BookingHero({ name, coverPhoto, coverVideo, coverPhotoMobile, coverVideoMobile, primaryColor, onReservar }: BookingHeroProps) {
   const displayName = useTypewriter(name)
   const videoClass = 'absolute inset-0 w-full h-full object-cover min-w-full min-h-full'
+
+  const hasDesktopCover = coverVideo || coverPhoto
+  const hasMobileCover = coverVideoMobile || coverPhotoMobile
+
+  const mobileVideo = coverVideoMobile || coverVideo
+  const mobilePhoto = coverPhotoMobile || coverPhoto
+  const desktopVideo = coverVideo
+  const desktopPhoto = coverPhoto
 
   return (
     <section className="relative h-screen min-h-screen flex flex-col items-center overflow-hidden">
       <div className="fixed inset-0 z-0 overflow-hidden">
-        {coverVideo ? (
-          <video
-            autoPlay
-            muted
-            loop
-            playsInline
-            className={videoClass}
-            src={coverVideo}
-            aria-hidden
-          />
-        ) : coverPhoto ? (
-          <div
-            className="absolute inset-0 w-full h-full bg-cover bg-center bg-no-repeat"
-            style={{ backgroundImage: `url(${coverPhoto})` }}
-            aria-hidden
-          />
+        {hasDesktopCover || hasMobileCover ? (
+          <>
+            {/* Mobile view */}
+            <div className="block md:hidden absolute inset-0">
+              {mobileVideo ? (
+                <video
+                  autoPlay
+                  muted
+                  loop
+                  playsInline
+                  className={videoClass}
+                  src={mobileVideo}
+                  aria-hidden
+                />
+              ) : mobilePhoto ? (
+                <div
+                  className="absolute inset-0 w-full h-full bg-cover bg-center bg-no-repeat"
+                  style={{ backgroundImage: `url(${mobilePhoto})` }}
+                  aria-hidden
+                />
+              ) : null}
+            </div>
+            {/* Desktop view */}
+            <div className="hidden md:block absolute inset-0">
+              {desktopVideo ? (
+                <video
+                  autoPlay
+                  muted
+                  loop
+                  playsInline
+                  className={videoClass}
+                  src={desktopVideo}
+                  aria-hidden
+                />
+              ) : desktopPhoto ? (
+                <div
+                  className="absolute inset-0 w-full h-full bg-cover bg-center bg-no-repeat"
+                  style={{ backgroundImage: `url(${desktopPhoto})` }}
+                  aria-hidden
+                />
+              ) : null}
+            </div>
+          </>
         ) : (
           <>
             <video

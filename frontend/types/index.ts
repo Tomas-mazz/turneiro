@@ -64,6 +64,8 @@ export interface AdminBusinessDetail {
   logo: string | null
   coverPhoto: string | null
   coverVideo: string | null
+  coverPhotoMobile: string | null
+  coverVideoMobile: string | null
   theme: string
   primaryColor: string
   phone: string | null
@@ -95,6 +97,8 @@ export type CreateBusinessBody = {
   logo?: string | null
   coverPhoto?: string | null
   coverVideo?: string | null
+  coverPhotoMobile?: string | null
+  coverVideoMobile?: string | null
   theme?: 'DARK' | 'LIGHT'
   primaryColor?: string
   paymentRequired: boolean
