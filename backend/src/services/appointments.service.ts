@@ -11,6 +11,7 @@ import {
   sendEmployeeAppointmentNotificationUsingLoadedAppointment,
   PreloadedOwner,
 } from './email.service'
+import { enqueueAppointmentJobs, isQueueEnabled } from './queue.service'
 
 interface PreloadedOwnerWithCalendar extends PreloadedOwner {
   id: string
@@ -476,20 +477,24 @@ export async function createAppointmentService(data: CreateAppointmentInput) {
     },
   })
 
-  // Sync to Google Calendar asynchronously (don't block response)
-  syncToGoogleCalendarForLoadedAppointment(appointment, business.id, preloadedOwner).catch(err => {
-    console.error('Failed to sync to Google Calendar:', err)
-  })
-
-  // Send confirmation email asynchronously (don't block response)
-  sendAppointmentConfirmationEmailUsingLoadedAppointment(appointment).catch(err => {
-    console.error('Failed to send confirmation email:', err)
-  })
-
-  // Notify assigned employee asynchronously (don't block response)
-  sendEmployeeAppointmentNotificationUsingLoadedAppointment(appointment, preloadedOwner).catch(err => {
-    console.error('Failed to send employee notification email:', err)
-  })
+  // Use queue for async tasks when available (recommended for production)
+  // Falls back to direct execution if queue is not configured
+  if (isQueueEnabled()) {
+    enqueueAppointmentJobs(appointment.id, business.id, preloadedOwner).catch(err => {
+      console.error('Failed to enqueue appointment jobs:', err)
+    })
+  } else {
+    // Fallback: run tasks directly (may cause connection pool issues under load)
+    syncToGoogleCalendarForLoadedAppointment(appointment, business.id, preloadedOwner).catch(err => {
+      console.error('Failed to sync to Google Calendar:', err)
+    })
+    sendAppointmentConfirmationEmailUsingLoadedAppointment(appointment).catch(err => {
+      console.error('Failed to send confirmation email:', err)
+    })
+    sendEmployeeAppointmentNotificationUsingLoadedAppointment(appointment, preloadedOwner).catch(err => {
+      console.error('Failed to send employee notification email:', err)
+    })
+  }
 
   return {
     id: appointment.id,
