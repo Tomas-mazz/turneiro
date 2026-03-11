@@ -171,3 +171,45 @@ export async function deleteEmployeeForAdmin(employeeId: string): Promise<void> 
   })
 }
 
+export interface MyProfile {
+  id: string
+  name: string
+  photoUrl: string | null
+}
+
+export async function getMyProfileService(
+  employeeId: string
+): Promise<MyProfile | null> {
+  const employee = await prisma.employee.findUnique({
+    where: { id: employeeId },
+    select: { id: true, name: true, photoUrl: true },
+  })
+  return employee
+}
+
+export interface UpdateMyProfileInput {
+  name?: string
+  photoUrl?: string | null
+}
+
+export async function updateMyProfileService(
+  employeeId: string,
+  data: UpdateMyProfileInput
+): Promise<MyProfile> {
+  const existing = await prisma.employee.findUnique({
+    where: { id: employeeId },
+  })
+  if (!existing) {
+    throw new EmployeeNotFoundError('Perfil no encontrado')
+  }
+  const updated = await prisma.employee.update({
+    where: { id: employeeId },
+    data: {
+      ...(data.name !== undefined && { name: data.name.trim() }),
+      ...(data.photoUrl !== undefined && { photoUrl: data.photoUrl }),
+    },
+    select: { id: true, name: true, photoUrl: true },
+  })
+  return updated
+}
+
