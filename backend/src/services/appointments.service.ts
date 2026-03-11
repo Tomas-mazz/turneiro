@@ -11,7 +11,7 @@ import {
   sendEmployeeAppointmentNotificationUsingLoadedAppointment,
   PreloadedOwner,
 } from './email.service'
-import { enqueueAppointmentJobs, isQueueEnabled } from './queue.service'
+import { enqueueAppointmentJobs, enqueueDeleteCalendarEvent, isQueueEnabled } from './queue.service'
 
 interface PreloadedOwnerWithCalendar extends PreloadedOwner {
   id: string
@@ -566,10 +566,20 @@ export async function cancelAppointmentService(token: string) {
     },
   })
 
-  // Delete from Google Calendar asynchronously
-  deleteFromGoogleCalendarForLoadedAppointment(appointment, appointment.businessId).catch(err =>
-    console.error('Failed to delete from Google Calendar:', err)
-  )
+  // Delete from Google Calendar using queue if available
+  if (isQueueEnabled()) {
+    enqueueDeleteCalendarEvent(
+      appointment.id,
+      appointment.businessId,
+      appointment.googleEventId,
+      appointment.ownerCalendarEventId,
+      appointment.syncedToUserId
+    ).catch(err => console.error('Failed to enqueue calendar delete:', err))
+  } else {
+    deleteFromGoogleCalendarForLoadedAppointment(appointment, appointment.businessId).catch(err =>
+      console.error('Failed to delete from Google Calendar:', err)
+    )
+  }
 
   return { cancelled: true, id: appointment.id, refunded: refundAmount > 0 }
 }
@@ -788,10 +798,20 @@ export async function adminCancelAppointmentService(
     },
   })
 
-  // Delete from Google Calendar asynchronously
-  deleteFromGoogleCalendarForLoadedAppointment(appointment, appointment.businessId).catch(err =>
-    console.error('Failed to delete from Google Calendar (admin):', err)
-  )
+  // Delete from Google Calendar using queue if available
+  if (isQueueEnabled()) {
+    enqueueDeleteCalendarEvent(
+      appointment.id,
+      appointment.businessId,
+      appointment.googleEventId,
+      appointment.ownerCalendarEventId,
+      appointment.syncedToUserId
+    ).catch(err => console.error('Failed to enqueue calendar delete (admin):', err))
+  } else {
+    deleteFromGoogleCalendarForLoadedAppointment(appointment, appointment.businessId).catch(err =>
+      console.error('Failed to delete from Google Calendar (admin):', err)
+    )
+  }
 
   return { cancelled: true, id: appointment.id, refunded: refundAmount > 0 }
 }
@@ -889,10 +909,20 @@ export async function cancelAppointmentByOwnerService(
     },
   })
 
-  // Delete from Google Calendar asynchronously
-  deleteFromGoogleCalendarForLoadedAppointment(appointment, businessId).catch(err =>
-    console.error('Failed to delete from Google Calendar:', err)
-  )
+  // Delete from Google Calendar using queue if available
+  if (isQueueEnabled()) {
+    enqueueDeleteCalendarEvent(
+      appointment.id,
+      businessId,
+      appointment.googleEventId,
+      appointment.ownerCalendarEventId,
+      appointment.syncedToUserId
+    ).catch(err => console.error('Failed to enqueue calendar delete:', err))
+  } else {
+    deleteFromGoogleCalendarForLoadedAppointment(appointment, businessId).catch(err =>
+      console.error('Failed to delete from Google Calendar:', err)
+    )
+  }
 
   return { cancelled: true, id: appointment.id, refunded: refundAmount > 0 }
 }

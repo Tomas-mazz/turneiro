@@ -31,11 +31,19 @@ export interface AppointmentJobPayload {
   } | null
 }
 
-type JobType = 'send-confirmation-email' | 'send-employee-notification' | 'sync-google-calendar'
+export interface DeleteCalendarEventPayload {
+  appointmentId: string
+  businessId: string
+  googleEventId: string | null
+  ownerCalendarEventId: string | null
+  syncedToUserId: string | null
+}
+
+type JobType = 'send-confirmation-email' | 'send-employee-notification' | 'sync-google-calendar' | 'delete-google-calendar-event'
 
 export async function enqueueJob(
   jobType: JobType,
-  payload: AppointmentJobPayload
+  payload: AppointmentJobPayload | DeleteCalendarEventPayload
 ): Promise<boolean> {
   const client = getClient()
   
@@ -88,6 +96,28 @@ export async function enqueueAppointmentJobs(
     console.error('Failed to enqueue appointment jobs:', err)
     return false
   }
+}
+
+export async function enqueueDeleteCalendarEvent(
+  appointmentId: string,
+  businessId: string,
+  googleEventId: string | null,
+  ownerCalendarEventId: string | null,
+  syncedToUserId: string | null
+): Promise<boolean> {
+  if (!isQueueEnabled()) {
+    return false
+  }
+
+  const payload: DeleteCalendarEventPayload = {
+    appointmentId,
+    businessId,
+    googleEventId,
+    ownerCalendarEventId,
+    syncedToUserId,
+  }
+
+  return enqueueJob('delete-google-calendar-event', payload)
 }
 
 export function isQueueEnabled(): boolean {
