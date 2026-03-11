@@ -1,6 +1,6 @@
 import { Router, Request, Response } from 'express'
 import multer from 'multer'
-import { requireAdmin } from '../middleware/auth'
+import { requireBusinessOwner } from '../middleware/auth'
 import { cloudinary, CLOUDINARY_UPLOAD_FOLDER } from '../lib/cloudinary'
 import { Readable } from 'stream'
 
@@ -18,7 +18,7 @@ const router = Router()
 
 router.post(
   '/',
-  requireAdmin,
+  requireBusinessOwner,
   (req: Request, res: Response, next) => {
     upload.single('file')(req, res, (err: unknown) => {
       if (err) {
