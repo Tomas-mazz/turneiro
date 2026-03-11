@@ -11,7 +11,10 @@ function getClient(): Client | null {
     return null
   }
   if (!qstashClient) {
-    qstashClient = new Client({ token: qstashToken })
+    qstashClient = new Client({
+      token: qstashToken,
+      baseUrl: 'https://qstash-us-east-1.upstash.io',
+    })
   }
   return qstashClient
 }
