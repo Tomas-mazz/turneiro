@@ -3,8 +3,9 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 
 // Business model - represents a business/barbershop/salon
@@ -15,8 +16,10 @@ model Business {
   description  String?
   category     String // Business category/rubro (barbershop, salon, spa, etc.)
   logo         String?
-  coverPhoto   String?
-  coverVideo   String?
+  coverPhoto       String?
+  coverVideo       String?
+  coverPhotoMobile String?
+  coverVideoMobile String?
   theme        String   @default("DARK") // DARK = fondo oscuro, LIGHT = fondo blanco
   primaryColor String   @default("#000000") // derived from theme for buttons (set on save)
   phone        String?
