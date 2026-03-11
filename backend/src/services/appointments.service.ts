@@ -9,7 +9,14 @@ import {
   sendAppointmentConfirmationEmailUsingLoadedAppointment,
   sendEmployeeAppointmentNotification,
   sendEmployeeAppointmentNotificationUsingLoadedAppointment,
+  PreloadedOwner,
 } from './email.service'
+
+interface PreloadedOwnerWithCalendar extends PreloadedOwner {
+  id: string
+  googleRefreshToken: string | null
+  googleCalendarId: string | null
+}
 
 export class SlotUnavailableError extends Error {
   constructor(message: string = 'El horario ya no está disponible') {
@@ -31,12 +38,12 @@ export class CancellationNotAllowedError extends Error {
  * If the appointment is assigned to an employee with a linked User who has Google Calendar connected, use that calendar.
  * Otherwise fall back to the business owner's calendar.
  *
- * NOTE: We accept a preloaded appointment to avoid extra DB round-trips in hot paths
- * like appointment creation. A thin wrapper below can still fetch by ID when needed.
+ * NOTE: Accepts optional preloaded owner to avoid extra DB queries in hot paths.
  */
 async function syncToGoogleCalendarForLoadedAppointment(
   appointment: any,
-  businessId: string
+  businessId: string,
+  preloadedOwner?: PreloadedOwnerWithCalendar | null
 ): Promise<void> {
   try {
     let targetUser: { id: string; googleRefreshToken: string | null; googleCalendarId: string | null } | null = null
@@ -53,20 +60,25 @@ async function syncToGoogleCalendarForLoadedAppointment(
       }
     }
 
+    let ownerData = preloadedOwner
     if (!targetUser) {
-      const owner = await prisma.user.findFirst({
-        where: { businessId, role: 'OWNER' },
-        select: {
-          id: true,
-          googleRefreshToken: true,
-          googleCalendarId: true,
-        },
-      })
-      if (owner?.googleRefreshToken && owner?.googleCalendarId) {
+      if (!ownerData) {
+        ownerData = await prisma.user.findFirst({
+          where: { businessId, role: 'OWNER' },
+          select: {
+            id: true,
+            email: true,
+            name: true,
+            googleRefreshToken: true,
+            googleCalendarId: true,
+          },
+        })
+      }
+      if (ownerData?.googleRefreshToken && ownerData?.googleCalendarId) {
         targetUser = {
-          id: owner.id,
-          googleRefreshToken: owner.googleRefreshToken,
-          googleCalendarId: owner.googleCalendarId,
+          id: ownerData.id,
+          googleRefreshToken: ownerData.googleRefreshToken,
+          googleCalendarId: ownerData.googleCalendarId,
         }
       }
     }
@@ -98,15 +110,23 @@ async function syncToGoogleCalendarForLoadedAppointment(
 
     let ownerCalendarEventId: string | null = null
     if (isStaffEmployee) {
-      const owner = await prisma.user.findFirst({
-        where: { businessId, role: 'OWNER' },
-        select: { googleRefreshToken: true, googleCalendarId: true },
-      })
-      if (owner?.googleRefreshToken && owner?.googleCalendarId) {
+      if (!ownerData) {
+        ownerData = await prisma.user.findFirst({
+          where: { businessId, role: 'OWNER' },
+          select: {
+            id: true,
+            email: true,
+            name: true,
+            googleRefreshToken: true,
+            googleCalendarId: true,
+          },
+        })
+      }
+      if (ownerData?.googleRefreshToken && ownerData?.googleCalendarId) {
         try {
           ownerCalendarEventId = await googleCalendarService.createCalendarEvent(
-            owner.googleRefreshToken,
-            owner.googleCalendarId,
+            ownerData.googleRefreshToken,
+            ownerData.googleCalendarId,
             {
               ...eventPayload,
               summary: summaryOwnerCopyStaff,
@@ -131,7 +151,6 @@ async function syncToGoogleCalendarForLoadedAppointment(
     console.log(`✅ Appointment ${appointment.id} synced to Google Calendar (user ${targetUser.id})`)
   } catch (error) {
     console.error('Error syncing to Google Calendar:', error)
-    // Don't throw - we don't want to fail appointment creation if GC sync fails
   }
 }
 
@@ -405,8 +424,6 @@ export async function createAppointmentService(data: CreateAppointmentInput) {
     data.serviceId,
     date,
     data.date,
-    // When multi-employee is enabled on frontend, this will scope availability
-    // to the selected employee. For now, keep it optional for backwards compatibility.
     employeeId
   )
 
@@ -437,7 +454,6 @@ export async function createAppointmentService(data: CreateAppointmentInput) {
       status: 'UPCOMING',
       cancellationToken,
     },
-    // Include relations so async tasks can run without extra lookups when possible.
     include: {
       business: true,
       employee: {
@@ -448,20 +464,30 @@ export async function createAppointmentService(data: CreateAppointmentInput) {
     },
   })
 
+  // Preload owner once to share across async tasks (avoids multiple DB queries)
+  const preloadedOwner = await prisma.user.findFirst({
+    where: { businessId: business.id, role: 'OWNER' },
+    select: {
+      id: true,
+      email: true,
+      name: true,
+      googleRefreshToken: true,
+      googleCalendarId: true,
+    },
+  })
+
   // Sync to Google Calendar asynchronously (don't block response)
-  syncToGoogleCalendarForLoadedAppointment(appointment, business.id).catch(err => {
+  syncToGoogleCalendarForLoadedAppointment(appointment, business.id, preloadedOwner).catch(err => {
     console.error('Failed to sync to Google Calendar:', err)
   })
 
-  // Send confirmation email asynchronously (don't block response).
-  // Use the loaded appointment to avoid an extra DB round-trip.
+  // Send confirmation email asynchronously (don't block response)
   sendAppointmentConfirmationEmailUsingLoadedAppointment(appointment).catch(err => {
     console.error('Failed to send confirmation email:', err)
   })
 
-  // Notify assigned employee asynchronously (don't block response),
-  // also using the loaded appointment when possible.
-  sendEmployeeAppointmentNotificationUsingLoadedAppointment(appointment).catch(err => {
+  // Notify assigned employee asynchronously (don't block response)
+  sendEmployeeAppointmentNotificationUsingLoadedAppointment(appointment, preloadedOwner).catch(err => {
     console.error('Failed to send employee notification email:', err)
   })
 
