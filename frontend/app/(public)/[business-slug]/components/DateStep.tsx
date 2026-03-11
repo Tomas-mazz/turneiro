@@ -23,6 +23,7 @@ function getVisibleDates(windowStart: Date): Date[] {
 
 type DateStepProps = {
   businessName: string
+  logo?: string | null
   selectedService: ServiceOption
   employees: Employee[]
   calendarMonth: Date
@@ -58,6 +59,7 @@ type DateStepProps = {
 
 export function DateStep({
   businessName,
+  logo,
   selectedService,
   employees,
   calendarMonth,
@@ -154,6 +156,7 @@ export function DateStep({
   return (
     <BookingLayout
       businessName={businessName}
+      logo={logo}
       isDarkTheme={isDarkTheme}
       onToggleTheme={onToggleTheme}
       onGoToServices={onGoToServices}

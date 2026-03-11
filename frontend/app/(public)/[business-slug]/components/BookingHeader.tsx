@@ -7,6 +7,7 @@ import type { AuthUser } from '@/lib/auth'
 
 type BookingHeaderProps = {
   businessName: string
+  logo?: string | null
   isDarkTheme?: boolean
   onToggleTheme?: () => void
   onGoToServices: () => void
@@ -51,6 +52,7 @@ const ROLE_LABEL: Record<string, string> = {
 
 export function BookingHeader({
   businessName,
+  logo,
   isDarkTheme = true,
   onToggleTheme,
   onGoToServices,
@@ -110,10 +112,17 @@ export function BookingHeader({
         <button
           type="button"
           onClick={onGoToServices}
-          className="min-w-0 truncate text-left text-2xl font-bold md:text-3xl outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-transparent focus-visible:ring-neutral-500 rounded"
+          className="flex min-w-0 items-center gap-3 text-left outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-transparent focus-visible:ring-neutral-500 rounded"
           aria-label={`Volver a servicios de ${businessName}`}
         >
-          <span className={isDarkTheme ? 'text-white' : 'text-neutral-900'}>
+          {logo && (
+            <img
+              src={logo}
+              alt=""
+              className="h-10 w-10 shrink-0 rounded-lg object-contain md:h-12 md:w-12"
+            />
+          )}
+          <span className={`truncate text-2xl font-bold md:text-3xl ${isDarkTheme ? 'text-white' : 'text-neutral-900'}`}>
             {displayName}
             <span className="animate-pulse">|</span>
           </span>

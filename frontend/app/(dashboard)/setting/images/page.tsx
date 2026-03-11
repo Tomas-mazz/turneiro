@@ -5,20 +5,26 @@ import { useRouter } from 'next/navigation'
 import { getAuthUser } from '@/lib/auth'
 import { getBusinessImages, updateBusinessImages, uploadAdminFile } from '@/lib/api'
 import type { BusinessImages } from '@/lib/api'
+import { LoadingSpinner } from '@/components/LoadingSpinner'
+import { useBusinessLogo } from '../../layout'
 
 export default function ImagesPage() {
   const router = useRouter()
+  const businessLogo = useBusinessLogo()
   const [images, setImages] = useState<BusinessImages | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
 
+  const [logo, setLogo] = useState<string | null>(null)
   const [coverPhoto, setCoverPhoto] = useState<string | null>(null)
   const [coverVideo, setCoverVideo] = useState<string | null>(null)
   const [coverPhotoMobile, setCoverPhotoMobile] = useState<string | null>(null)
   const [coverVideoMobile, setCoverVideoMobile] = useState<string | null>(null)
 
+  const [logoUploading, setLogoUploading] = useState(false)
+  const [logoUploadError, setLogoUploadError] = useState<string | null>(null)
   const [desktopUploading, setDesktopUploading] = useState(false)
   const [desktopUploadError, setDesktopUploadError] = useState<string | null>(null)
   const [mobileUploading, setMobileUploading] = useState(false)
@@ -35,6 +41,7 @@ export default function ImagesPage() {
     getBusinessImages()
       .then((img) => {
         setImages(img)
+        setLogo(img.logo)
         setCoverPhoto(img.coverPhoto)
         setCoverVideo(img.coverVideo)
         setCoverPhotoMobile(img.coverPhotoMobile)
@@ -46,6 +53,26 @@ export default function ImagesPage() {
       })
       .finally(() => setLoading(false))
   }, [router])
+
+  const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    if (!file.type.startsWith('image/')) {
+      setLogoUploadError('Solo se permiten imágenes')
+      return
+    }
+    setLogoUploadError(null)
+    setLogoUploading(true)
+    try {
+      const { url } = await uploadAdminFile(file)
+      setLogo(url)
+    } catch {
+      setLogoUploadError('Error al subir el archivo')
+    } finally {
+      setLogoUploading(false)
+      e.target.value = ''
+    }
+  }
 
   const handleDesktopUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
@@ -99,12 +126,14 @@ export default function ImagesPage() {
     setError(null)
     try {
       const updated = await updateBusinessImages({
+        logo,
         coverPhoto,
         coverVideo,
         coverPhotoMobile,
         coverVideoMobile,
       })
       setImages(updated)
+      setLogo(updated.logo)
       setCoverPhoto(updated.coverPhoto)
       setCoverVideo(updated.coverVideo)
       setCoverPhotoMobile(updated.coverPhotoMobile)
@@ -120,11 +149,7 @@ export default function ImagesPage() {
   }
 
   if (loading) {
-    return (
-      <div className="flex min-h-[50vh] items-center justify-center">
-        <p className="text-neutral-500">Cargando imágenes...</p>
-      </div>
-    )
+    return <LoadingSpinner logo={businessLogo} bgColor="bg-neutral-100" fullScreen={false} />
   }
 
   if (error && !images) {
@@ -145,6 +170,44 @@ export default function ImagesPage() {
       <h1 className="mb-6 text-2xl font-bold text-neutral-900">Imágenes del negocio</h1>
 
       <div className="space-y-6 rounded-lg border border-neutral-200 bg-white p-6 shadow-sm">
+        <div>
+          <label className="mb-1 block text-sm font-medium text-neutral-700">
+            Logo del negocio
+          </label>
+          <p className="mb-2 text-xs text-neutral-500">
+            Aparecerá en el header de la página y como ícono de carga.
+          </p>
+
+          {logo && (
+            <div className="mb-3 flex items-center gap-4">
+              <img
+                src={logo}
+                alt="Logo"
+                className="h-16 w-16 rounded-lg object-contain border border-neutral-200 bg-white"
+              />
+              <button
+                type="button"
+                onClick={() => setLogo(null)}
+                className="text-sm text-red-600 hover:text-red-700 underline"
+              >
+                Quitar logo
+              </button>
+            </div>
+          )}
+
+          <input
+            type="file"
+            accept="image/*"
+            onChange={handleLogoUpload}
+            disabled={logoUploading}
+            className="block w-full text-sm text-neutral-600 file:mr-3 file:rounded-lg file:border-0 file:bg-neutral-100 file:px-4 file:py-2 file:text-sm file:font-medium file:text-neutral-700 hover:file:bg-neutral-200"
+          />
+          {logoUploading && <p className="mt-1 text-sm text-neutral-500">Subiendo...</p>}
+          {logoUploadError && <p className="mt-1 text-sm text-red-600">{logoUploadError}</p>}
+        </div>
+
+        <hr className="border-neutral-200" />
+
         <div>
           <label className="mb-1 block text-sm font-medium text-neutral-700">
             Imagen o video de portada (desktop)

@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { isAuthenticated, getAuthUser } from '@/lib/auth'
+import { LoadingSpinner } from '@/components/LoadingSpinner'
 
 type AdminNavItem = {
   id: 'home' | 'businesses' | 'appointments' | 'newBusiness'
@@ -207,11 +208,7 @@ export default function AdminLayout({
   }, [router])
 
   if (allowed === null) {
-    return (
-      <div className="flex min-h-screen items-center justify-center bg-neutral-100">
-        <p className="text-neutral-500">Cargando...</p>
-      </div>
-    )
+    return <LoadingSpinner bgColor="bg-neutral-50" />
   }
 
   if (!allowed) {

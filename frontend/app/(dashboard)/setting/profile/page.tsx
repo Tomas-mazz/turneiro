@@ -3,8 +3,11 @@
 import { useEffect, useState } from 'react'
 import { getMyProfile, updateMyProfile, uploadAdminFile } from '@/lib/api'
 import type { MyProfile } from '@/lib/api'
+import { LoadingSpinner } from '@/components/LoadingSpinner'
+import { useBusinessLogo } from '../../layout'
 
 export default function ProfilePage() {
+  const businessLogo = useBusinessLogo()
   const [profile, setProfile] = useState<MyProfile | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -70,11 +73,7 @@ export default function ProfilePage() {
   }
 
   if (loading) {
-    return (
-      <div className="flex min-h-[50vh] items-center justify-center">
-        <p className="text-neutral-500">Cargando perfil...</p>
-      </div>
-    )
+    return <LoadingSpinner logo={businessLogo} bgColor="bg-neutral-100" fullScreen={false} />
   }
 
   if (error && !profile) {

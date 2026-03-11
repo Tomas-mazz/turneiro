@@ -95,6 +95,7 @@ export function ServiceStep({
   return (
     <BookingLayout
       businessName={business.name}
+      logo={business.logo}
       isDarkTheme={isDarkTheme}
       onToggleTheme={onToggleTheme}
       onGoToServices={onGoToServices}

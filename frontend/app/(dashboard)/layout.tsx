@@ -1,10 +1,14 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, createContext, useContext } from 'react'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { isAuthenticated, getAuthUser } from '@/lib/auth'
 import { getMyBusiness } from '@/lib/api'
+import { LoadingSpinner } from '@/components/LoadingSpinner'
+
+const BusinessLogoContext = createContext<string | null>(null)
+export const useBusinessLogo = () => useContext(BusinessLogoContext)
 
 type DashboardRole = 'OWNER' | 'STAFF' | null
 
@@ -35,6 +39,7 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
   const [role, setRole] = useState<DashboardRole>(null)
   const [businessName, setBusinessName] = useState<string | null>(null)
   const [businessSlug, setBusinessSlug] = useState<string | null>(null)
+  const [businessLogo, setBusinessLogo] = useState<string | null>(null)
   const [isMoreOpen, setIsMoreOpen] = useState(false)
   const pathname = usePathname()
   const router = useRouter()
@@ -53,10 +58,12 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
       .then((b) => {
         setBusinessName(b.name)
         setBusinessSlug(b.slug)
+        setBusinessLogo(b.logo)
       })
       .catch(() => {
         setBusinessName(null)
         setBusinessSlug(null)
+        setBusinessLogo(null)
       })
   }, [])
 
@@ -131,7 +138,11 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
       </aside>
 
       <div className="relative flex h-full flex-1 flex-col overflow-hidden pb-16 md:pb-0">
-        <div className="flex-1 overflow-y-auto">{children}</div>
+        <div className="flex-1 overflow-y-auto">
+          <BusinessLogoContext.Provider value={businessLogo}>
+            {children}
+          </BusinessLogoContext.Provider>
+        </div>
 
         <nav className="fixed inset-x-0 bottom-0 z-20 border-t border-sky-800 bg-sky-700/95 px-3 py-3 shadow-[0_-4px_12px_rgba(15,23,42,0.35)] backdrop-blur md:hidden">
           <div className="mx-auto flex max-w-md items-center justify-between gap-1">
@@ -237,11 +248,7 @@ export default function DashboardLayout({
   }, [router])
 
   if (allowed === null) {
-    return (
-      <div className="flex min-h-screen items-center justify-center bg-neutral-100">
-        <p className="text-neutral-500">Cargando...</p>
-      </div>
-    )
+    return <LoadingSpinner bgColor="bg-neutral-100" />
   }
 
   if (!allowed) {

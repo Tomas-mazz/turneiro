@@ -104,8 +104,9 @@ export async function updateBusinessImages(req: AuthRequest, res: Response, next
     const ctx = getBusinessContextOrRespond(req, res)
     if (!ctx) return
     const { businessId } = ctx
-    const { coverPhoto, coverVideo, coverPhotoMobile, coverVideoMobile } = req.body
+    const { logo, coverPhoto, coverVideo, coverPhotoMobile, coverVideoMobile } = req.body
     const updated = await updateBusinessImagesService(businessId, {
+      logo,
       coverPhoto,
       coverVideo,
       coverPhotoMobile,

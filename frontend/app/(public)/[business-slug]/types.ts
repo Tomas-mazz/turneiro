@@ -10,6 +10,7 @@ export type Business = {
   name: string
   slug: string
   description: string | null
+  logo?: string | null
   coverPhoto: string | null
   coverVideo?: string | null
   coverPhotoMobile?: string | null
