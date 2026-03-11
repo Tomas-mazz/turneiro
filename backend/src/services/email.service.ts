@@ -83,20 +83,25 @@ function formatARS(amount: number): string {
   })
 }
 
+const ARGENTINA_TIMEZONE = 'America/Argentina/Buenos_Aires'
+
 function formatDateTimeRange(start: Date, end: Date): { dateLabel: string; timeLabel: string } {
   const dateLabel = start.toLocaleDateString('es-AR', {
     weekday: 'long',
     day: 'numeric',
     month: 'long',
     year: 'numeric',
+    timeZone: ARGENTINA_TIMEZONE,
   })
 
   const timeLabel = `${start.toLocaleTimeString('es-AR', {
     hour: '2-digit',
     minute: '2-digit',
+    timeZone: ARGENTINA_TIMEZONE,
   })} – ${end.toLocaleTimeString('es-AR', {
     hour: '2-digit',
     minute: '2-digit',
+    timeZone: ARGENTINA_TIMEZONE,
   })}`
 
   return { dateLabel, timeLabel }

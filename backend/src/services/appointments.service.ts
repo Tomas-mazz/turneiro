@@ -12,6 +12,18 @@ import {
   PreloadedOwner,
 } from './email.service'
 import { enqueueAppointmentJobs, enqueueDeleteCalendarEvent, isQueueEnabled } from './queue.service'
+import { fromZonedTime } from 'date-fns-tz'
+
+const ARGENTINA_TIMEZONE = 'America/Argentina/Buenos_Aires'
+
+/**
+ * Create a UTC Date from a date string (YYYY-MM-DD) and time string (HH:MM) in Argentina timezone.
+ * This ensures appointments are stored correctly regardless of server timezone.
+ */
+function createArgentinaDate(dateStr: string, timeStr: string): Date {
+  const dateTimeStr = `${dateStr}T${timeStr}:00`
+  return fromZonedTime(dateTimeStr, ARGENTINA_TIMEZONE)
+}
 
 interface PreloadedOwnerWithCalendar extends PreloadedOwner {
   id: string
@@ -418,12 +430,12 @@ export async function createAppointmentService(data: CreateAppointmentInput) {
     throw new SlotUnavailableError('Servicio no encontrado')
   }
 
-  const date = new Date(data.date + 'T12:00:00')
+  const dateForAvailability = new Date(data.date + 'T12:00:00')
   const employeeId = data.employeeId ?? undefined
   const slots = await getAvailabilityService(
     data.businessSlug,
     data.serviceId,
-    date,
+    dateForAvailability,
     data.date,
     employeeId
   )
@@ -432,9 +444,8 @@ export async function createAppointmentService(data: CreateAppointmentInput) {
     throw new SlotUnavailableError('El horario ya no está disponible')
   }
 
-  const [hours, minutes] = data.slotTime.split(':').map(Number)
-  const startTime = new Date(date)
-  startTime.setHours(hours, minutes, 0, 0)
+  // Create startTime and endTime in Argentina timezone, stored as UTC
+  const startTime = createArgentinaDate(data.date, data.slotTime)
   const endTime = new Date(startTime.getTime() + service.duration * 60 * 1000)
 
   const cancellationToken = crypto.randomBytes(32).toString('hex')
