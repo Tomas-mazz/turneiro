@@ -6,6 +6,7 @@ import {
   getAppointmentsService,
   getAppointmentsByPhoneService,
   cancelAppointmentByOwnerService,
+  getAppointmentByTokenService,
   SlotUnavailableError,
   CancellationNotAllowedError,
 } from '../services/appointments.service'
@@ -131,6 +132,26 @@ export async function cancelAppointment(
     if (err instanceof CancellationNotAllowedError) {
       return res.status(400).json({ error: err.message })
     }
+    next(err)
+  }
+}
+
+export async function getAppointmentByToken(
+  req: Request,
+  res: Response,
+  next: NextFunction
+) {
+  try {
+    const token = req.params.token
+    if (!token) {
+      return res.status(400).json({ error: 'Token requerido' })
+    }
+    const appointment = await getAppointmentByTokenService(token)
+    if (!appointment) {
+      return res.status(404).json({ error: 'Turno no encontrado' })
+    }
+    return res.json(appointment)
+  } catch (err) {
     next(err)
   }
 }

@@ -9,6 +9,8 @@ import {
   sendAppointmentConfirmationEmailUsingLoadedAppointment,
   sendEmployeeAppointmentNotification,
   sendEmployeeAppointmentNotificationUsingLoadedAppointment,
+  sendCancellationEmailToClient,
+  sendCancellationEmailToEmployee,
   PreloadedOwner,
 } from './email.service'
 import { enqueueAppointmentJobs, enqueueDeleteCalendarEvent, isQueueEnabled } from './queue.service'
@@ -592,6 +594,11 @@ export async function cancelAppointmentService(token: string) {
     )
   }
 
+  // Send cancellation email to employee (or owner as fallback)
+  sendCancellationEmailToEmployee(appointment.id).catch(err =>
+    console.error('Failed to send cancellation email to employee:', err)
+  )
+
   return { cancelled: true, id: appointment.id, refunded: refundAmount > 0 }
 }
 
@@ -824,6 +831,11 @@ export async function adminCancelAppointmentService(
     )
   }
 
+  // Send cancellation email to client
+  sendCancellationEmailToClient(appointment.id, reason).catch(err =>
+    console.error('Failed to send cancellation email to client (admin):', err)
+  )
+
   return { cancelled: true, id: appointment.id, refunded: refundAmount > 0 }
 }
 
@@ -935,5 +947,46 @@ export async function cancelAppointmentByOwnerService(
     )
   }
 
+  // Send cancellation email to client
+  sendCancellationEmailToClient(appointment.id, reason).catch(err =>
+    console.error('Failed to send cancellation email to client:', err)
+  )
+
   return { cancelled: true, id: appointment.id, refunded: refundAmount > 0 }
+}
+
+export interface AppointmentByTokenResult {
+  id: string
+  serviceName: string
+  startTime: Date
+  endTime: Date
+  status: string
+  businessName: string
+  employeeName: string | null
+}
+
+export async function getAppointmentByTokenService(
+  token: string
+): Promise<AppointmentByTokenResult | null> {
+  const appointment = await prisma.appointment.findUnique({
+    where: { cancellationToken: token },
+    include: {
+      business: { select: { name: true } },
+      employee: { select: { name: true } },
+    },
+  })
+
+  if (!appointment) {
+    return null
+  }
+
+  return {
+    id: appointment.id,
+    serviceName: appointment.serviceName,
+    startTime: appointment.startTime,
+    endTime: appointment.endTime,
+    status: appointment.status,
+    businessName: appointment.business.name,
+    employeeName: appointment.employee?.name ?? null,
+  }
 }
