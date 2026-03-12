@@ -5,6 +5,7 @@ import {
   getAppointmentLookup,
   cancelAppointment,
   cancelAppointmentByOwner,
+  getAppointmentByToken,
 } from '../controllers/appointments.controller'
 import { requireBusinessOwner } from '../middleware/auth'
 import { requireBusinessContext } from '../middleware/businessContext'
@@ -14,6 +15,7 @@ const router = Router()
 
 router.post('/', createAppointmentLimiter, createAppointment)
 router.post('/cancel', cancelAppointment)
+router.get('/by-token/:token', getAppointmentByToken)
 router.get('/', requireBusinessOwner, requireBusinessContext, getAppointments)
 router.get('/lookup', requireBusinessOwner, requireBusinessContext, getAppointmentLookup)
 router.post('/:id/cancel', requireBusinessOwner, requireBusinessContext, cancelAppointmentByOwner)

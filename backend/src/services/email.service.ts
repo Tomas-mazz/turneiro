@@ -665,3 +665,341 @@ export async function sendEmployeeAppointmentNotificationUsingLoadedAppointment(
   await sendEmployeeAppointmentNotificationForAppointment(appointment, preloadedOwner)
 }
 
+/**
+ * Build HTML email to notify client that their appointment was cancelled by owner/staff/admin.
+ */
+function buildCancellationEmailToClientHtml(args: {
+  businessName: string
+  clientName: string
+  serviceName: string
+  dateLabel: string
+  timeLabel: string
+  employeeName?: string | null
+  cancellationReason: string
+}): string {
+  const {
+    businessName,
+    clientName,
+    serviceName,
+    dateLabel,
+    timeLabel,
+    employeeName,
+    cancellationReason,
+  } = args
+
+  const employeeLine = employeeName
+    ? `<p style="margin:0 0 2px 0; font-size:13px; color:#9ca3af;">Profesional: <strong style="color:#e5e7eb;">${employeeName}</strong></p>`
+    : ''
+
+  return `
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charSet="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Turno cancelado - ${businessName}</title>
+  </head>
+  <body style="margin:0; padding:0; background-color:#0f172a; font-family:system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">
+    <table role="presentation" width="100%" cellPadding="0" cellSpacing="0" style="background-color:#0f172a; padding:24px 12px;">
+      <tr>
+        <td align="center">
+          <table role="presentation" width="100%" cellPadding="0" cellSpacing="0" style="max-width:640px; background-color:#020617; border-radius:20px; padding:24px 22px; border:1px solid #1e293b;">
+            <tr>
+              <td style="padding-bottom:12px; border-bottom:1px solid #1e293b;">
+                <p style="margin:0 0 4px 0; font-size:11px; letter-spacing:0.08em; text-transform:uppercase; color:#ef4444;">
+                  Turno cancelado
+                </p>
+                <h1 style="margin:0; font-size:20px; color:#e5e7eb;">${businessName}</h1>
+              </td>
+            </tr>
+            <tr>
+              <td style="padding-top:14px; padding-bottom:10px;">
+                <p style="margin:0 0 4px 0; font-size:14px; color:#e5e7eb;">
+                  Hola ${clientName},
+                </p>
+                <p style="margin:0; font-size:13px; color:#9ca3af;">
+                  Lamentamos informarte que tu turno fue cancelado. A continuación te dejamos los detalles.
+                </p>
+              </td>
+            </tr>
+            <tr>
+              <td>
+                <table role="presentation" width="100%" cellPadding="0" cellSpacing="0" style="background-color:#020617; border-radius:14px; border:1px solid #1e293b; padding:16px;">
+                  <tr>
+                    <td>
+                      <p style="margin:0 0 8px 0; font-size:11px; font-weight:600; letter-spacing:0.08em; text-transform:uppercase; color:#64748b;">
+                        Detalles del turno cancelado
+                      </p>
+                      <p style="margin:0 0 2px 0; font-size:14px; font-weight:600; color:#e5e7eb;">
+                        ${serviceName}
+                      </p>
+                      <p style="margin:0 0 2px 0; font-size:13px; color:#cbd5e1;">
+                        ${dateLabel}
+                      </p>
+                      <p style="margin:0 0 8px 0; font-size:13px; color:#cbd5e1;">
+                        ${timeLabel}
+                      </p>
+                      ${employeeLine}
+                    </td>
+                  </tr>
+                </table>
+              </td>
+            </tr>
+            <tr>
+              <td style="padding-top:16px;">
+                <table role="presentation" width="100%" cellPadding="0" cellSpacing="0" style="background-color:#1c1917; border-radius:14px; border:1px solid #292524; padding:16px;">
+                  <tr>
+                    <td>
+                      <p style="margin:0 0 6px 0; font-size:11px; font-weight:600; letter-spacing:0.08em; text-transform:uppercase; color:#a8a29e;">
+                        Motivo de la cancelación
+                      </p>
+                      <p style="margin:0; font-size:13px; color:#e5e7eb;">
+                        ${cancellationReason}
+                      </p>
+                    </td>
+                  </tr>
+                </table>
+              </td>
+            </tr>
+            <tr>
+              <td style="padding-top:18px; border-top:1px solid #1e293b; margin-top:18px;">
+                <p style="margin:18px 0 0 0; font-size:11px; color:#64748b;">
+                  Si tenés alguna consulta, podés comunicarte directamente con ${businessName}.
+                </p>
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+    </table>
+  </body>
+</html>
+`
+}
+
+/**
+ * Send cancellation email to client when owner/staff/admin cancels their appointment.
+ */
+export async function sendCancellationEmailToClient(appointmentId: string, reason: string): Promise<void> {
+  const appointment = await prisma.appointment.findUnique({
+    where: { id: appointmentId },
+    include: {
+      business: true,
+      employee: true,
+    },
+  })
+
+  if (!appointment) {
+    console.warn('sendCancellationEmailToClient: appointment not found', appointmentId)
+    return
+  }
+
+  if (!appointment.clientEmail) {
+    console.warn('sendCancellationEmailToClient: appointment has no clientEmail', appointmentId)
+    return
+  }
+
+  const { dateLabel, timeLabel } = formatDateTimeRange(appointment.startTime, appointment.endTime)
+
+  const html = buildCancellationEmailToClientHtml({
+    businessName: appointment.business.name,
+    clientName: appointment.clientName,
+    serviceName: appointment.serviceName,
+    dateLabel,
+    timeLabel,
+    employeeName: appointment.employee?.name ?? null,
+    cancellationReason: reason,
+  })
+
+  const fromName = appointment.business.name
+  const fromEmail = process.env.EMAIL_FROM || process.env.SMTP_USER || ''
+  const subject = `Tu turno fue cancelado - ${appointment.business.name}`
+
+  try {
+    await sendMailWithRetry({
+      from: `"${fromName}" <${fromEmail}>`,
+      to: appointment.clientEmail,
+      subject,
+      html,
+    })
+    console.log('✅ Cancellation email sent to client for appointment', appointmentId)
+  } catch (err) {
+    console.error('Failed to send cancellation email to client for appointment', appointmentId, err)
+  }
+}
+
+/**
+ * Build HTML email to notify employee that a client cancelled their appointment.
+ */
+function buildCancellationEmailToEmployeeHtml(args: {
+  businessName: string
+  employeeName: string
+  clientName: string
+  clientPhone: string
+  serviceName: string
+  dateLabel: string
+  timeLabel: string
+}): string {
+  const {
+    businessName,
+    employeeName,
+    clientName,
+    clientPhone,
+    serviceName,
+    dateLabel,
+    timeLabel,
+  } = args
+
+  return `
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charSet="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Turno cancelado por cliente - ${businessName}</title>
+  </head>
+  <body style="margin:0; padding:0; background-color:#0f172a; font-family:system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">
+    <table role="presentation" width="100%" cellPadding="0" cellSpacing="0" style="background-color:#0f172a; padding:24px 12px;">
+      <tr>
+        <td align="center">
+          <table role="presentation" width="100%" cellPadding="0" cellSpacing="0" style="max-width:640px; background-color:#020617; border-radius:20px; padding:24px 22px; border:1px solid #1e293b;">
+            <tr>
+              <td style="padding-bottom:12px; border-bottom:1px solid #1e293b;">
+                <p style="margin:0 0 4px 0; font-size:11px; letter-spacing:0.08em; text-transform:uppercase; color:#ef4444;">
+                  Turno cancelado
+                </p>
+                <h1 style="margin:0; font-size:20px; color:#e5e7eb;">${businessName}</h1>
+              </td>
+            </tr>
+            <tr>
+              <td style="padding-top:14px; padding-bottom:10px;">
+                <p style="margin:0 0 4px 0; font-size:14px; color:#e5e7eb;">
+                  Hola ${employeeName},
+                </p>
+                <p style="margin:0; font-size:13px; color:#9ca3af;">
+                  Un cliente canceló su turno. A continuación te dejamos los detalles del turno cancelado.
+                </p>
+              </td>
+            </tr>
+            <tr>
+              <td>
+                <table role="presentation" width="100%" cellPadding="0" cellSpacing="0" style="background-color:#020617; border-radius:14px; border:1px solid #1e293b; padding:16px;">
+                  <tr>
+                    <td>
+                      <p style="margin:0 0 8px 0; font-size:11px; font-weight:600; letter-spacing:0.08em; text-transform:uppercase; color:#64748b;">
+                        Detalles del turno cancelado
+                      </p>
+                      <p style="margin:0 0 2px 0; font-size:14px; font-weight:600; color:#e5e7eb;">
+                        ${serviceName}
+                      </p>
+                      <p style="margin:0 0 2px 0; font-size:13px; color:#cbd5e1;">
+                        ${dateLabel}
+                      </p>
+                      <p style="margin:0 0 8px 0; font-size:13px; color:#cbd5e1;">
+                        ${timeLabel}
+                      </p>
+                      <p style="margin:0 0 2px 0; font-size:13px; color:#e5e7eb;">
+                        Cliente: <strong>${clientName}</strong>
+                      </p>
+                      <p style="margin:0; font-size:13px; color:#e5e7eb;">
+                        Teléfono: <strong>${clientPhone}</strong>
+                      </p>
+                    </td>
+                  </tr>
+                </table>
+              </td>
+            </tr>
+            <tr>
+              <td style="padding-top:18px; border-top:1px solid #1e293b; margin-top:18px;">
+                <p style="margin:18px 0 0 0; font-size:11px; color:#64748b;">
+                  El horario ahora está disponible para nuevas reservas.
+                </p>
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+    </table>
+  </body>
+</html>
+`
+}
+
+/**
+ * Send cancellation email to employee (or owner as fallback) when client cancels.
+ */
+export async function sendCancellationEmailToEmployee(appointmentId: string): Promise<void> {
+  const appointment = await prisma.appointment.findUnique({
+    where: { id: appointmentId },
+    include: {
+      business: true,
+      employee: {
+        include: {
+          user: true,
+        },
+      },
+    },
+  })
+
+  if (!appointment) {
+    console.warn('sendCancellationEmailToEmployee: appointment not found', appointmentId)
+    return
+  }
+
+  const employee = appointment.employee
+  const employeeUser = employee?.user as { email: string | null; name: string | null } | null | undefined
+
+  let targetEmail: string | null = null
+  let targetName: string = 'Empleado'
+
+  if (employee && employeeUser?.email) {
+    targetEmail = employeeUser.email
+    targetName = employee?.name ?? employeeUser.name ?? 'Empleado'
+  } else {
+    const owner = await prisma.user.findFirst({
+      where: { businessId: appointment.businessId, role: 'OWNER' },
+      select: { email: true, name: true },
+    })
+    if (owner?.email) {
+      targetEmail = owner.email
+      targetName = owner.name ?? 'Dueño'
+    }
+  }
+
+  if (!targetEmail) {
+    console.warn(
+      'sendCancellationEmailToEmployee: no employee or owner email, skipping for appointment',
+      appointmentId
+    )
+    return
+  }
+
+  const { dateLabel, timeLabel } = formatDateTimeRange(appointment.startTime, appointment.endTime)
+
+  const html = buildCancellationEmailToEmployeeHtml({
+    businessName: appointment.business.name,
+    employeeName: targetName,
+    clientName: appointment.clientName,
+    clientPhone: appointment.clientPhone,
+    serviceName: appointment.serviceName,
+    dateLabel,
+    timeLabel,
+  })
+
+  const fromName = appointment.business.name
+  const fromEmail = process.env.EMAIL_FROM || process.env.SMTP_USER || ''
+  const subject = `Un cliente canceló su turno - ${appointment.business.name}`
+
+  try {
+    await sendMailWithRetry({
+      from: `"${fromName}" <${fromEmail}>`,
+      to: targetEmail,
+      subject,
+      html,
+    })
+    console.log('✅ Cancellation email sent to employee for appointment', appointmentId)
+  } catch (err) {
+    console.error('Failed to send cancellation email to employee for appointment', appointmentId, err)
+  }
+}
+
