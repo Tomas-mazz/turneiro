@@ -45,14 +45,15 @@ export async function createBlockedSlot(
     }
 
     const isStaff = req.user?.role === 'STAFF'
-    const isOwner = req.user?.role === 'OWNER'
+    const isOwnerOrAdmin =
+      req.user?.role === 'OWNER' || req.user?.role === 'ADMIN'
     const scope = parsed.data.scope
 
     // STAFF: blocks always apply only to their own calendar.
-    // OWNER: can choose scope SELF (only their calendar) when an owner-employee exists,
-    // otherwise falls back to business-wide blocks.
+    // OWNER / ADMIN (acting): can choose scope SELF when an owner-employee exists.
     const shouldUseEmployeeId =
-      (isStaff && !!staffEmployeeId) || (isOwner && scope === 'SELF' && !!staffEmployeeId)
+      (isStaff && !!staffEmployeeId) ||
+      (isOwnerOrAdmin && scope === 'SELF' && !!staffEmployeeId)
 
     const created = await createBlockedSlotService(
       businessId,

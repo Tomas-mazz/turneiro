@@ -27,10 +27,10 @@ export async function updateMyWorkingHours(
   next: NextFunction
 ) {
   try {
-    if (req.user?.role !== 'OWNER') {
-      return res
-        .status(403)
-        .json({ error: 'Only the business owner can update working hours.' })
+    if (req.user?.role !== 'OWNER' && req.user?.role !== 'ADMIN') {
+      return res.status(403).json({
+        error: 'Solo el dueño o un administrador en contexto de tienda puede actualizar horarios.',
+      })
     }
 
     const ctx = getBusinessContextOrRespond(req, res)
