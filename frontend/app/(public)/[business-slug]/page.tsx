@@ -143,6 +143,10 @@ export default function BusinessBookingPage() {
       .then((res) => {
         setBusiness(res.data)
         setError(null)
+        const t = res.data.theme?.toUpperCase()
+        if (t === 'LIGHT' || t === 'DARK') {
+          setThemeMode(t as ThemeMode)
+        }
       })
       .catch((err) => {
         setError(err.response?.status === 404 ? 'Negocio no encontrado' : 'Error al cargar')
@@ -509,7 +513,12 @@ export default function BusinessBookingPage() {
   ])
 
   if (loading) {
-    return <LoadingSpinner bgColor="bg-neutral-100" />
+    return (
+      <LoadingSpinner
+        variant={themeMode === 'DARK' ? 'dark' : 'light'}
+        bgColor="bg-neutral-100"
+      />
+    )
   }
 
   if (error || !business) {
