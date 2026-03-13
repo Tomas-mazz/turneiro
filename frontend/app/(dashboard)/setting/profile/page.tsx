@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react'
 import { getMyProfile, updateMyProfile, uploadAdminFile } from '@/lib/api'
 import type { MyProfile } from '@/lib/api'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
-import { useBusinessLogo } from '../../layout'
+import { useBusinessLogo } from '@/lib/businessLogoContext'
 
 export default function ProfilePage() {
   const businessLogo = useBusinessLogo()

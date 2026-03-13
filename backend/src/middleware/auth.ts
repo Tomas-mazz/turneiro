@@ -74,3 +74,31 @@ export function requireOwnerOnly(
     next()
   })
 }
+
+/** OWNER, or ADMIN acting as a shop (header set before requireBusinessContext). */
+export function requireOwnerOrAdminActing(
+  req: AuthRequest,
+  res: Response,
+  next: NextFunction
+): void {
+  requireAuth(req, res, () => {
+    if (!req.user) {
+      res.status(403).json({ error: 'Acceso denegado' })
+      return
+    }
+    if (req.user.role === 'OWNER') {
+      next()
+      return
+    }
+    if (req.user.role === 'ADMIN') {
+      const slug = String(req.headers['x-admin-acting-as-slug'] ?? '').trim()
+      if (slug) {
+        next()
+        return
+      }
+      res.status(403).json({ error: 'Solo dueños o admin en contexto de tienda.' })
+      return
+    }
+    res.status(403).json({ error: 'Acceso denegado. Solo dueños del negocio.' })
+  })
+}

@@ -3,7 +3,14 @@
 import { useEffect, useMemo, useState, useCallback } from 'react'
 import { useParams, usePathname, useRouter } from 'next/navigation'
 import { api } from '@/lib/api'
-import { getAuthUser, removeAuthToken, setAuthToken, setAuthUser } from '@/lib/auth'
+import {
+  getAuthUser,
+  removeAuthToken,
+  setAuthToken,
+  setAuthUser,
+  setAdminActingShopSlug,
+  clearAdminActingShopSlug,
+} from '@/lib/auth'
 import type { Business, Step, ServiceOption, CreatedAppointment } from './types'
 import { formatDateKey, getNowInArgentina } from './utils'
 import {
@@ -671,6 +678,12 @@ export default function BusinessBookingPage() {
           setAuthToken(token)
           setAuthUser(loggedInUser)
           setUser(loggedInUser)
+          if (loggedInUser.role === 'ADMIN' && slug) {
+            setAdminActingShopSlug(slug)
+            router.push('/setting')
+          } else if (loggedInUser.role !== 'ADMIN') {
+            clearAdminActingShopSlug()
+          }
         }}
         onOpenRegister={() => {
           router.push('/register')

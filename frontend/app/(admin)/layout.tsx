@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
-import { isAuthenticated, getAuthUser } from '@/lib/auth'
+import { isAuthenticated, getAuthUser, clearAdminActingShopSlug } from '@/lib/auth'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
 
 type AdminNavItem = {
@@ -204,6 +204,7 @@ export default function AdminLayout({
       router.replace('/setting')
       return
     }
+    clearAdminActingShopSlug()
     setAllowed(true)
   }, [router])
 

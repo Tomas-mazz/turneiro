@@ -6,7 +6,7 @@ import { getAuthUser } from '@/lib/auth'
 import { getBusinessImages, updateBusinessImages, uploadAdminFile } from '@/lib/api'
 import type { BusinessImages } from '@/lib/api'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
-import { useBusinessLogo } from '../../layout'
+import { useBusinessLogo } from '@/lib/businessLogoContext'
 
 export default function ImagesPage() {
   const router = useRouter()
