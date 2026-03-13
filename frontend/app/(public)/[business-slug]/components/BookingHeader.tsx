@@ -163,6 +163,16 @@ export function BookingHeader({
                       Panel admin
                     </Link>
                   )}
+                  {user.role === 'ADMIN' && (
+                    <Link
+                      href="/setting"
+                      role="menuitem"
+                      className={`block w-full px-4 py-2.5 text-left text-sm font-medium ${dropdownItemClass}`}
+                      onClick={() => setAuthMenuOpen(false)}
+                    >
+                      Configuración (esta tienda)
+                    </Link>
+                  )}
                   {isStaffOrOwner && (
                     <>
                       <Link

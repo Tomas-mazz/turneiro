@@ -3,7 +3,8 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { api } from '@/lib/api'
-import { setAuthToken, setAuthUser } from '@/lib/auth'
+import { setAuthToken, setAuthUser, setAdminActingShopSlug, clearAdminActingShopSlug } from '@/lib/auth'
+import { getStoreSlugFromWindow } from '@/lib/storeSlug'
 
 type LoginResponse = { token: string; user: { id: string; email: string; role: string; businessId: string | null; name?: string | null } }
 
@@ -22,8 +23,19 @@ export default function LoginPage() {
       const res = await api.post<LoginResponse>('/auth/login', { email, password })
       setAuthToken(res.data.token)
       setAuthUser(res.data.user)
-      const destination = res.data.user.role === 'ADMIN' ? '/admin' : '/setting'
-      router.push(destination)
+      if (res.data.user.role === 'ADMIN') {
+        const shopSlug = getStoreSlugFromWindow()
+        if (shopSlug) {
+          setAdminActingShopSlug(shopSlug)
+          router.push('/setting')
+        } else {
+          clearAdminActingShopSlug()
+          router.push('/admin')
+        }
+      } else {
+        clearAdminActingShopSlug()
+        router.push('/setting')
+      }
       router.refresh()
     } catch (err: unknown) {
       const msg = err && typeof err === 'object' && 'response' in err

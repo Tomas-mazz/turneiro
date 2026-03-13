@@ -1,5 +1,5 @@
 import axios from 'axios'
-import { getAuthToken } from './auth'
+import { getAuthToken, getAuthUser, getAdminActingShopSlug } from './auth'
 import type {
   ServiceListItem,
   AppointmentListItem,
@@ -26,6 +26,11 @@ api.interceptors.request.use((config) => {
   const token = getAuthToken()
   if (token) {
     config.headers.Authorization = `Bearer ${token}`
+  }
+  const user = getAuthUser()
+  const actingSlug = getAdminActingShopSlug()
+  if (user?.role === 'ADMIN' && actingSlug) {
+    config.headers['X-Admin-Acting-As-Slug'] = actingSlug
   }
   return config
 })
