@@ -11,6 +11,10 @@ import { updateServiceSchema, createServiceAdminSchema } from '../lib/schemas'
 import type { AuthRequest } from '../middleware/auth'
 import { getBusinessContextOrRespond } from '../lib/requestGuards'
 
+function canOwnerOrAdminActing(req: AuthRequest): boolean {
+  return req.user?.role === 'OWNER' || req.user?.role === 'ADMIN'
+}
+
 export async function getServices(req: AuthRequest, res: Response) {
   const ctx = getBusinessContextOrRespond(req, res)
   if (!ctx) return
@@ -25,7 +29,7 @@ export async function createService(
   next: NextFunction
 ) {
   try {
-    if (req.user?.role !== 'OWNER') {
+    if (!canOwnerOrAdminActing(req)) {
       return res.status(403).json({
         error: 'Solo el dueño del negocio puede crear servicios.',
       })
@@ -53,7 +57,7 @@ export async function updateService(
   next: NextFunction
 ) {
   try {
-    if (req.user?.role !== 'OWNER') {
+    if (!canOwnerOrAdminActing(req)) {
       return res.status(403).json({
         error: 'Solo el dueño del negocio puede editar precios y duración de servicios.',
       })
@@ -89,7 +93,7 @@ export async function deleteService(
   next: NextFunction
 ) {
   try {
-    if (req.user?.role !== 'OWNER') {
+    if (!canOwnerOrAdminActing(req)) {
       return res.status(403).json({
         error: 'Solo el dueño del negocio puede eliminar servicios.',
       })

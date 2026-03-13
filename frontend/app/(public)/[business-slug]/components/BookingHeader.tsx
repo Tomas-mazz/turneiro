@@ -2,8 +2,10 @@
 
 import { useState, useEffect, useRef } from 'react'
 import Link from 'next/link'
+import { useParams, useRouter } from 'next/navigation'
 import { useTypewriter } from '../hooks/useTypewriter'
 import type { AuthUser } from '@/lib/auth'
+import { setAdminActingShopSlug } from '@/lib/auth'
 
 type BookingHeaderProps = {
   businessName: string
@@ -61,6 +63,10 @@ export function BookingHeader({
   user = null,
   onLogout,
 }: BookingHeaderProps) {
+  const params = useParams()
+  const router = useRouter()
+  const storeSlug =
+    (params?.['business-slug'] as string | undefined)?.trim() || null
   const [authMenuOpen, setAuthMenuOpen] = useState(false)
   const authMenuRef = useRef<HTMLDivElement>(null)
   const displayName = useTypewriter(businessName)
@@ -164,14 +170,18 @@ export function BookingHeader({
                     </Link>
                   )}
                   {user.role === 'ADMIN' && (
-                    <Link
-                      href="/setting"
+                    <button
+                      type="button"
                       role="menuitem"
                       className={`block w-full px-4 py-2.5 text-left text-sm font-medium ${dropdownItemClass}`}
-                      onClick={() => setAuthMenuOpen(false)}
+                      onClick={() => {
+                        setAuthMenuOpen(false)
+                        if (storeSlug) setAdminActingShopSlug(storeSlug)
+                        router.push('/setting')
+                      }}
                     >
                       Configuración (esta tienda)
-                    </Link>
+                    </button>
                   )}
                   {isStaffOrOwner && (
                     <>
