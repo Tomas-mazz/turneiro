@@ -5,7 +5,7 @@ import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
 import { format, addDays } from 'date-fns'
 import { es } from 'date-fns/locale'
-import { getAuthUser } from '@/lib/auth'
+import { getAuthUser, getAdminActingShopSlug } from '@/lib/auth'
 import {
   getMyBusiness,
   getServices,
@@ -94,6 +94,10 @@ export function DashboardContent({ section = 'all' }: { section?: DashboardSecti
     setUserRole(getAuthUser()?.role ?? null)
   }, [])
 
+  const actsAsOwner =
+    userRole === 'OWNER' ||
+    (userRole === 'ADMIN' && !!getAdminActingShopSlug())
+
   useEffect(() => {
     getMyBusiness()
       .then((b) => {
@@ -104,7 +108,7 @@ export function DashboardContent({ section = 'all' }: { section?: DashboardSecti
   }, [])
 
   useEffect(() => {
-    if (userRole !== 'OWNER') {
+    if (!actsAsOwner) {
       if (userRole === 'STAFF') setLoadingServices(false)
       return
     }
@@ -112,10 +116,10 @@ export function DashboardContent({ section = 'all' }: { section?: DashboardSecti
       .then(setServices)
       .catch((err) => setError(err.response?.data?.error || 'Error al cargar servicios'))
       .finally(() => setLoadingServices(false))
-  }, [userRole])
+  }, [userRole, actsAsOwner])
 
   useEffect(() => {
-    if (userRole !== 'OWNER') return
+    if (!actsAsOwner) return
     if (!(section === 'all' || section === 'hours')) return
     setLoadingWorkingHours(true)
     getWorkingHours()
@@ -123,7 +127,7 @@ export function DashboardContent({ section = 'all' }: { section?: DashboardSecti
       .catch(() => setWorkingHoursError('Error al cargar horarios'))
       .finally(() => setLoadingWorkingHours(false))
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [userRole, section])
+  }, [userRole, section, actsAsOwner])
 
 
   const loadBlockedSlots = () => {
@@ -280,7 +284,7 @@ export function DashboardContent({ section = 'all' }: { section?: DashboardSecti
         body.startTime = blockStartTime
         body.endTime = blockEndTime
       }
-      if (userRole === 'OWNER') {
+      if (actsAsOwner) {
         body.scope = blockScope
       }
       await createBlockedSlot(body)
@@ -356,7 +360,7 @@ export function DashboardContent({ section = 'all' }: { section?: DashboardSecti
         </div>
       )}
 
-      {userRole === 'OWNER' && (section === 'all' || section === 'services') && (
+      {actsAsOwner && (section === 'all' || section === 'services') && (
       <section className="mt-8 mb-10 sm:mt-10 sm:mb-12">
         <h2 className="text-lg font-semibold text-neutral-900 sm:text-xl">
           Servicios (precio, duración y estado)
@@ -618,7 +622,7 @@ export function DashboardContent({ section = 'all' }: { section?: DashboardSecti
       </section>
       )}
 
-      {userRole === 'OWNER' && (section === 'all' || section === 'hours') && (
+      {actsAsOwner && (section === 'all' || section === 'hours') && (
       <section className="mt-8 mb-10 sm:mt-10 sm:mb-12">
         <h2 className="text-lg font-semibold text-neutral-900 sm:text-xl">Horarios de apertura</h2>
         <p className="mt-1 text-sm text-neutral-600">
@@ -803,7 +807,7 @@ export function DashboardContent({ section = 'all' }: { section?: DashboardSecti
                 </label>
               </div>
             </div>
-            {userRole === 'OWNER' && (
+            {actsAsOwner && (
               <div>
                 <span className="mb-1 block text-xs font-medium text-neutral-600">
                   Aplicar a
