@@ -5,93 +5,83 @@ import type { Step } from '../types'
 type BookingStepperProps = {
   step: Step
   isDarkTheme?: boolean
-  /** Permite volver a pasos anteriores; nunca se usa para adelantar. */
   onStepChange?: (next: Step) => void
 }
 
 const STEPS: { id: Step; label: string }[] = [
-  { id: 'service', label: 'Elegir servicio' },
-  { id: 'date', label: 'Elegir día y horario' },
-  { id: 'form', label: 'Confirmá tu turno' },
+  { id: 'service', label: 'Servicio' },
+  { id: 'date', label: 'Día y hora' },
+  { id: 'form', label: 'Confirmar' },
 ]
 
 export function BookingStepper({ step, isDarkTheme = true, onStepChange }: BookingStepperProps) {
   const activeIndex = STEPS.findIndex((s) => s.id === step)
-
   if (activeIndex === -1) return null
 
-  const baseLineColor = isDarkTheme ? 'bg-neutral-700' : 'bg-neutral-200'
-  const activeLineColor = isDarkTheme ? 'bg-neutral-50' : 'bg-neutral-900'
-  const inactiveTextColor = isDarkTheme ? 'text-neutral-500' : 'text-neutral-500'
-  const activeTextColor = isDarkTheme ? 'text-white' : 'text-neutral-900'
-  const completedTextColor = isDarkTheme ? 'text-neutral-200' : 'text-neutral-800'
-  const circleBorderColor = isDarkTheme ? 'border-neutral-500' : 'border-neutral-400'
-  const circleCompletedBg = isDarkTheme ? 'bg-neutral-50' : 'bg-neutral-900'
-  const circleCompletedBorder = isDarkTheme ? 'border-neutral-50' : 'border-neutral-900'
-  const circleFutureBg = isDarkTheme ? 'bg-neutral-800' : 'bg-white'
-  const circleFutureBorder = circleBorderColor
+  const progressPct = (activeIndex / Math.max(1, STEPS.length - 1)) * 100
+
+  const track = isDarkTheme ? 'bg-neutral-700/80' : 'bg-neutral-200'
+  const fill = isDarkTheme ? 'bg-neutral-200' : 'bg-neutral-800'
+  const muted = isDarkTheme ? 'text-neutral-500' : 'text-neutral-500'
+  const active = isDarkTheme ? 'text-neutral-100' : 'text-neutral-900'
+  const done = isDarkTheme ? 'text-neutral-400' : 'text-neutral-600'
 
   return (
-    <div className="mb-6 md:mb-8">
-      <div className="relative mx-auto max-w-3xl">
-        {/* Base line */}
-        <div className={`absolute left-0 right-0 top-1/2 h-0.5 -translate-y-1/2 rounded-full ${baseLineColor}`} />
-
-        {/* Active segment con animación más lenta */}
+    <div className="mb-5 md:mb-6">
+      <div className="relative mx-auto max-w-md md:max-w-xl">
+        {/* Línea base */}
         <div
-          className={`absolute left-0 top-1/2 h-0.5 -translate-y-1/2 rounded-full transition-all duration-700 ease-out ${activeLineColor}`}
-          style={{
-            width: `${(activeIndex / Math.max(1, STEPS.length - 1)) * 100}%`,
-          }}
+          className={`absolute left-0 right-0 top-[7px] h-[2px] rounded-full ${track}`}
+          aria-hidden
+        />
+        <div
+          className={`absolute left-0 top-[7px] h-[2px] rounded-full transition-[width] duration-500 ease-out ${fill}`}
+          style={{ width: `${progressPct}%` }}
+          aria-hidden
         />
 
-        <ol className="relative z-10 flex w-full justify-between text-xs font-medium md:text-sm">
+        <ol className="relative z-10 flex w-full justify-between gap-2">
           {STEPS.map((s, index) => {
             const isActive = index === activeIndex
             const isCompleted = index < activeIndex
             const canGoBack = typeof onStepChange === 'function' && index < activeIndex
-
-            const textClass = isCompleted
-              ? completedTextColor
-              : isActive
-                ? activeTextColor
-                : inactiveTextColor
-
-            const basePadding = 'px-1 md:px-2'
-
-            const circleBaseClasses =
-              'mt-3 h-3.5 w-3.5 rounded-full border transition-colors duration-300 ease-out'
-
-            const circleClasses = isCompleted
-              ? `${circleBaseClasses} ${circleCompletedBg} ${circleCompletedBorder}`
-              : isActive
-                ? `${circleBaseClasses} bg-transparent ${circleBorderColor}`
-                : `${circleBaseClasses} ${circleFutureBg} ${circleFutureBorder}`
+            const text = isCompleted ? done : isActive ? active : muted
 
             return (
-              <li
-                key={s.id}
-                className="flex min-w-0 flex-2 flex-col items-center justify-start"
-              >
+              <li key={s.id} className="flex min-w-0 flex-1 flex-col items-center">
+                <span
+                  className={`mb-2 block h-[14px] w-[14px] shrink-0 rounded-full border-2 transition-colors duration-300 ${
+                    isCompleted
+                      ? isDarkTheme
+                        ? 'border-neutral-300 bg-neutral-300'
+                        : 'border-neutral-700 bg-neutral-700'
+                      : isActive
+                        ? isDarkTheme
+                          ? 'border-neutral-200 bg-[hsl(0,0%,9%)] ring-2 ring-neutral-600 ring-offset-2 ring-offset-[hsl(0,0%,9%)]'
+                          : 'border-neutral-800 bg-white ring-2 ring-neutral-200 ring-offset-2 ring-offset-[rgb(244,244,245)]'
+                        : isDarkTheme
+                          ? 'border-neutral-600 bg-[hsl(0,0%,9%)]'
+                          : 'border-neutral-300 bg-white'
+                  }`}
+                  aria-hidden
+                />
                 {canGoBack ? (
                   <button
                     type="button"
                     onClick={() => onStepChange(s.id)}
-                    className={`${basePadding} inline-flex items-center justify-center rounded-sm underline-offset-4 hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-neutral-500 ${textClass}`}
+                    className={`max-w-full truncate text-center text-[11px] font-medium leading-tight hover:underline md:text-xs ${text} focus:outline-none focus-visible:ring-1 focus-visible:ring-neutral-500 rounded-sm`}
                   >
-                    <span className="truncate">{s.label}</span>
+                    {s.label}
                   </button>
                 ) : (
                   <span
-                    className={`${basePadding} inline-flex items-center justify-center truncate ${
+                    className={`max-w-full truncate text-center text-[11px] font-medium leading-tight md:text-xs ${
                       isActive ? 'font-semibold' : ''
-                    } ${textClass}`}
+                    } ${text}`}
                   >
                     {s.label}
                   </span>
                 )}
-
-                <div className={circleClasses} aria-hidden />
               </li>
             )
           })}
@@ -100,5 +90,3 @@ export function BookingStepper({ step, isDarkTheme = true, onStepChange }: Booki
     </div>
   )
 }
-
-

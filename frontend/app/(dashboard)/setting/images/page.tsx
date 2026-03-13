@@ -326,7 +326,7 @@ export default function ImagesPage() {
           className={`w-full rounded-lg px-4 py-2.5 text-sm font-semibold text-white transition-colors ${
             saved
               ? 'bg-emerald-600'
-              : 'bg-sky-600 hover:bg-sky-700 disabled:bg-neutral-300'
+              : 'bg-neutral-800 hover:bg-neutral-700 disabled:bg-neutral-300'
           }`}
         >
           {saving ? 'Guardando...' : saved ? 'Guardado' : 'Guardar cambios'}

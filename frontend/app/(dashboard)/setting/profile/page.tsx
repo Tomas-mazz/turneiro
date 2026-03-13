@@ -99,7 +99,7 @@ export default function ProfilePage() {
             type="text"
             value={name}
             onChange={(e) => setName(e.target.value)}
-            className="w-full rounded-lg border border-neutral-300 px-3 py-2 focus:border-sky-500 focus:ring-1 focus:ring-sky-500"
+            className="w-full rounded-lg border border-neutral-300 px-3 py-2 focus:border-neutral-600 focus:ring-1 focus:ring-neutral-500"
             placeholder="Tu nombre"
           />
         </div>
@@ -153,7 +153,7 @@ export default function ProfilePage() {
           className={`w-full rounded-lg px-4 py-2.5 text-sm font-semibold text-white transition-colors ${
             saved
               ? 'bg-emerald-600'
-              : 'bg-sky-600 hover:bg-sky-700 disabled:bg-neutral-300'
+              : 'bg-neutral-800 hover:bg-neutral-700 disabled:bg-neutral-300'
           }`}
         >
           {saving ? 'Guardando...' : saved ? 'Guardado' : 'Guardar cambios'}

@@ -11,6 +11,7 @@ import {
 } from '@/lib/auth'
 import { getMyBusiness } from '@/lib/api'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
+import { panel } from '@/lib/panelTheme'
 
 type AdminNavItem = {
   id: 'home' | 'businesses' | 'appointments' | 'newBusiness'
@@ -131,11 +132,13 @@ function AdminShell({ children }: { children: React.ReactNode }) {
   }
 
   return (
-    <div className="flex h-screen bg-neutral-100">
-      <aside className="hidden w-72 shrink-0 flex-col bg-sky-700 text-sky-50 md:flex md:overflow-y-auto">
+    <div className={`flex h-screen ${panel.contentBg}`}>
+      <aside
+        className={`hidden w-72 shrink-0 flex-col ${panel.sidebarBg} text-white md:flex md:overflow-y-auto`}
+      >
         <div className="flex min-h-0 flex-1 flex-col gap-4 px-4 py-5">
-          <div className="border-b border-sky-600 pb-4">
-            <p className="text-xs font-medium uppercase tracking-wide text-sky-200">
+          <div className={`border-b ${panel.navBorder} pb-4`}>
+            <p className={`text-xs font-medium uppercase tracking-wide ${panel.labelMuted}`}>
               Panel admin
             </p>
             <p className="mt-1 text-sm font-semibold text-white line-clamp-2">
@@ -151,9 +154,7 @@ function AdminShell({ children }: { children: React.ReactNode }) {
                   type="button"
                   onClick={handleNavClick(item)}
                   className={`flex w-full items-center rounded-lg px-3 py-2 text-left transition-colors ${
-                    isActive
-                      ? 'bg-sky-500/90 text-white'
-                      : 'text-sky-100 hover:bg-sky-600/70 hover:text-white'
+                    isActive ? panel.navActive : panel.navInactive
                   }`}
                 >
                   <span className="text-sm font-medium">{item.label}</span>
@@ -166,13 +167,13 @@ function AdminShell({ children }: { children: React.ReactNode }) {
               <button
                 type="button"
                 onClick={handleAdminOnlyClick}
-                className="rounded-lg border border-sky-500/80 px-3 py-2 text-left text-xs font-medium text-sky-50 hover:bg-sky-600/50"
+                className={panel.outlineBtn}
               >
                 Ir solo a admin (sin tienda)
               </button>
-              <div className="my-2 border-t border-sky-500" role="separator" />
-              <div className="border-b border-sky-600 pb-3">
-                <p className="text-xs font-medium uppercase tracking-wide text-sky-200">
+              <div className={`my-2 border-t ${panel.navBorder}`} role="separator" />
+              <div className={`border-b ${panel.navBorder} pb-3`}>
+                <p className={`text-xs font-medium uppercase tracking-wide ${panel.labelMuted}`}>
                   Vista de la tienda
                 </p>
                 <p className="mt-1 text-sm font-semibold text-white line-clamp-2">
@@ -188,9 +189,7 @@ function AdminShell({ children }: { children: React.ReactNode }) {
                       type="button"
                       onClick={handleShopNav(item)}
                       className={`flex w-full items-center rounded-lg px-3 py-2 text-left text-sm transition-colors ${
-                        isActive
-                          ? 'bg-sky-500/90 text-white'
-                          : 'text-sky-100 hover:bg-sky-600/70 hover:text-white'
+                        isActive ? panel.navActive : panel.navInactive
                       } ${item.id === 'block' ? 'ml-4 py-1.5 text-xs' : ''}`}
                     >
                       <span className="font-medium">{item.label}</span>
@@ -201,10 +200,10 @@ function AdminShell({ children }: { children: React.ReactNode }) {
             </>
           )}
         </div>
-        <div className="shrink-0 border-t border-sky-600 px-4 py-4">
+        <div className={`shrink-0 border-t ${panel.navBorder} px-4 py-4`}>
           <Link
             href="/login"
-            className="inline-flex items-center gap-1.5 text-sm font-medium text-sky-50 hover:text-white"
+            className={`inline-flex items-center gap-1.5 text-sm font-medium ${panel.footerLink}`}
           >
             <span aria-hidden>←</span>
             Volver al login
@@ -215,7 +214,9 @@ function AdminShell({ children }: { children: React.ReactNode }) {
       <div className="relative flex h-full flex-1 flex-col overflow-hidden pb-16 md:pb-0">
         <div className="flex-1 overflow-y-auto">{children}</div>
 
-        <nav className="fixed inset-x-0 bottom-0 z-20 border-t border-sky-800 bg-sky-700/95 px-3 py-3 shadow-[0_-4px_12px_rgba(15,23,42,0.35)] backdrop-blur md:hidden">
+        <nav
+          className={`fixed inset-x-0 bottom-0 z-20 px-3 py-3 backdrop-blur md:hidden ${panel.mobileBar}`}
+        >
           <div className="mx-auto flex max-w-md items-center justify-between gap-1">
             {items.slice(0, 2).map((item) => {
               const isActive = isItemActive(item)
@@ -224,8 +225,8 @@ function AdminShell({ children }: { children: React.ReactNode }) {
                   key={item.id}
                   type="button"
                   onClick={handleNavClick(item)}
-                  className={`flex flex-1 items-center justify-center rounded-md px-3 py-2 text-xs font-medium ${
-                    isActive ? 'text-white' : 'text-sky-100'
+                  className={`flex flex-1 items-center justify-center rounded-md px-3 py-2 text-xs font-medium text-white ${
+                    isActive ? 'font-semibold' : ''
                   }`}
                 >
                   <span className="truncate">{item.label}</span>
@@ -235,8 +236,8 @@ function AdminShell({ children }: { children: React.ReactNode }) {
             <button
               type="button"
               onClick={() => setIsMoreOpen((prev) => !prev)}
-              className={`flex flex-1 items-center justify-center gap-1 rounded-md px-3 py-2 text-xs font-medium ${
-                isMoreOpen ? 'text-white' : 'text-sky-100'
+              className={`flex flex-1 items-center justify-center gap-1 rounded-md px-3 py-2 text-xs font-medium text-white ${
+                isMoreOpen ? 'opacity-100' : 'opacity-95'
               }`}
             >
               <span className="truncate">Más</span>
@@ -247,11 +248,11 @@ function AdminShell({ children }: { children: React.ReactNode }) {
 
         {isMoreOpen && (
           <div className="fixed inset-x-0 bottom-12 z-30 max-h-[70vh] overflow-y-auto px-3 pb-3 md:hidden">
-            <div className="mx-auto max-w-md overflow-hidden rounded-2xl border border-sky-600 bg-sky-700 shadow-xl">
-              <div className="px-4 py-2 text-xs font-semibold uppercase tracking-wide text-sky-100">
+            <div className={`mx-auto max-w-md overflow-hidden ${panel.sheet}`}>
+              <div className="px-4 py-2 text-xs font-semibold uppercase tracking-wide text-white/90">
                 Más opciones
               </div>
-              <div className="border-t border-sky-600">
+              <div className={`border-t ${panel.navBorder}`}>
                 {items.map((item) => {
                   const isActive = isItemActive(item)
                   return (
@@ -260,7 +261,7 @@ function AdminShell({ children }: { children: React.ReactNode }) {
                       type="button"
                       onClick={handleNavClick(item)}
                       className={`flex w-full items-center justify-between px-4 py-2.5 text-left text-sm ${
-                        isActive ? 'bg-sky-500 text-white' : 'text-sky-50 hover:bg-sky-600'
+                        isActive ? panel.sheetRowActive : panel.sheetRowHover
                       }`}
                     >
                       <span>{item.label}</span>
@@ -269,7 +270,9 @@ function AdminShell({ children }: { children: React.ReactNode }) {
                 })}
                 {hybrid && (
                   <>
-                    <div className="bg-sky-800/50 px-4 py-1.5 text-[0.65rem] font-semibold uppercase text-sky-200">
+                    <div
+                      className={`px-4 py-1.5 text-[0.65rem] font-semibold uppercase ${panel.sheetSection}`}
+                    >
                       Tienda
                     </div>
                     {SHOP_ITEMS.map((item) => (
@@ -277,7 +280,7 @@ function AdminShell({ children }: { children: React.ReactNode }) {
                         key={item.id}
                         type="button"
                         onClick={handleShopNav(item)}
-                        className="flex w-full px-4 py-2.5 text-left text-sm text-sky-50 hover:bg-sky-600"
+                        className={`flex w-full px-4 py-2.5 text-left text-sm ${panel.sheetRowHover}`}
                       >
                         {item.label}
                       </button>
@@ -288,7 +291,7 @@ function AdminShell({ children }: { children: React.ReactNode }) {
                         setIsMoreOpen(false)
                         handleAdminOnlyClick()
                       }}
-                      className="flex w-full border-t border-sky-600 px-4 py-2.5 text-left text-sm text-sky-50 hover:bg-sky-600"
+                      className={`flex w-full border-t ${panel.navBorder} px-4 py-2.5 text-left text-sm ${panel.sheetRowHover}`}
                     >
                       Ir solo a admin
                     </button>
@@ -297,7 +300,7 @@ function AdminShell({ children }: { children: React.ReactNode }) {
                 <Link
                   href="/login"
                   onClick={() => setIsMoreOpen(false)}
-                  className="flex w-full items-center justify-between border-t border-sky-600 px-4 py-2.5 text-left text-sm text-sky-50 hover:bg-sky-600"
+                  className={`flex w-full items-center justify-between border-t ${panel.navBorder} px-4 py-2.5 text-left text-sm ${panel.sheetRowHover}`}
                 >
                   <span>Cerrar sesión</span>
                 </Link>
