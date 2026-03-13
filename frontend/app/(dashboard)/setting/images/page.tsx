@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { getAuthUser } from '@/lib/auth'
+import { getAuthUser, getAdminActingShopSlug } from '@/lib/auth'
 import { getBusinessImages, updateBusinessImages, uploadAdminFile } from '@/lib/api'
 import type { BusinessImages } from '@/lib/api'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
@@ -32,7 +32,10 @@ export default function ImagesPage() {
 
   useEffect(() => {
     const user = getAuthUser()
-    if (user?.role !== 'OWNER') {
+    const canEditImages =
+      user?.role === 'OWNER' ||
+      (user?.role === 'ADMIN' && !!getAdminActingShopSlug())
+    if (!canEditImages) {
       router.replace('/setting')
       return
     }

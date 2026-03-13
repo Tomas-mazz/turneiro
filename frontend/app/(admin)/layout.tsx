@@ -3,11 +3,23 @@
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
-import { isAuthenticated, getAuthUser, clearAdminActingShopSlug } from '@/lib/auth'
+import {
+  isAuthenticated,
+  getAuthUser,
+  getAdminActingShopSlug,
+  clearAdminActingShopSlug,
+} from '@/lib/auth'
+import { getMyBusiness } from '@/lib/api'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
 
 type AdminNavItem = {
   id: 'home' | 'businesses' | 'appointments' | 'newBusiness'
+  label: string
+  href: string
+}
+
+type ShopNavItem = {
+  id: string
   label: string
   href: string
 }
@@ -19,11 +31,25 @@ const ADMIN_ITEMS: AdminNavItem[] = [
   { id: 'newBusiness', label: 'Crear negocio', href: '/admin/businesses/new' },
 ]
 
+const SHOP_ITEMS: ShopNavItem[] = [
+  { id: 'home', label: 'Inicio', href: '/setting' },
+  { id: 'profile', label: 'Mi perfil', href: '/setting/profile' },
+  { id: 'services', label: 'Servicios', href: '/setting/services' },
+  { id: 'hours', label: 'Horarios', href: '/setting/hours' },
+  { id: 'block', label: 'Bloquear días u horarios', href: '/setting/blocking' },
+  { id: 'cancel', label: 'Cancelar turnos', href: '/setting/cancel' },
+  { id: 'images', label: 'Imágenes', href: '/setting/images' },
+]
+
 function AdminShell({ children }: { children: React.ReactNode }) {
   const [adminEmail, setAdminEmail] = useState<string | null>(null)
+  const [actingSlug, setActingSlug] = useState<string | null>(null)
+  const [businessName, setBusinessName] = useState<string | null>(null)
+  const [businessSlug, setBusinessSlug] = useState<string | null>(null)
   const [isMoreOpen, setIsMoreOpen] = useState(false)
   const pathname = usePathname()
   const router = useRouter()
+  const hybrid = !!actingSlug
 
   useEffect(() => {
     const user = getAuthUser()
@@ -32,10 +58,25 @@ function AdminShell({ children }: { children: React.ReactNode }) {
     } else {
       setAdminEmail(null)
     }
-  }, [])
+    setActingSlug(getAdminActingShopSlug())
+  }, [pathname])
+
+  useEffect(() => {
+    if (!hybrid) return
+    getMyBusiness()
+      .then((b) => {
+        setBusinessName(b.name)
+        setBusinessSlug(b.slug)
+      })
+      .catch(() => {
+        setBusinessName(null)
+        setBusinessSlug(null)
+      })
+  }, [hybrid])
 
   const items = ADMIN_ITEMS
   const effectivePath = pathname || '/admin'
+  const settingPath = pathname || ''
 
   const handleNavClick =
     (item: AdminNavItem) =>
@@ -48,29 +89,51 @@ function AdminShell({ children }: { children: React.ReactNode }) {
       }
     }
 
+  const handleShopNav =
+    (item: ShopNavItem) =>
+    (event: React.MouseEvent<HTMLButtonElement | HTMLAnchorElement>) => {
+      event.preventDefault()
+      setIsMoreOpen(false)
+      if (item.href !== pathname) {
+        window.scrollTo({ top: 0, behavior: 'smooth' })
+        router.push(item.href)
+      }
+    }
+
+  const handleAdminOnlyClick = () => {
+    clearAdminActingShopSlug()
+    setActingSlug(null)
+    router.push('/admin')
+    router.refresh()
+  }
+
   const isItemActive = (item: AdminNavItem) => {
     if (item.id === 'home') {
       return effectivePath === '/admin' || effectivePath === '/admin/'
     }
-
     if (item.id === 'businesses') {
       return (
         effectivePath.startsWith('/admin/businesses') &&
         !effectivePath.startsWith('/admin/businesses/new')
       )
     }
-
     if (item.id === 'newBusiness') {
-      return effectivePath === '/admin/businesses/new'
+      return effectivePath.startsWith('/admin/businesses/new')
     }
-
     return effectivePath.startsWith(item.href)
+  }
+
+  const isShopActive = (item: ShopNavItem) => {
+    if (item.id === 'home') {
+      return settingPath === '/setting' || settingPath === '/setting/'
+    }
+    return settingPath.startsWith(item.href)
   }
 
   return (
     <div className="flex h-screen bg-neutral-100">
-      <aside className="hidden w-72 shrink-0 flex-col justify-between bg-sky-700 text-sky-50 md:flex">
-        <div className="flex flex-col gap-6 px-4 py-5">
+      <aside className="hidden w-72 shrink-0 flex-col bg-sky-700 text-sky-50 md:flex md:overflow-y-auto">
+        <div className="flex min-h-0 flex-1 flex-col gap-4 px-4 py-5">
           <div className="border-b border-sky-600 pb-4">
             <p className="text-xs font-medium uppercase tracking-wide text-sky-200">
               Panel admin
@@ -98,8 +161,47 @@ function AdminShell({ children }: { children: React.ReactNode }) {
               )
             })}
           </nav>
+          {hybrid && (
+            <>
+              <button
+                type="button"
+                onClick={handleAdminOnlyClick}
+                className="rounded-lg border border-sky-500/80 px-3 py-2 text-left text-xs font-medium text-sky-50 hover:bg-sky-600/50"
+              >
+                Ir solo a admin (sin tienda)
+              </button>
+              <div className="my-2 border-t border-sky-500" role="separator" />
+              <div className="border-b border-sky-600 pb-3">
+                <p className="text-xs font-medium uppercase tracking-wide text-sky-200">
+                  Vista de la tienda
+                </p>
+                <p className="mt-1 text-sm font-semibold text-white line-clamp-2">
+                  {businessName ?? actingSlug ?? 'Tienda'}
+                </p>
+              </div>
+              <nav className="space-y-1 text-sm">
+                {SHOP_ITEMS.map((item) => {
+                  const isActive = isShopActive(item)
+                  return (
+                    <button
+                      key={item.id}
+                      type="button"
+                      onClick={handleShopNav(item)}
+                      className={`flex w-full items-center rounded-lg px-3 py-2 text-left text-sm transition-colors ${
+                        isActive
+                          ? 'bg-sky-500/90 text-white'
+                          : 'text-sky-100 hover:bg-sky-600/70 hover:text-white'
+                      } ${item.id === 'block' ? 'ml-4 py-1.5 text-xs' : ''}`}
+                    >
+                      <span className="font-medium">{item.label}</span>
+                    </button>
+                  )
+                })}
+              </nav>
+            </>
+          )}
         </div>
-        <div className="border-t border-sky-600 px-4 py-4">
+        <div className="shrink-0 border-t border-sky-600 px-4 py-4">
           <Link
             href="/login"
             className="inline-flex items-center gap-1.5 text-sm font-medium text-sky-50 hover:text-white"
@@ -130,7 +232,6 @@ function AdminShell({ children }: { children: React.ReactNode }) {
                 </button>
               )
             })}
-
             <button
               type="button"
               onClick={() => setIsMoreOpen((prev) => !prev)}
@@ -139,16 +240,14 @@ function AdminShell({ children }: { children: React.ReactNode }) {
               }`}
             >
               <span className="truncate">Más</span>
-              <span className="text-[0.65rem]">
-                {isMoreOpen ? '▲' : '▼'}
-              </span>
+              <span className="text-[0.65rem]">{isMoreOpen ? '▲' : '▼'}</span>
             </button>
           </div>
         </nav>
 
         {isMoreOpen && (
-          <div className="fixed inset-x-0 bottom-12 z-30 mx-auto max-w-md px-3 pb-3 md:hidden">
-            <div className="overflow-hidden rounded-2xl border border-sky-600 bg-sky-700 shadow-xl">
+          <div className="fixed inset-x-0 bottom-12 z-30 max-h-[70vh] overflow-y-auto px-3 pb-3 md:hidden">
+            <div className="mx-auto max-w-md overflow-hidden rounded-2xl border border-sky-600 bg-sky-700 shadow-xl">
               <div className="px-4 py-2 text-xs font-semibold uppercase tracking-wide text-sky-100">
                 Más opciones
               </div>
@@ -161,15 +260,40 @@ function AdminShell({ children }: { children: React.ReactNode }) {
                       type="button"
                       onClick={handleNavClick(item)}
                       className={`flex w-full items-center justify-between px-4 py-2.5 text-left text-sm ${
-                        isActive
-                          ? 'bg-sky-500 text-white'
-                          : 'text-sky-50 hover:bg-sky-600'
+                        isActive ? 'bg-sky-500 text-white' : 'text-sky-50 hover:bg-sky-600'
                       }`}
                     >
                       <span>{item.label}</span>
                     </button>
                   )
                 })}
+                {hybrid && (
+                  <>
+                    <div className="bg-sky-800/50 px-4 py-1.5 text-[0.65rem] font-semibold uppercase text-sky-200">
+                      Tienda
+                    </div>
+                    {SHOP_ITEMS.map((item) => (
+                      <button
+                        key={item.id}
+                        type="button"
+                        onClick={handleShopNav(item)}
+                        className="flex w-full px-4 py-2.5 text-left text-sm text-sky-50 hover:bg-sky-600"
+                      >
+                        {item.label}
+                      </button>
+                    ))}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsMoreOpen(false)
+                        handleAdminOnlyClick()
+                      }}
+                      className="flex w-full border-t border-sky-600 px-4 py-2.5 text-left text-sm text-sky-50 hover:bg-sky-600"
+                    >
+                      Ir solo a admin
+                    </button>
+                  </>
+                )}
                 <Link
                   href="/login"
                   onClick={() => setIsMoreOpen(false)}
@@ -204,7 +328,6 @@ export default function AdminLayout({
       router.replace('/setting')
       return
     }
-    clearAdminActingShopSlug()
     setAllowed(true)
   }, [router])
 
@@ -218,4 +341,3 @@ export default function AdminLayout({
 
   return <AdminShell>{children}</AdminShell>
 }
-

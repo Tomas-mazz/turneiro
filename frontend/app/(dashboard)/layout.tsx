@@ -129,7 +129,6 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
     (event: React.MouseEvent<HTMLButtonElement | HTMLAnchorElement>) => {
       event.preventDefault()
       setIsMoreOpen(false)
-      clearAdminActingShopSlug()
       router.push(item.href)
     }
 
@@ -200,7 +199,7 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
                       ? 'bg-sky-500/90 text-white'
                       : 'text-sky-100 hover:bg-sky-600/70 hover:text-white'
                   } ${
-                    item.id === 'block' && role === 'OWNER'
+                    item.id === 'block' && (role === 'OWNER' || role === 'ADMIN_HYBRID')
                       ? 'ml-4 px-2 py-1.5 text-xs'
                       : 'px-3 py-2 text-sm'
                   }`}
