@@ -14,6 +14,16 @@ export interface ServiceListItem {
   isActive: boolean
 }
 
+export interface SubServiceAdminItem {
+  id: string
+  name: string
+  price: number
+  duration: number
+  isActive: boolean
+  shortDescription: string | null
+  description: string | null
+}
+
 export interface AppointmentListItem {
   id: string
   startTime: string

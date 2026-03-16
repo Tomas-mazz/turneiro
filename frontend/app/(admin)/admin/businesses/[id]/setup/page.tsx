@@ -9,6 +9,9 @@ import {
   getAdminBusinessServices,
   createAdminService,
   deleteAdminService,
+  getAdminSubServices,
+  createAdminSubService,
+  deleteAdminSubService,
   getAdminWorkingHours,
   updateAdminWorkingHours,
   getAdminEmployees,
@@ -22,6 +25,7 @@ import type {
   ServiceListItem,
   WorkingHoursItem,
   AdminEmployeeListItem,
+  SubServiceAdminItem,
 } from '@/types'
 
 const STEPS = [
@@ -58,6 +62,8 @@ export default function AdminBusinessSetupPage() {
   const [servicesLoading, setServicesLoading] = useState(false)
   const [newService, setNewService] = useState({ name: '', price: '', duration: '30', isActive: true })
   const [creatingService, setCreatingService] = useState(false)
+  const [subServicesByService, setSubServicesByService] = useState<Record<string, SubServiceAdminItem[]>>({})
+  const [newSubService, setNewSubService] = useState<Record<string, { name: string; price: string; duration: string }>>({})
   const [form, setForm] = useState<SetupFormState>({
     paymentRequired: false,
     paymentType: 'FULL',
@@ -112,7 +118,22 @@ export default function AdminBusinessSetupPage() {
     if (id && business) {
       setServicesLoading(true)
       getAdminBusinessServices(id)
-        .then(setServices)
+        .then(async (svc) => {
+          setServices(svc)
+          // Preload subservices for each service so the admin can see them immediately.
+          const entries: Record<string, SubServiceAdminItem[]> = {}
+          await Promise.all(
+            svc.map(async (s) => {
+              try {
+                const subs = await getAdminSubServices(s.id)
+                entries[s.id] = subs
+              } catch {
+                entries[s.id] = []
+              }
+            })
+          )
+          setSubServicesByService(entries)
+        })
         .catch(() => setError('Error al cargar servicios'))
         .finally(() => setServicesLoading(false))
     }
@@ -163,12 +184,65 @@ export default function AdminBusinessSetupPage() {
     try {
       await deleteAdminService(serviceId)
       setServices((prev) => prev.filter((s) => s.id !== serviceId))
+      setSubServicesByService((prev) => {
+        const next = { ...prev }
+        delete next[serviceId]
+        return next
+      })
     } catch (err: unknown) {
       const msg =
         err && typeof err === 'object' && 'response' in err
           ? (err as { response?: { data?: { error?: string } } }).response?.data?.error
           : null
       setError(msg || 'Error al eliminar servicio')
+    }
+  }
+
+  const handleAddSubService = async (
+    e: React.FormEvent,
+    serviceId: string
+  ) => {
+    e.preventDefault()
+    const current = newSubService[serviceId] ?? { name: '', price: '', duration: '30' }
+    if (!current.name.trim() || !current.price || !current.duration) return
+    try {
+      const created = await createAdminSubService(serviceId, {
+        name: current.name.trim(),
+        price: Number(current.price),
+        duration: Math.min(120, Math.max(15, Number(current.duration))),
+        isActive: true,
+      })
+      setSubServicesByService((prev) => ({
+        ...prev,
+        [serviceId]: [...(prev[serviceId] ?? []), created],
+      }))
+      setNewSubService((prev) => ({
+        ...prev,
+        [serviceId]: { name: '', price: '', duration: '30' },
+      }))
+    } catch (err: unknown) {
+      const msg =
+        err && typeof err === 'object' && 'response' in err
+          ? (err as { response?: { data?: { error?: string } } }).response?.data?.error
+          : null
+      setError(msg || 'Error al crear subservicio')
+    }
+  }
+
+  const handleDeleteSubService = async (subServiceId: string, serviceId: string) => {
+    if (!confirm('¿Eliminar este subservicio?')) return
+    try {
+      await deleteAdminSubService(subServiceId)
+      setSubServicesByService((prev) => ({
+        ...prev,
+        [serviceId]: (prev[serviceId] ?? []).filter((s) => s.id !== subServiceId),
+      }))
+    } catch (err: unknown) {
+      const msg =
+        err && typeof err === 'object' && 'response' in err
+          ? (err as { response?: { data?: { error?: string } } }).response?.data?.error
+          : null
+      setError(msg || 'Error al eliminar subservicio')
     }
   }
 
@@ -577,7 +651,7 @@ export default function AdminBusinessSetupPage() {
         <div className="rounded-lg border border-neutral-200 bg-white p-6 shadow-sm">
           <h2 className="text-lg font-medium text-neutral-900">Servicios</h2>
           <p className="mt-2 text-sm text-neutral-600">
-            Agregá los servicios que ofrece el negocio (nombre, precio, duración).
+            Agregá los servicios que ofrece el negocio (nombre, precio, duración) y, cuando sea necesario, variantes dentro de cada servicio (subservicios con distinto precio/duración).
           </p>
 
           <form onSubmit={handleAddService} className="mt-4 mb-4 flex flex-wrap items-end gap-3">
@@ -647,17 +721,127 @@ export default function AdminBusinessSetupPage() {
           {servicesLoading ? (
             <p className="text-sm text-neutral-500">Cargando servicios...</p>
           ) : services.length > 0 ? (
-            <ul className="mb-4 space-y-1 text-sm">
+            <ul className="mb-4 space-y-3 text-sm">
               {services.map((s) => (
-                <li key={s.id} className="flex items-center justify-between rounded bg-neutral-50 px-3 py-2">
-                  <span>{s.name} · $ {s.price} · {s.duration} min</span>
-                  <button
-                    type="button"
-                    onClick={() => handleDeleteService(s.id)}
-                    className="text-red-600 underline hover:text-red-800"
-                  >
-                    Eliminar
-                  </button>
+                <li key={s.id} className="rounded bg-neutral-50 px-3 py-3">
+                  <div className="flex items-center justify-between gap-3">
+                    <span className="font-medium">
+                      {s.name} · $ {s.price} · {s.duration} min
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => handleDeleteService(s.id)}
+                      className="text-xs font-medium text-red-600 underline hover:text-red-800"
+                    >
+                      Eliminar servicio
+                    </button>
+                  </div>
+
+                  {/* Subservices for this service */}
+                  <div className="mt-3 rounded border border-neutral-200 bg-white px-3 py-3">
+                    <p className="text-xs font-semibold text-neutral-700">
+                      Subservicios (opcional)
+                    </p>
+                    <p className="mt-1 text-[11px] text-neutral-500">
+                      Ejemplo: “Teñir pelo” con “Rojo”, “Amarillo”, “Verde”, cada uno con distinto precio y duración.
+                    </p>
+                    <form
+                      onSubmit={(e) => handleAddSubService(e, s.id)}
+                      className="mt-2 mb-2 flex flex-wrap items-end gap-2"
+                    >
+                      <div className="w-32">
+                        <label className="mb-1 block text-[11px] text-neutral-600">
+                          Nombre
+                        </label>
+                        <input
+                          type="text"
+                          value={newSubService[s.id]?.name ?? ''}
+                          onChange={(e) =>
+                            setNewSubService((prev) => ({
+                              ...prev,
+                              [s.id]: {
+                                ...(prev[s.id] ?? { name: '', price: '', duration: '30' }),
+                                name: e.target.value,
+                              },
+                            }))
+                          }
+                          className="w-full rounded border border-neutral-300 px-2 py-1 text-xs"
+                          placeholder="Rojo"
+                        />
+                      </div>
+                      <div className="w-24">
+                        <label className="mb-1 block text-[11px] text-neutral-600">
+                          Precio
+                        </label>
+                        <input
+                          type="number"
+                          min={0}
+                          step={0.01}
+                          value={newSubService[s.id]?.price ?? ''}
+                          onChange={(e) =>
+                            setNewSubService((prev) => ({
+                              ...prev,
+                              [s.id]: {
+                                ...(prev[s.id] ?? { name: '', price: '', duration: '30' }),
+                                price: e.target.value,
+                              },
+                            }))
+                          }
+                          className="w-full rounded border border-neutral-300 px-2 py-1 text-xs"
+                          placeholder="500"
+                        />
+                      </div>
+                      <div className="w-24">
+                        <label className="mb-1 block text-[11px] text-neutral-600">
+                          Duración
+                        </label>
+                        <input
+                          type="number"
+                          min={15}
+                          max={120}
+                          value={newSubService[s.id]?.duration ?? '30'}
+                          onChange={(e) =>
+                            setNewSubService((prev) => ({
+                              ...prev,
+                              [s.id]: {
+                                ...(prev[s.id] ?? { name: '', price: '', duration: '30' }),
+                                duration: e.target.value,
+                              },
+                            }))
+                          }
+                          className="w-full rounded border border-neutral-300 px-2 py-1 text-xs"
+                        />
+                      </div>
+                      <button
+                        type="submit"
+                        className="rounded bg-neutral-900 px-3 py-1.5 text-xs font-medium text-white hover:bg-neutral-800"
+                      >
+                        Agregar subservicio
+                      </button>
+                    </form>
+
+                    {(subServicesByService[s.id] ?? []).length > 0 && (
+                      <ul className="mt-1 space-y-1 text-[12px]">
+                        {subServicesByService[s.id].map((sub) => (
+                          <li
+                            key={sub.id}
+                            className="flex items-center justify-between rounded bg-neutral-50 px-2 py-1"
+                          >
+                            <span>
+                              {sub.name} · $ {sub.price} · {sub.duration} min
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => handleDeleteSubService(sub.id, s.id)}
+                              className="text-[11px] font-medium text-red-600 underline hover:text-red-800"
+                            >
+                              Eliminar
+                            </button>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </div>
                 </li>
               ))}
             </ul>

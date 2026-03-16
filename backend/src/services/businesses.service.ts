@@ -37,6 +37,19 @@ export async function getBusinessBySlugService(slug: string) {
           name: true,
           price: true,
           duration: true,
+          shortDescription: true,
+          description: true,
+          subServices: {
+            where: { isActive: true },
+            select: {
+              id: true,
+              name: true,
+              price: true,
+              duration: true,
+              shortDescription: true,
+              description: true,
+            },
+          },
         },
       },
       workingHours: {

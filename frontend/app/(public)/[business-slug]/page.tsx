@@ -182,13 +182,38 @@ export default function BusinessBookingPage() {
         clientPhone?: string
       }
 
-      const service =
-        parsed.serviceId && business.services
-          ? business.services.find((s) => s.id === parsed.serviceId) ?? null
-          : null
+      let restoredService: ServiceOption | null = null
+      if (parsed.serviceId && business.services) {
+        // Try to match as a top-level service first
+        const topLevel = business.services.find((s) => s.id === parsed.serviceId)
+        if (topLevel) {
+          restoredService = {
+            id: topLevel.id,
+            name: topLevel.name,
+            price: topLevel.price,
+            duration: topLevel.duration,
+          }
+        } else {
+          // Otherwise, try to match as a subservice
+          for (const s of business.services) {
+            const sub = (s.subServices ?? []).find((sub) => sub.id === parsed.serviceId)
+            if (sub) {
+              restoredService = {
+                id: sub.id,
+                name: `${s.name} - ${sub.name}`,
+                price: sub.price,
+                duration: sub.duration,
+                parentServiceId: s.id,
+                parentServiceName: s.name,
+              }
+              break
+            }
+          }
+        }
+      }
 
-      if (service) {
-        setSelectedService(service)
+      if (restoredService) {
+        setSelectedService(restoredService)
       }
       if (parsed.calendarMonth) {
         const d = new Date(parsed.calendarMonth)
@@ -205,7 +230,7 @@ export default function BusinessBookingPage() {
 
       // Decide the safest step we can restore given the data we have.
       const requestedStep = parsed.step ?? step
-      const hasService = !!service
+      const hasService = !!restoredService
       const hasDate = !!parsed.selectedDate
       const hasSlot = !!parsed.selectedSlot
 

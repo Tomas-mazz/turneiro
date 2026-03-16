@@ -12,6 +12,9 @@ import {
   updateService,
   createService,
   deleteService,
+  getAdminSubServices,
+  createAdminSubService,
+  deleteAdminSubService,
   getAppointmentsByPhone,
   cancelAppointmentByOwner,
   getGoogleCalendarAuthUrl,
@@ -28,6 +31,7 @@ import type {
   AppointmentListItem,
   BlockedSlotListItem,
   WorkingHoursItem,
+  SubServiceAdminItem,
 } from '@/types'
 
 const GOOGLE_CALENDAR_URL = 'https://calendar.google.com'
@@ -84,6 +88,8 @@ export function DashboardContent({ section = 'all' }: { section?: DashboardSecti
   const [blockScope, setBlockScope] = useState<'BUSINESS' | 'SELF'>('BUSINESS')
   const [newService, setNewService] = useState({ name: '', price: '', duration: '30', isActive: true })
   const [creatingService, setCreatingService] = useState(false)
+  const [subServicesByService, setSubServicesByService] = useState<Record<string, SubServiceAdminItem[]>>({})
+  const [newSubService, setNewSubService] = useState<Record<string, { name: string; price: string; duration: string }>>({})
   const [workingHours, setWorkingHours] = useState<WorkingHoursItem[]>([])
   const [loadingWorkingHours, setLoadingWorkingHours] = useState(false)
   const [savingWorkingHours, setSavingWorkingHours] = useState(false)
@@ -113,7 +119,21 @@ export function DashboardContent({ section = 'all' }: { section?: DashboardSecti
       return
     }
     getServices()
-      .then(setServices)
+      .then(async (svc) => {
+        setServices(svc)
+        const entries: Record<string, SubServiceAdminItem[]> = {}
+        await Promise.all(
+          svc.map(async (s) => {
+            try {
+              const subs = await getAdminSubServices(s.id)
+              entries[s.id] = subs
+            } catch {
+              entries[s.id] = []
+            }
+          })
+        )
+        setSubServicesByService(entries)
+      })
       .catch((err) => setError(err.response?.data?.error || 'Error al cargar servicios'))
       .finally(() => setLoadingServices(false))
   }, [userRole, actsAsOwner])
@@ -241,10 +261,61 @@ export function DashboardContent({ section = 'all' }: { section?: DashboardSecti
     try {
       await deleteService(serviceId)
       setServices((prev) => prev.filter((s) => s.id !== serviceId))
+      setSubServicesByService((prev) => {
+        const next = { ...prev }
+        delete next[serviceId]
+        return next
+      })
     } catch (err) {
       setError(
         (err as { response?: { data?: { error?: string } } })?.response?.data?.error ||
           'Error al eliminar servicio'
+      )
+    }
+  }
+
+  const handleAddSubService = async (e: React.FormEvent, serviceId: string) => {
+    e.preventDefault()
+    const current = newSubService[serviceId] ?? { name: '', price: '', duration: '30' }
+    if (!current.name.trim() || !current.price || !current.duration) return
+    setCreatingService(true)
+    try {
+      const created = await createAdminSubService(serviceId, {
+        name: current.name.trim(),
+        price: Number(current.price),
+        duration: Math.min(120, Math.max(15, Number(current.duration))),
+        isActive: true,
+      })
+      setSubServicesByService((prev) => ({
+        ...prev,
+        [serviceId]: [...(prev[serviceId] ?? []), created],
+      }))
+      setNewSubService((prev) => ({
+        ...prev,
+        [serviceId]: { name: '', price: '', duration: '30' },
+      }))
+    } catch (err) {
+      setError(
+        (err as { response?: { data?: { error?: string } } })?.response?.data?.error ||
+          'Error al crear subservicio'
+      )
+    } finally {
+      setCreatingService(false)
+    }
+  }
+
+  const handleDeleteSubService = async (subServiceId: string, serviceId: string) => {
+    if (!window.confirm('¿Eliminar este subservicio?')) return
+    try {
+      await deleteAdminSubService(subServiceId)
+      setSubServicesByService((prev) => ({
+        ...prev,
+        [serviceId]: (prev[serviceId] ?? []).filter((s) => s.id !== subServiceId),
+      }))
+    } catch (err) {
+      setError(
+        (err as { response?: { data?: { error?: string } } })?.response?.data?.error ||
+          'Error al eliminar subservicio'
       )
     }
   }
@@ -453,7 +524,7 @@ export function DashboardContent({ section = 'all' }: { section?: DashboardSecti
               </button>
             </form>
 
-            {/* Mobile: una card por servicio */}
+            {/* Mobile: una card por servicio y sus subservicios */}
             <div className="mt-4 space-y-4 md:hidden">
               {services.map((s) => (
                 <div
@@ -488,6 +559,110 @@ export function DashboardContent({ section = 'all' }: { section?: DashboardSecti
                         }
                       />
                     </div>
+                  </div>
+                  {/* Subservices (mobile) */}
+                  <div className="mt-4 rounded-lg border border-neutral-200 bg-neutral-50 p-3">
+                    <p className="text-xs font-semibold text-neutral-800">
+                      Subservicios (opcional)
+                    </p>
+                    <p className="mt-1 text-[11px] text-neutral-500">
+                      Variantes dentro de este servicio con distinto precio y duración.
+                    </p>
+                    <form
+                      onSubmit={(e) => handleAddSubService(e, s.id)}
+                      className="mt-2 mb-2 flex flex-wrap items-end gap-2"
+                    >
+                      <div className="w-32">
+                        <label className="mb-1 block text-[11px] text-neutral-600">
+                          Nombre
+                        </label>
+                        <input
+                          type="text"
+                          value={newSubService[s.id]?.name ?? ''}
+                          onChange={(e) =>
+                            setNewSubService((prev) => ({
+                              ...prev,
+                              [s.id]: {
+                                ...(prev[s.id] ?? { name: '', price: '', duration: '30' }),
+                                name: e.target.value,
+                              },
+                            }))
+                          }
+                          className="w-full rounded border border-neutral-300 px-2 py-1 text-xs"
+                          placeholder="Rojo"
+                        />
+                      </div>
+                      <div className="w-24">
+                        <label className="mb-1 block text-[11px] text-neutral-600">
+                          Precio
+                        </label>
+                        <input
+                          type="number"
+                          min={0}
+                          step={0.01}
+                          value={newSubService[s.id]?.price ?? ''}
+                          onChange={(e) =>
+                            setNewSubService((prev) => ({
+                              ...prev,
+                              [s.id]: {
+                                ...(prev[s.id] ?? { name: '', price: '', duration: '30' }),
+                                price: e.target.value,
+                              },
+                            }))
+                          }
+                          className="w-full rounded border border-neutral-300 px-2 py-1 text-xs"
+                          placeholder="500"
+                        />
+                      </div>
+                      <div className="w-24">
+                        <label className="mb-1 block text-[11px] text-neutral-600">
+                          Duración
+                        </label>
+                        <input
+                          type="number"
+                          min={15}
+                          max={120}
+                          value={newSubService[s.id]?.duration ?? '30'}
+                          onChange={(e) =>
+                            setNewSubService((prev) => ({
+                              ...prev,
+                              [s.id]: {
+                                ...(prev[s.id] ?? { name: '', price: '', duration: '30' }),
+                                duration: e.target.value,
+                              },
+                            }))
+                          }
+                          className="w-full rounded border border-neutral-300 px-2 py-1 text-xs"
+                        />
+                      </div>
+                      <button
+                        type="submit"
+                        className="rounded bg-neutral-900 px-3 py-1.5 text-xs font-medium text-white hover:bg-neutral-800"
+                      >
+                        Agregar
+                      </button>
+                    </form>
+                    {(subServicesByService[s.id] ?? []).length > 0 && (
+                      <ul className="mt-1 space-y-1 text-[12px]">
+                        {subServicesByService[s.id].map((sub) => (
+                          <li
+                            key={sub.id}
+                            className="flex items-center justify-between rounded bg-white px-2 py-1"
+                          >
+                            <span>
+                              {sub.name} · $ {sub.price} · {sub.duration} min
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => handleDeleteSubService(sub.id, s.id)}
+                              className="text-[11px] font-medium text-red-600 underline hover:text-red-800"
+                            >
+                              Eliminar
+                            </button>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
                   </div>
                   <div className="mt-3 flex items-center justify-between gap-3">
                     <button
@@ -530,7 +705,7 @@ export function DashboardContent({ section = 'all' }: { section?: DashboardSecti
                 </div>
               ))}
             </div>
-            {/* Desktop: tabla */}
+            {/* Desktop: tabla + subservicios */}
             <div className="mt-4 hidden md:block md:overflow-x-auto md:rounded-lg md:border md:border-neutral-200">
               <table className="min-w-full divide-y divide-neutral-200 text-left text-sm">
                 <thead className="bg-neutral-50">
@@ -545,7 +720,96 @@ export function DashboardContent({ section = 'all' }: { section?: DashboardSecti
                 <tbody className="divide-y divide-neutral-200 bg-white">
                   {services.map((s) => (
                     <tr key={s.id}>
-                      <td className="px-4 py-3 font-medium text-neutral-900">{s.name}</td>
+                      <td className="px-4 py-3 font-medium text-neutral-900 align-top">
+                        <div>{s.name}</div>
+                        {/* Subservices inline under the service name */}
+                        <div className="mt-2 rounded bg-neutral-50 p-2">
+                          <p className="text-[11px] font-semibold text-neutral-700">
+                            Subservicios (opcional)
+                          </p>
+                          <form
+                            onSubmit={(e) => handleAddSubService(e, s.id)}
+                            className="mt-1 mb-1 flex flex-wrap items-end gap-1"
+                          >
+                            <input
+                              type="text"
+                              placeholder="Nombre"
+                              value={newSubService[s.id]?.name ?? ''}
+                              onChange={(e) =>
+                                setNewSubService((prev) => ({
+                                  ...prev,
+                                  [s.id]: {
+                                    ...(prev[s.id] ?? { name: '', price: '', duration: '30' }),
+                                    name: e.target.value,
+                                  },
+                                }))
+                              }
+                              className="w-28 rounded border border-neutral-300 px-2 py-1 text-[11px]"
+                            />
+                            <input
+                              type="number"
+                              min={0}
+                              step={0.01}
+                              placeholder="$"
+                              value={newSubService[s.id]?.price ?? ''}
+                              onChange={(e) =>
+                                setNewSubService((prev) => ({
+                                  ...prev,
+                                  [s.id]: {
+                                    ...(prev[s.id] ?? { name: '', price: '', duration: '30' }),
+                                    price: e.target.value,
+                                  },
+                                }))
+                              }
+                              className="w-20 rounded border border-neutral-300 px-2 py-1 text-[11px]"
+                            />
+                            <input
+                              type="number"
+                              min={15}
+                              max={120}
+                              placeholder="min"
+                              value={newSubService[s.id]?.duration ?? '30'}
+                              onChange={(e) =>
+                                setNewSubService((prev) => ({
+                                  ...prev,
+                                  [s.id]: {
+                                    ...(prev[s.id] ?? { name: '', price: '', duration: '30' }),
+                                    duration: e.target.value,
+                                  },
+                                }))
+                              }
+                              className="w-20 rounded border border-neutral-300 px-2 py-1 text-[11px]"
+                            />
+                            <button
+                              type="submit"
+                              className="rounded bg-neutral-900 px-2 py-1 text-[11px] font-medium text-white hover:bg-neutral-800"
+                            >
+                              Agregar
+                            </button>
+                          </form>
+                          {(subServicesByService[s.id] ?? []).length > 0 && (
+                            <ul className="mt-1 space-y-0.5 text-[11px]">
+                              {subServicesByService[s.id].map((sub) => (
+                                <li
+                                  key={sub.id}
+                                  className="flex items-center justify-between rounded bg-white px-2 py-1"
+                                >
+                                  <span>
+                                    {sub.name} · $ {sub.price} · {sub.duration} min
+                                  </span>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleDeleteSubService(sub.id, s.id)}
+                                    className="text-[11px] font-medium text-red-600 underline hover:text-red-800"
+                                  >
+                                    Eliminar
+                                  </button>
+                                </li>
+                              ))}
+                            </ul>
+                          )}
+                        </div>
+                      </td>
                       <td className="px-4 py-3">
                         <input
                           type="number"

@@ -8,6 +8,8 @@ import {
   createServiceAdminSchema,
   updateServiceAdminSchema,
   updateWorkingHoursSchema,
+  createSubServiceAdminSchema,
+  updateSubServiceAdminSchema,
 } from '../lib/schemas'
 import {
   getBusinesses,
@@ -19,6 +21,10 @@ import {
   createService,
   updateService,
   deleteService,
+   getSubServices,
+   createSubService,
+   updateSubService,
+   deleteSubService,
   getWorkingHours,
   updateWorkingHours,
   getAdminBlockedSlots,
@@ -54,6 +60,17 @@ router.post(
   validateRequest(createServiceAdminSchema),
   createService
 )
+router.get(
+  '/services/:serviceId/subservices',
+  requireAdmin,
+  getSubServices
+)
+router.post(
+  '/services/:serviceId/subservices',
+  requireAdmin,
+  validateRequest(createSubServiceAdminSchema),
+  createSubService
+)
 router.get('/businesses/:id/working-hours', requireAdmin, requireAdminBusinessId, getWorkingHours)
 router.put(
   '/businesses/:id/working-hours',
@@ -80,6 +97,13 @@ router.patch(
   updateService
 )
 router.delete('/services/:id', requireAdmin, deleteService)
+router.patch(
+  '/subservices/:id',
+  requireAdmin,
+  validateRequest(updateSubServiceAdminSchema),
+  updateSubService
+)
+router.delete('/subservices/:id', requireAdmin, deleteSubService)
 
 router.get('/appointments', requireAdmin, listAdminAppointments)
 router.post('/appointments/:id/cancel', requireAdmin, adminCancelAppointment)

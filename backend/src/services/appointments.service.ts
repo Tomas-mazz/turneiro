@@ -418,18 +418,54 @@ export async function resyncStaffUpcomingAppointmentsToOwnCalendar(
 export async function createAppointmentService(data: CreateAppointmentInput) {
   const business = await prisma.business.findUnique({
     where: { slug: data.businessSlug },
-    include: {
-      services: { where: { id: data.serviceId, isActive: true } },
-    },
   })
 
   if (!business) {
     throw new SlotUnavailableError('Negocio no encontrado')
   }
 
-  const service = business.services[0]
-  if (!service) {
-    throw new SlotUnavailableError('Servicio no encontrado')
+  // serviceId can refer to either a Service or a SubService.
+  // Prefer SubService when it exists so that price/duration come from the variant.
+  const subService = await prisma.subService.findFirst({
+    where: {
+      id: data.serviceId,
+      isActive: true,
+      service: {
+        businessId: business.id,
+      },
+    },
+    include: {
+      service: true,
+    },
+  })
+
+  let baseService: { id: string; name: string; price: number; duration: number } | null = null
+  let finalName: string
+  let finalPrice: number
+  let finalDuration: number
+
+  if (subService) {
+    baseService = {
+      id: subService.service.id,
+      name: subService.service.name,
+      price: subService.service.price,
+      duration: subService.service.duration,
+    }
+    finalName = `${subService.service.name} - ${subService.name}`
+    finalPrice = subService.price
+    finalDuration = subService.duration
+  } else {
+    const service = await prisma.service.findFirst({
+      where: { id: data.serviceId, isActive: true, businessId: business.id },
+      select: { id: true, name: true, price: true, duration: true },
+    })
+    if (!service) {
+      throw new SlotUnavailableError('Servicio no encontrado')
+    }
+    baseService = service
+    finalName = service.name
+    finalPrice = service.price
+    finalDuration = service.duration
   }
 
   const dateForAvailability = new Date(data.date + 'T12:00:00')
@@ -448,19 +484,19 @@ export async function createAppointmentService(data: CreateAppointmentInput) {
 
   // Create startTime and endTime in Argentina timezone, stored as UTC
   const startTime = createArgentinaDate(data.date, data.slotTime)
-  const endTime = new Date(startTime.getTime() + service.duration * 60 * 1000)
+  const endTime = new Date(startTime.getTime() + finalDuration * 60 * 1000)
 
   const cancellationToken = crypto.randomBytes(32).toString('hex')
 
   const appointment = await prisma.appointment.create({
     data: {
       businessId: business.id,
-      serviceId: service.id,
+      serviceId: baseService.id,
       employeeId: employeeId ?? null,
       startTime,
       endTime,
-      serviceName: service.name,
-      price: service.price,
+      serviceName: finalName,
+      price: finalPrice,
       paymentStatus: 'PENDING',
       clientName: data.clientName,
       clientEmail: data.clientEmail,

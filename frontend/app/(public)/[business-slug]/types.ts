@@ -20,7 +20,22 @@ export type Business = {
   phone: string | null
   email: string | null
   address: string | null
-  services: { id: string; name: string; price: number; duration: number }[]
+  services: {
+    id: string
+    name: string
+    price: number
+    duration: number
+    shortDescription?: string | null
+    description?: string | null
+    subServices?: {
+      id: string
+      name: string
+      price: number
+      duration: number
+      shortDescription?: string | null
+      description?: string | null
+    }[]
+  }[]
   workingHours: { dayOfWeek: number; startTime: string; endTime: string; isClosed: boolean }[]
   employees: Employee[]
   settings: { paymentRequired: boolean; paymentType: string | null; depositPercentage: number | null } | null
@@ -33,6 +48,8 @@ export type ServiceOption = {
   name: string
   price: number
   duration: number
+  parentServiceId?: string
+  parentServiceName?: string
 }
 
 export type CreatedAppointment = {

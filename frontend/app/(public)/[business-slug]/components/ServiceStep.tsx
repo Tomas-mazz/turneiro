@@ -67,6 +67,32 @@ export function ServiceStep({
   const cartCtaClass = isDarkTheme
     ? 'bg-white text-black hover:opacity-90'
     : 'border border-neutral-300 bg-white text-black hover:bg-neutral-50'
+  const [expandedServices, setExpandedServices] = useState<Set<string>>(new Set())
+  const [expandedSubServices, setExpandedSubServices] = useState<Set<string>>(new Set())
+
+  const toggleServiceDescription = (serviceId: string) => {
+    setExpandedServices((prev) => {
+      const next = new Set(prev)
+      if (next.has(serviceId)) {
+        next.delete(serviceId)
+      } else {
+        next.add(serviceId)
+      }
+      return next
+    })
+  }
+
+  const toggleSubServiceDescription = (subServiceId: string) => {
+    setExpandedSubServices((prev) => {
+      const next = new Set(prev)
+      if (next.has(subServiceId)) {
+        next.delete(subServiceId)
+      } else {
+        next.add(subServiceId)
+      }
+      return next
+    })
+  }
   const workingHoursByDay = (business.workingHours ?? []).reduce(
     (acc, wh) => {
       acc[wh.dayOfWeek] = wh
@@ -113,19 +139,33 @@ export function ServiceStep({
           </h2>
           <ul className={`divide-y ${isDarkTheme ? 'divide-neutral-600' : 'divide-neutral-300'}`}>
             {business.services.map((s) => {
-              const isSelected = selectedService?.id === s.id
+              const subServices = s.subServices ?? []
+              const hasSubServices = subServices.length > 0
+              const serviceSelected = !!selectedService && selectedService.parentServiceId === s.id
+              const directSelected = selectedService?.id === s.id && !selectedService?.parentServiceId
+
               return (
-                <li key={s.id}>
+                <li key={s.id} className="py-1">
+                  {/* Parent service row */}
                   <button
                     type="button"
-                    onClick={() => onSelectService(s)}
-                    className={`flex w-full items-start gap-4 py-5 pl-1 pr-4 text-left transition-colors md:py-6 md:gap-5 ${serviceRowHover}`}
+                    onClick={() => {
+                      if (!hasSubServices) {
+                        onSelectService({
+                          id: s.id,
+                          name: s.name,
+                          price: s.price,
+                          duration: s.duration,
+                        })
+                      }
+                    }}
+                    className={`flex w-full items-start gap-4 py-4 pl-1 pr-4 text-left transition-colors md:py-5 md:gap-5 ${serviceRowHover}`}
                   >
                     <span
                       className={`mt-1.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full border-2 ${bulletBorder}`}
                       aria-hidden
                     >
-                      {isSelected && (
+                      {(directSelected || serviceSelected) && (
                         <span className={`h-2 w-2 rounded-full ${bulletFill}`} />
                       )}
                     </span>
@@ -133,14 +173,118 @@ export function ServiceStep({
                       <span className={`text-base font-medium md:text-lg ${serviceNameColor}`}>
                         {s.name}
                       </span>
-                      <p className={`mt-1 text-sm md:text-base ${serviceMetaColor}`}>
-                        {s.duration} min
-                      </p>
+                      {/* If the service has subservices, we don't show duration/price here */}
+                      {!hasSubServices && (
+                        <p className={`mt-1 text-sm md:text-base ${serviceMetaColor}`}>
+                          {s.duration} min
+                        </p>
+                      )}
+                      {s.shortDescription && (
+                        <p className={`mt-2 text-xs md:text-sm ${serviceMetaColor}`}>
+                          {s.shortDescription}
+                        </p>
+                      )}
+                      {s.description && (
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            toggleServiceDescription(s.id)
+                          }}
+                          className={`mt-1 text-[11px] font-medium underline-offset-2 hover:underline ${
+                            isDarkTheme ? 'text-neutral-300' : 'text-neutral-800'
+                          }`}
+                        >
+                          {expandedServices.has(s.id) ? 'Leer menos' : 'Leer más'}
+                        </button>
+                      )}
+                      {s.description && expandedServices.has(s.id) && (
+                        <p className={`mt-1 text-xs md:text-sm ${serviceMetaColor}`}>
+                          {s.description}
+                        </p>
+                      )}
                     </div>
-                    <span className={`ml-6 shrink-0 pr-2 text-base font-medium md:text-lg ${serviceNameColor}`}>
-                      $ {s.price.toFixed(0)}
-                    </span>
+                    {!hasSubServices && (
+                      <span
+                        className={`ml-6 shrink-0 pr-2 text-base font-medium md:text-lg ${serviceNameColor}`}
+                      >
+                        $ {s.price.toFixed(0)}
+                      </span>
+                    )}
                   </button>
+
+                  {/* Subservices list */}
+                  {hasSubServices && (
+                    <ul className="mt-1 ml-8 space-y-1">
+                      {subServices.map((sub) => {
+                        const isSelected =
+                          selectedService?.id === sub.id &&
+                          selectedService?.parentServiceId === s.id
+                        return (
+                          <li key={sub.id}>
+                            <button
+                              type="button"
+                              onClick={() =>
+                                onSelectService({
+                                  id: sub.id,
+                                  name: `${s.name} - ${sub.name}`,
+                                  price: sub.price,
+                                  duration: sub.duration,
+                                  parentServiceId: s.id,
+                                  parentServiceName: s.name,
+                                })
+                              }
+                              className={`flex w-full items-start gap-3 py-2 pr-4 text-left text-sm md:text-base ${serviceRowHover}`}
+                            >
+                              <span
+                                className={`mt-1 flex h-4 w-4 shrink-0 items-center justify-center rounded-full border-2 ${bulletBorder}`}
+                                aria-hidden
+                              >
+                                {isSelected && (
+                                  <span className={`h-1.5 w-1.5 rounded-full ${bulletFill}`} />
+                                )}
+                              </span>
+                              <div className="min-w-0 flex-1">
+                                <span className={`${serviceNameColor}`}>{sub.name}</span>
+                                <p className={`mt-0.5 text-xs md:text-sm ${serviceMetaColor}`}>
+                                  {sub.duration} min
+                                </p>
+                                {sub.shortDescription && (
+                                  <p className={`mt-1 text-[11px] md:text-xs ${serviceMetaColor}`}>
+                                    {sub.shortDescription}
+                                  </p>
+                                )}
+                                {sub.description && (
+                                  <button
+                                    type="button"
+                                    onClick={(e) => {
+                                      e.stopPropagation()
+                                      toggleSubServiceDescription(sub.id)
+                                    }}
+                                    className={`mt-1 text-[11px] font-medium underline-offset-2 hover:underline ${
+                                      isDarkTheme ? 'text-neutral-300' : 'text-neutral-800'
+                                    }`}
+                                  >
+                                    {expandedSubServices.has(sub.id) ? 'Leer menos' : 'Leer más'}
+                                  </button>
+                                )}
+                                {sub.description && expandedSubServices.has(sub.id) && (
+                                  <p className={`mt-1 text-[11px] md:text-xs ${serviceMetaColor}`}>
+                                    {sub.description}
+                                  </p>
+                                )}
+                              </div>
+                              <span
+                                className={`ml-4 shrink-0 pr-1 text-sm font-medium md:text-base ${serviceNameColor}`}
+                              >
+                                $ {sub.price.toFixed(0)}
+                              </span>
+                            </button>
+                          </li>
+                        )
+                      })}
+                    </ul>
+                  )}
                 </li>
               )
             })}

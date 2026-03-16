@@ -85,7 +85,6 @@ model User {
   @@index([businessId])
 }
 
-// Service model - services offered by business
 model Service {
   id         String   @id @default(cuid())
   name       String
@@ -95,12 +94,34 @@ model Service {
   businessId String
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
+  shortDescription String? // Short text shown by default in UI
+  description      String? // Extended text shown when user clicks "leer más"
 
   // Relations
   business     Business      @relation(fields: [businessId], references: [id], onDelete: Cascade)
   appointments Appointment[]
+  subServices  SubService[]
 
   @@index([businessId])
+}
+
+// SubService model - variants/options inside a parent service
+model SubService {
+  id               String   @id @default(cuid())
+  name             String
+  price            Float
+  duration         Int // Duration in minutes (15-120) specific to this subservice
+  isActive         Boolean  @default(true)
+  shortDescription String? // Short text shown by default in UI
+  description      String? // Extended text shown when user clicks "leer más"
+  serviceId        String
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  // Relations
+  service Service @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+
+  @@index([serviceId])
 }
 
 // Appointment model - client appointments

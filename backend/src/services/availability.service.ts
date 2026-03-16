@@ -80,7 +80,6 @@ export async function getAvailabilityService(
   const business = await prisma.business.findUnique({
     where: { slug: businessSlug },
     include: {
-      services: { where: { id: serviceId, isActive: true } },
       workingHours: true,
       settings: {
         select: {
@@ -91,8 +90,33 @@ export async function getAvailabilityService(
   })
 
   if (!business) return []
-  const service = business.services[0]
-  if (!service) return []
+
+  // Determine duration: serviceId can be either a Service id or a SubService id.
+  // Prefer SubService when it exists, otherwise fall back to Service.
+  const subService = await prisma.subService.findFirst({
+    where: {
+      id: serviceId,
+      isActive: true,
+      service: {
+        businessId: business.id,
+      },
+    },
+    select: {
+      duration: true,
+    },
+  })
+
+  let duration: number | null = null
+  if (subService) {
+    duration = subService.duration
+  } else {
+    const service = await prisma.service.findFirst({
+      where: { id: serviceId, isActive: true, businessId: business.id },
+      select: { duration: true },
+    })
+    if (!service) return []
+    duration = service.duration
+  }
 
   const dayOfWeek = date.getDay()
   const working = business.workingHours.find((wh) => wh.dayOfWeek === dayOfWeek)
@@ -102,7 +126,6 @@ export async function getAvailabilityService(
   const endMinutes = timeToMinutes(working.endTime)
   const lunchStart = working.lunchStart ? timeToMinutes(working.lunchStart) : null
   const lunchEnd = working.lunchEnd ? timeToMinutes(working.lunchEnd) : null
-  const duration = service.duration
   const slotInterval =
     business.settings?.slotIntervalMinutes && business.settings.slotIntervalMinutes > 0
       ? business.settings.slotIntervalMinutes
