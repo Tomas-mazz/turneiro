@@ -27,6 +27,7 @@ export type Business = {
     duration: number
     shortDescription?: string | null
     description?: string | null
+    images?: string[]
     subServices?: {
       id: string
       name: string
@@ -34,11 +35,17 @@ export type Business = {
       duration: number
       shortDescription?: string | null
       description?: string | null
+      images?: string[]
     }[]
   }[]
   workingHours: { dayOfWeek: number; startTime: string; endTime: string; isClosed: boolean }[]
   employees: Employee[]
-  settings: { paymentRequired: boolean; paymentType: string | null; depositPercentage: number | null } | null
+  settings: {
+    paymentRequired: boolean
+    paymentType: string | null
+    depositPercentage: number | null
+    showServiceConfirmModal?: boolean
+  } | null
 }
 
 export type Step = 'hero' | 'service' | 'date' | 'time' | 'form' | 'payment' | 'done'

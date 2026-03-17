@@ -92,6 +92,7 @@ export const createSubServiceAdminSchema = z.object({
   isActive: z.boolean().optional().default(true),
   shortDescription: z.string().max(300).optional().nullable(),
   description: z.string().max(2000).optional().nullable(),
+  images: z.array(z.string().url()).max(5, 'Máximo 5 imágenes').optional(),
 })
 
 export const updateSubServiceAdminSchema = z.object({
@@ -101,6 +102,7 @@ export const updateSubServiceAdminSchema = z.object({
   isActive: z.boolean().optional(),
   shortDescription: z.string().max(300).optional().nullable(),
   description: z.string().max(2000).optional().nullable(),
+  images: z.array(z.string().url()).max(5, 'Máximo 5 imágenes').optional(),
 })
 
 export type CreateSubServiceAdminInput = z.infer<typeof createSubServiceAdminSchema>

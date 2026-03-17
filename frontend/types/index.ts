@@ -25,6 +25,7 @@ export interface SubServiceAdminItem {
   isActive: boolean
   shortDescription: string | null
   description: string | null
+  images?: string[]
 }
 
 export interface AppointmentListItem {
@@ -95,6 +96,7 @@ export interface AdminBusinessDetail {
     lateCancellationFee: number | null
   bufferTime: number | null
   slotIntervalMinutes: number
+    showServiceConfirmModal?: boolean
   } | null
   owner: { id: string; email: string } | null
 }
@@ -127,6 +129,7 @@ export type CreateBusinessBody = {
 
 export type UpdateBusinessBody = Partial<CreateBusinessBody> & {
   slotIntervalMinutes?: number
+  showServiceConfirmModal?: boolean
 }
 
 export interface WorkingHoursItem {

@@ -115,6 +115,7 @@ model SubService {
   isActive         Boolean  @default(true)
   shortDescription String? // Short text shown by default in UI
   description      String? // Extended text shown when user clicks "leer más"
+  images           String[] @default([]) // Up to 5 image URLs (enforced in API)
   serviceId        String
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
@@ -222,6 +223,7 @@ model BusinessSettings {
   lateCancellationFee              Float? // Percentage if cancellationHasCost is true
   bufferTime                       Int? // Legacy: additional buffer minutes between appointments
   slotIntervalMinutes              Int      @default(15) // Base slot interval (15, 20, 30...) for availability generation
+  showServiceConfirmModal          Boolean  @default(false) // Show extra confirmation modal after "Confirmar servicio"
   businessId                       String   @unique
   createdAt                        DateTime @default(now())
   updatedAt                        DateTime @updatedAt

@@ -228,6 +228,7 @@ export type CreateSubServiceAdminBody = {
   isActive?: boolean
   shortDescription?: string | null
   description?: string | null
+  images?: string[]
 }
 
 export type UpdateSubServiceAdminBody = {
@@ -237,6 +238,7 @@ export type UpdateSubServiceAdminBody = {
   isActive?: boolean
   shortDescription?: string | null
   description?: string | null
+  images?: string[]
 }
 
 export async function createAdminSubService(
@@ -472,5 +474,21 @@ export async function updateBusinessImages(body: {
   coverVideoMobile?: string | null
 }): Promise<BusinessImages> {
   const { data } = await api.patch<BusinessImages>('/businesses/images', body)
+  return data
+}
+
+export type BusinessSettings = {
+  showServiceConfirmModal: boolean
+}
+
+export async function getBusinessSettings(): Promise<BusinessSettings> {
+  const { data } = await api.get<BusinessSettings>('/businesses/settings')
+  return data
+}
+
+export async function updateBusinessSettings(
+  body: Partial<BusinessSettings>
+): Promise<BusinessSettings> {
+  const { data } = await api.patch<BusinessSettings>('/businesses/settings', body)
   return data
 }

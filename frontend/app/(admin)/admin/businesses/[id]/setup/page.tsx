@@ -21,6 +21,7 @@ import {
   deleteAdminEmployee,
   uploadAdminFile,
 } from '@/lib/api'
+import { ImagesModal } from '@/components/ImagesModal'
 import type {
   AdminBusinessDetail,
   UpdateBusinessBody,
@@ -46,6 +47,7 @@ type SetupFormState = {
   lateCancellationFee: number | ''
   bufferTime: number | ''
   slotIntervalMinutes: number | ''
+  showServiceConfirmModal: boolean
 }
 
 export default function AdminBusinessSetupPage() {
@@ -78,9 +80,10 @@ export default function AdminBusinessSetupPage() {
   const [serviceDescriptionsModalId, setServiceDescriptionsModalId] = useState<string | null>(null)
   const [serviceImagesModalId, setServiceImagesModalId] = useState<string | null>(null)
   const [subServicesModalId, setSubServicesModalId] = useState<string | null>(null)
-  const [serviceImagesDraft, setServiceImagesDraft] = useState<string[]>([])
-  const [serviceImagesUploading, setServiceImagesUploading] = useState(false)
-  const [serviceImagesUploadError, setServiceImagesUploadError] = useState<string | null>(null)
+  const [subServiceImagesModal, setSubServiceImagesModal] = useState<{
+    serviceId: string
+    subServiceId: string
+  } | null>(null)
   const [editingServiceShortDesc, setEditingServiceShortDesc] = useState<Record<string, string>>({})
   const [editingServiceDesc, setEditingServiceDesc] = useState<Record<string, string>>({})
   const [editingSubService, setEditingSubService] = useState<
@@ -105,6 +108,7 @@ export default function AdminBusinessSetupPage() {
     lateCancellationFee: '',
     bufferTime: '',
     slotIntervalMinutes: 15,
+    showServiceConfirmModal: false,
   })
   const [workingHours, setWorkingHours] = useState<WorkingHoursItem[]>([])
   const [workingHoursLoading, setWorkingHoursLoading] = useState(false)
@@ -140,6 +144,7 @@ export default function AdminBusinessSetupPage() {
           lateCancellationFee: b.settings?.lateCancellationFee ?? '',
           bufferTime: b.settings?.bufferTime ?? '',
           slotIntervalMinutes: b.settings?.slotIntervalMinutes ?? 15,
+          showServiceConfirmModal: b.settings?.showServiceConfirmModal ?? false,
         })
       })
       .catch(() => setError('Negocio no encontrado'))
@@ -171,43 +176,7 @@ export default function AdminBusinessSetupPage() {
     }
   }, [id, business])
 
-  useEffect(() => {
-    if (!serviceImagesModalId) return
-    const svc = services.find((x) => x.id === serviceImagesModalId) ?? null
-    setServiceImagesDraft(Array.isArray(svc?.images) ? (svc!.images as string[]) : [])
-    setServiceImagesUploadError(null)
-    setServiceImagesUploading(false)
-  }, [serviceImagesModalId, services])
-
-  const handleServiceImagesUpload = async (files: FileList | null) => {
-    if (!files || !serviceImagesModalId) return
-    const selected = Array.from(files)
-    const onlyImages = selected.filter((f) => f.type.startsWith('image/'))
-    if (onlyImages.length !== selected.length) {
-      setServiceImagesUploadError('Solo se permiten imágenes')
-      return
-    }
-    const remaining = 5 - serviceImagesDraft.length
-    if (remaining <= 0) {
-      setServiceImagesUploadError('Máximo 5 imágenes')
-      return
-    }
-    const slice = onlyImages.slice(0, remaining)
-    setServiceImagesUploadError(null)
-    setServiceImagesUploading(true)
-    try {
-      const uploadedUrls: string[] = []
-      for (const f of slice) {
-        const { url } = await uploadAdminFile(f)
-        uploadedUrls.push(url)
-      }
-      setServiceImagesDraft((prev) => [...prev, ...uploadedUrls].slice(0, 5))
-    } catch {
-      setServiceImagesUploadError('Error al subir la imagen')
-    } finally {
-      setServiceImagesUploading(false)
-    }
-  }
+  // Images modals use shared <ImagesModal /> component (no local draft/upload state here)
 
   useEffect(() => {
     if (!id || !business) return
@@ -380,6 +349,7 @@ export default function AdminBusinessSetupPage() {
     bufferTime: form.bufferTime === '' ? null : Number(form.bufferTime),
     slotIntervalMinutes:
       form.slotIntervalMinutes === '' ? undefined : Number(form.slotIntervalMinutes),
+    showServiceConfirmModal: form.showServiceConfirmModal,
     ...(form.paymentRequired && { depositPercentage: form.depositPercentage === '' ? null : Number(form.depositPercentage) }),
   })
 
@@ -751,6 +721,37 @@ export default function AdminBusinessSetupPage() {
           <p className="mt-2 text-sm text-neutral-600">
             Agregá los servicios que ofrece el negocio (nombre, precio, duración) y, cuando sea necesario, variantes dentro de cada servicio (subservicios con distinto precio/duración).
           </p>
+          <div className="mt-4 rounded-lg border border-neutral-200 bg-neutral-50/40 p-4">
+            <label className="flex items-start gap-3">
+              <input
+                type="checkbox"
+                checked={form.showServiceConfirmModal}
+                onChange={async (e) => {
+                  const next = e.target.checked
+                  setForm((p) => ({ ...p, showServiceConfirmModal: next }))
+                  try {
+                    await updateAdminBusiness(id, { showServiceConfirmModal: next })
+                  } catch (err: unknown) {
+                    setForm((p) => ({ ...p, showServiceConfirmModal: !next }))
+                    const msg =
+                      err && typeof err === 'object' && 'response' in err
+                        ? (err as { response?: { data?: { error?: string } } }).response?.data?.error
+                        : null
+                    setError(msg || 'Error al guardar la configuración')
+                  }
+                }}
+                className="mt-1 rounded border-neutral-300"
+              />
+              <span>
+                <span className="block text-sm font-medium text-neutral-900">
+                  Pedir confirmación antes del calendario
+                </span>
+                <span className="mt-0.5 block text-xs text-neutral-600">
+                  Cuando el cliente confirme un servicio/subservicio, se mostrará un segundo modal para confirmar antes de pasar al calendario.
+                </span>
+              </span>
+            </label>
+          </div>
 
           <form onSubmit={handleAddService} className="mt-4 mb-6 rounded-lg border border-neutral-200 bg-neutral-50/40 p-4">
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
@@ -993,102 +994,76 @@ export default function AdminBusinessSetupPage() {
             )
           })()}
 
-          {/* Service images modal */}
-          {serviceImagesModalId && (() => {
-            const svc = services.find((x) => x.id === serviceImagesModalId) ?? null
-            if (!svc) return null
-            return (
-              <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-                <div className="w-full max-w-3xl rounded-xl bg-white p-5 shadow-xl">
-                  <div className="flex items-start justify-between gap-3">
-                    <div>
-                      <h3 className="text-base font-semibold text-neutral-900">
-                        Imágenes · {svc.name}
-                      </h3>
-                      <p className="mt-1 text-xs text-neutral-500">
-                        Máximo 5 imágenes. Se optimizan automáticamente al subirlas.
-                      </p>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => setServiceImagesModalId(null)}
-                      className="rounded-lg border border-neutral-300 px-3 py-1.5 text-sm font-medium text-neutral-700 hover:bg-neutral-50"
-                    >
-                      Cerrar
-                    </button>
-                  </div>
+          <ImagesModal
+            open={!!serviceImagesModalId}
+            title={`Imágenes · ${services.find((x) => x.id === serviceImagesModalId)?.name ?? ''}`}
+            subtitle="Máximo 5 imágenes. Se optimizan automáticamente al subirlas."
+            initialImages={services.find((x) => x.id === serviceImagesModalId)?.images ?? []}
+            onClose={() => setServiceImagesModalId(null)}
+            uploadFile={async (file) => {
+              const { url } = await uploadAdminFile(file)
+              return url
+            }}
+            onSave={async (images) => {
+              const svcId = serviceImagesModalId
+              if (!svcId) return
+              try {
+                const updated = await updateAdminService(svcId, { images })
+                setServices((prev) => prev.map((x) => (x.id === svcId ? updated : x)))
+                setServiceImagesModalId(null)
+              } catch (err: unknown) {
+                const msg =
+                  err && typeof err === 'object' && 'response' in err
+                    ? (err as { response?: { data?: { error?: string } } }).response?.data?.error
+                    : null
+                setError(msg || 'Error al guardar imágenes')
+              }
+            }}
+          />
 
-                  <div className="mt-4">
-                    <div className="flex flex-wrap items-center justify-between gap-3">
-                      <label className="text-sm font-medium text-neutral-800">
-                        {serviceImagesDraft.length}/5 cargadas
-                      </label>
-                      <input
-                        type="file"
-                        accept="image/*"
-                        multiple
-                        disabled={serviceImagesUploading || serviceImagesDraft.length >= 5}
-                        onChange={(e) => {
-                          void handleServiceImagesUpload(e.target.files)
-                          e.target.value = ''
-                        }}
-                        className="block text-sm text-neutral-600 file:mr-3 file:rounded-lg file:border-0 file:bg-neutral-100 file:px-4 file:py-2 file:text-sm file:font-medium file:text-neutral-700 hover:file:bg-neutral-200 disabled:opacity-60"
-                      />
-                    </div>
-                    {serviceImagesUploading && (
-                      <p className="mt-2 text-sm text-neutral-500">Subiendo...</p>
-                    )}
-                    {serviceImagesUploadError && (
-                      <p className="mt-2 text-sm text-red-600">{serviceImagesUploadError}</p>
-                    )}
-
-                    {serviceImagesDraft.length > 0 ? (
-                      <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3">
-                        {serviceImagesDraft.map((url) => (
-                          <div key={url} className="group relative overflow-hidden rounded-lg border border-neutral-200">
-                            <img src={url} alt="Imagen del servicio" className="h-28 w-full object-cover" />
-                            <button
-                              type="button"
-                              onClick={() => setServiceImagesDraft((prev) => prev.filter((x) => x !== url))}
-                              className="absolute right-2 top-2 rounded-md bg-white/90 px-2 py-1 text-xs font-medium text-red-700 shadow hover:bg-white"
-                            >
-                              Quitar
-                            </button>
-                          </div>
-                        ))}
-                      </div>
-                    ) : (
-                      <p className="mt-4 text-sm text-neutral-500">Todavía no hay imágenes cargadas.</p>
-                    )}
-                  </div>
-
-                  <div className="mt-5 flex justify-end gap-2">
-                    <button
-                      type="button"
-                      disabled={serviceImagesUploading}
-                      onClick={async () => {
-                        try {
-                          const unique = Array.from(new Set(serviceImagesDraft)).slice(0, 5)
-                          const updated = await updateAdminService(svc.id, { images: unique })
-                          setServices((prev) => prev.map((x) => (x.id === svc.id ? updated : x)))
-                          setServiceImagesModalId(null)
-                        } catch (err: unknown) {
-                          const msg =
-                            err && typeof err === 'object' && 'response' in err
-                              ? (err as { response?: { data?: { error?: string } } }).response?.data?.error
-                              : null
-                          setError(msg || 'Error al guardar imágenes')
-                        }
-                      }}
-                      className="rounded-lg bg-neutral-900 px-4 py-2 text-sm font-medium text-white hover:bg-neutral-800 disabled:opacity-60"
-                    >
-                      Guardar
-                    </button>
-                  </div>
-                </div>
-              </div>
-            )
-          })()}
+          <ImagesModal
+            open={!!subServiceImagesModal}
+            title={`Imágenes · ${
+              (() => {
+                if (!subServiceImagesModal) return ''
+                const list = subServicesByService[subServiceImagesModal.serviceId] ?? []
+                return list.find((x) => x.id === subServiceImagesModal.subServiceId)?.name ?? ''
+              })()
+            }`}
+            subtitle="Máximo 5 imágenes. Se optimizan automáticamente al subirlas."
+            initialImages={
+              (() => {
+                if (!subServiceImagesModal) return []
+                const list = subServicesByService[subServiceImagesModal.serviceId] ?? []
+                return list.find((x) => x.id === subServiceImagesModal.subServiceId)?.images ?? []
+              })()
+            }
+            onClose={() => setSubServiceImagesModal(null)}
+            uploadFile={async (file) => {
+              const { url } = await uploadAdminFile(file)
+              return url
+            }}
+            onSave={async (images) => {
+              const modal = subServiceImagesModal
+              if (!modal) return
+              try {
+                const updated = await updateAdminSubService(modal.subServiceId, { images })
+                setSubServicesByService((prev) => ({
+                  ...prev,
+                  [modal.serviceId]: (prev[modal.serviceId] ?? []).map((x) =>
+                    x.id === modal.subServiceId ? updated : x
+                  ),
+                }))
+                setSubServiceImagesModal(null)
+              } catch (err: unknown) {
+                const msg =
+                  err && typeof err === 'object' && 'response' in err
+                    ? (err as { response?: { data?: { error?: string } } }).response?.data?.error
+                    : null
+                setError(msg || 'Error al guardar imágenes del subservicio')
+              }
+            }}
+          />
 
           {/* Subservices modal */}
           {subServicesModalId && (() => {
@@ -1356,6 +1331,15 @@ export default function AdminBusinessSetupPage() {
                               </div>
                             </div>
                             <div className="mt-3 flex flex-wrap justify-end gap-2">
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  setSubServiceImagesModal({ serviceId: svc.id, subServiceId: sub.id })
+                                }
+                                className="rounded-lg border border-neutral-300 bg-white px-3 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50"
+                              >
+                                Imágenes
+                              </button>
                               <button
                                 type="button"
                                 onClick={async () => {

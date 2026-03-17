@@ -140,6 +140,7 @@ export async function updateBusiness(req: AuthRequest, res: Response, next: Next
       lateCancellationFee: body.lateCancellationFee,
       bufferTime: body.bufferTime,
       slotIntervalMinutes: body.slotIntervalMinutes,
+      showServiceConfirmModal: body.showServiceConfirmModal,
       ownerEmail: body.ownerEmail,
       ownerPassword: body.ownerPassword,
     })

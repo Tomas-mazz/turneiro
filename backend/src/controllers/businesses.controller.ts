@@ -4,6 +4,8 @@ import {
   getMyBusinessService,
   getBusinessImagesService,
   updateBusinessImagesService,
+  getBusinessSettingsService,
+  updateBusinessSettingsService,
 } from '../services/businesses.service'
 import {
   getMyProfileService,
@@ -111,6 +113,33 @@ export async function updateBusinessImages(req: AuthRequest, res: Response, next
       coverVideo,
       coverPhotoMobile,
       coverVideoMobile,
+    })
+    res.json(updated)
+  } catch (err) {
+    next(err)
+  }
+}
+
+export async function getBusinessSettings(req: AuthRequest, res: Response, next: NextFunction) {
+  try {
+    const ctx = getBusinessContextOrRespond(req, res)
+    if (!ctx) return
+    const { businessId } = ctx
+    const settings = await getBusinessSettingsService(businessId)
+    res.json(settings)
+  } catch (err) {
+    next(err)
+  }
+}
+
+export async function updateBusinessSettings(req: AuthRequest, res: Response, next: NextFunction) {
+  try {
+    const ctx = getBusinessContextOrRespond(req, res)
+    if (!ctx) return
+    const { businessId } = ctx
+    const { showServiceConfirmModal } = req.body ?? {}
+    const updated = await updateBusinessSettingsService(businessId, {
+      ...(showServiceConfirmModal !== undefined && { showServiceConfirmModal: !!showServiceConfirmModal }),
     })
     res.json(updated)
   } catch (err) {

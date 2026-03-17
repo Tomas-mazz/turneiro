@@ -6,6 +6,8 @@ import type { AuthUser } from '@/lib/auth'
 import type { Business, ServiceOption } from '../types'
 import { BookingLayout } from './BookingLayout'
 import { BookingStepper } from './BookingStepper'
+import { ServiceAboutModal } from './ServiceAboutModal'
+import { ServiceConfirmModal } from './ServiceConfirmModal'
 
 const DAY_NAMES = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado']
 
@@ -70,6 +72,14 @@ export function ServiceStep({
   const [expandedServices, setExpandedServices] = useState<Set<string>>(new Set())
   const [expandedSubServices, setExpandedSubServices] = useState<Set<string>>(new Set())
   const [openServiceSubLists, setOpenServiceSubLists] = useState<Set<string>>(new Set())
+  const [aboutOpen, setAboutOpen] = useState(false)
+  const [confirmOpen, setConfirmOpen] = useState(false)
+  const [aboutTarget, setAboutTarget] = useState<{
+    title: string
+    images: string[]
+    shortDescription?: string | null
+    description?: string | null
+  } | null>(null)
 
   const toggleServiceDescription = (serviceId: string) => {
     setExpandedServices((prev) => {
@@ -120,6 +130,39 @@ export function ServiceStep({
     if (selectedService) setIsClosing(false)
   }, [selectedService])
 
+  const openAboutForSelection = (sel: ServiceOption) => {
+    if (sel.parentServiceId) {
+      const parent = business.services.find((x) => x.id === sel.parentServiceId) ?? null
+      const sub = parent?.subServices?.find((x) => x.id === sel.id) ?? null
+      setAboutTarget({
+        title: sub?.name ?? sel.name,
+        images: sub?.images ?? [],
+        shortDescription: sub?.shortDescription ?? null,
+        description: sub?.description ?? null,
+      })
+    } else {
+      const svc = business.services.find((x) => x.id === sel.id) ?? null
+      setAboutTarget({
+        title: svc?.name ?? sel.name,
+        images: svc?.images ?? [],
+        shortDescription: svc?.shortDescription ?? null,
+        description: svc?.description ?? null,
+      })
+    }
+    setAboutOpen(true)
+    setConfirmOpen(false)
+  }
+
+  const handleAboutConfirm = () => {
+    setAboutOpen(false)
+    const mustConfirm = !!business.settings?.showServiceConfirmModal
+    if (mustConfirm) {
+      setConfirmOpen(true)
+      return
+    }
+    onContinue()
+  }
+
   const handleCloseCart = () => {
     setIsClosing(true)
   }
@@ -143,6 +186,35 @@ export function ServiceStep({
       user={user}
       onLogout={onLogout}
     >
+      <ServiceAboutModal
+        open={aboutOpen}
+        title={aboutTarget?.title ?? ''}
+        images={aboutTarget?.images ?? []}
+        shortDescription={aboutTarget?.shortDescription ?? null}
+        description={aboutTarget?.description ?? null}
+        isDarkTheme={isDarkTheme}
+        primaryColor={primaryColor}
+        onClose={() => {
+          setAboutOpen(false)
+          setConfirmOpen(false)
+          setAboutTarget(null)
+        }}
+        onConfirm={handleAboutConfirm}
+      />
+      <ServiceConfirmModal
+        open={confirmOpen}
+        title={aboutTarget?.title ?? selectedService?.name ?? ''}
+        isDarkTheme={isDarkTheme}
+        primaryColor={primaryColor}
+        onBack={() => {
+          setConfirmOpen(false)
+          setAboutOpen(true)
+        }}
+        onContinue={() => {
+          setConfirmOpen(false)
+          onContinue()
+        }}
+      />
       <BookingStepper step="service" isDarkTheme={isDarkTheme} />
       <div className="flex max-w-4xl flex-col gap-8 md:max-w-4xl md:flex-row md:gap-10 lg:max-w-6xl lg:gap-12">
         {/* Left: services list */}
@@ -227,6 +299,29 @@ export function ServiceStep({
                         $ {s.price.toFixed(0)}
                       </span>
                     )}
+                    {!hasSubServices && (
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          const sel: ServiceOption = {
+                            id: s.id,
+                            name: s.name,
+                            price: s.price,
+                            duration: s.duration,
+                          }
+                          onSelectService(sel)
+                          openAboutForSelection(sel)
+                        }}
+                        className={`ml-2 shrink-0 rounded-full border px-3 py-1 text-xs font-medium ${
+                          isDarkTheme
+                            ? 'border-neutral-600 text-neutral-200 hover:bg-neutral-800'
+                            : 'border-neutral-300 text-neutral-800 hover:bg-neutral-50'
+                        }`}
+                      >
+                        Acerca
+                      </button>
+                    )}
                     {hasSubServices && (
                       <span
                         className={`ml-4 mt-0.5 shrink-0 text-sm ${serviceMetaColor} transition-transform duration-200 ${
@@ -255,16 +350,18 @@ export function ServiceStep({
                             <li key={sub.id}>
                               <button
                                 type="button"
-                                onClick={() =>
-                                  onSelectService({
+                                onClick={() => {
+                                  const sel: ServiceOption = {
                                     id: sub.id,
                                     name: `${s.name} - ${sub.name}`,
                                     price: sub.price,
                                     duration: sub.duration,
                                     parentServiceId: s.id,
                                     parentServiceName: s.name,
-                                  })
-                                }
+                                  }
+                                  onSelectService(sel)
+                                  openAboutForSelection(sel)
+                                }}
                                 className={`flex w-full items-start gap-3 py-2 pr-4 text-left text-sm md:text-base ${serviceRowHover}`}
                               >
                                 <span
@@ -310,6 +407,29 @@ export function ServiceStep({
                                 >
                                   $ {sub.price.toFixed(0)}
                                 </span>
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation()
+                                    const sel: ServiceOption = {
+                                      id: sub.id,
+                                      name: `${s.name} - ${sub.name}`,
+                                      price: sub.price,
+                                      duration: sub.duration,
+                                      parentServiceId: s.id,
+                                      parentServiceName: s.name,
+                                    }
+                                    onSelectService(sel)
+                                    openAboutForSelection(sel)
+                                  }}
+                                  className={`ml-2 shrink-0 rounded-full border px-3 py-1 text-[11px] font-medium ${
+                                    isDarkTheme
+                                      ? 'border-neutral-600 text-neutral-200 hover:bg-neutral-800'
+                                      : 'border-neutral-300 text-neutral-800 hover:bg-neutral-50'
+                                  }`}
+                                >
+                                  Acerca
+                                </button>
                               </button>
                             </li>
                           )

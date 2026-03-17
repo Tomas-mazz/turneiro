@@ -201,6 +201,7 @@ export interface SubServiceListItem {
   isActive: boolean
   shortDescription: string | null
   description: string | null
+  images: string[]
 }
 
 export async function getSubServicesForServiceAdmin(
@@ -217,6 +218,7 @@ export async function getSubServicesForServiceAdmin(
       isActive: true,
       shortDescription: true,
       description: true,
+      images: true,
     },
   })
   return subServices
@@ -244,6 +246,7 @@ export async function createSubServiceForAdmin(
       isActive: data.isActive ?? true,
       shortDescription: data.shortDescription ?? null,
       description: data.description ?? null,
+      images: data.images ?? [],
     },
     select: {
       id: true,
@@ -253,6 +256,7 @@ export async function createSubServiceForAdmin(
       isActive: true,
       shortDescription: true,
       description: true,
+      images: true,
     },
   })
   return sub
@@ -277,6 +281,7 @@ export async function updateSubServiceForAdmin(
       ...(data.isActive !== undefined && { isActive: data.isActive }),
       ...(data.shortDescription !== undefined && { shortDescription: data.shortDescription ?? null }),
       ...(data.description !== undefined && { description: data.description ?? null }),
+      ...(data.images !== undefined && { images: data.images }),
     },
     select: {
       id: true,
@@ -286,6 +291,7 @@ export async function updateSubServiceForAdmin(
       isActive: true,
       shortDescription: true,
       description: true,
+      images: true,
     },
   })
   return updated
