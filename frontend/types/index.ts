@@ -14,6 +14,7 @@ export interface ServiceListItem {
   isActive: boolean
   shortDescription?: string | null
   description?: string | null
+  images?: string[]
 }
 
 export interface SubServiceAdminItem {

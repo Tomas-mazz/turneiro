@@ -12,6 +12,7 @@ import {
   updateService,
   createService,
   deleteService,
+  uploadAdminFile,
   getAdminSubServices,
   createAdminSubService,
   updateAdminSubService,
@@ -110,7 +111,11 @@ export function DashboardContent({ section = 'all' }: { section?: DashboardSecti
     >
   >({})
   const [serviceDescriptionsModalId, setServiceDescriptionsModalId] = useState<string | null>(null)
+  const [serviceImagesModalId, setServiceImagesModalId] = useState<string | null>(null)
   const [subServicesModalId, setSubServicesModalId] = useState<string | null>(null)
+  const [serviceImagesDraft, setServiceImagesDraft] = useState<string[]>([])
+  const [serviceImagesUploading, setServiceImagesUploading] = useState(false)
+  const [serviceImagesUploadError, setServiceImagesUploadError] = useState<string | null>(null)
   const [workingHours, setWorkingHours] = useState<WorkingHoursItem[]>([])
   const [loadingWorkingHours, setLoadingWorkingHours] = useState(false)
   const [savingWorkingHours, setSavingWorkingHours] = useState(false)
@@ -158,6 +163,44 @@ export function DashboardContent({ section = 'all' }: { section?: DashboardSecti
       .catch((err) => setError(err.response?.data?.error || 'Error al cargar servicios'))
       .finally(() => setLoadingServices(false))
   }, [userRole, actsAsOwner])
+
+  useEffect(() => {
+    if (!serviceImagesModalId) return
+    const svc = services.find((x) => x.id === serviceImagesModalId) ?? null
+    setServiceImagesDraft(Array.isArray(svc?.images) ? (svc!.images as string[]) : [])
+    setServiceImagesUploadError(null)
+    setServiceImagesUploading(false)
+  }, [serviceImagesModalId, services])
+
+  const handleServiceImagesUpload = async (files: FileList | null) => {
+    if (!files || !serviceImagesModalId) return
+    const selected = Array.from(files)
+    const onlyImages = selected.filter((f) => f.type.startsWith('image/'))
+    if (onlyImages.length !== selected.length) {
+      setServiceImagesUploadError('Solo se permiten imágenes')
+      return
+    }
+    const remaining = 5 - serviceImagesDraft.length
+    if (remaining <= 0) {
+      setServiceImagesUploadError('Máximo 5 imágenes')
+      return
+    }
+    const slice = onlyImages.slice(0, remaining)
+    setServiceImagesUploadError(null)
+    setServiceImagesUploading(true)
+    try {
+      const uploadedUrls: string[] = []
+      for (const f of slice) {
+        const { url } = await uploadAdminFile(f)
+        uploadedUrls.push(url)
+      }
+      setServiceImagesDraft((prev) => [...prev, ...uploadedUrls].slice(0, 5))
+    } catch {
+      setServiceImagesUploadError('Error al subir la imagen')
+    } finally {
+      setServiceImagesUploading(false)
+    }
+  }
 
   useEffect(() => {
     if (!actsAsOwner) return
@@ -567,6 +610,101 @@ export function DashboardContent({ section = 'all' }: { section?: DashboardSecti
         )
       })()}
 
+      {serviceImagesModalId && (() => {
+        const svc = services.find((x) => x.id === serviceImagesModalId) ?? null
+        if (!svc) return null
+        return (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+            <div className="w-full max-w-3xl rounded-xl bg-white p-5 shadow-xl">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <h3 className="text-base font-semibold text-neutral-900">
+                    Imágenes · {svc.name}
+                  </h3>
+                  <p className="mt-1 text-xs text-neutral-500">
+                    Máximo 5 imágenes. Se optimizan automáticamente al subirlas.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setServiceImagesModalId(null)}
+                  className="rounded-lg border border-neutral-300 px-3 py-1.5 text-sm font-medium text-neutral-700 hover:bg-neutral-50"
+                >
+                  Cerrar
+                </button>
+              </div>
+
+              <div className="mt-4">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <label className="text-sm font-medium text-neutral-800">
+                    {serviceImagesDraft.length}/5 cargadas
+                  </label>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    multiple
+                    disabled={serviceImagesUploading || serviceImagesDraft.length >= 5}
+                    onChange={(e) => {
+                      void handleServiceImagesUpload(e.target.files)
+                      e.target.value = ''
+                    }}
+                    className="block text-sm text-neutral-600 file:mr-3 file:rounded-lg file:border-0 file:bg-neutral-100 file:px-4 file:py-2 file:text-sm file:font-medium file:text-neutral-700 hover:file:bg-neutral-200 disabled:opacity-60"
+                  />
+                </div>
+                {serviceImagesUploading && (
+                  <p className="mt-2 text-sm text-neutral-500">Subiendo...</p>
+                )}
+                {serviceImagesUploadError && (
+                  <p className="mt-2 text-sm text-red-600">{serviceImagesUploadError}</p>
+                )}
+
+                {serviceImagesDraft.length > 0 ? (
+                  <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3">
+                    {serviceImagesDraft.map((url) => (
+                      <div key={url} className="group relative overflow-hidden rounded-lg border border-neutral-200">
+                        <img src={url} alt="Imagen del servicio" className="h-28 w-full object-cover" />
+                        <button
+                          type="button"
+                          onClick={() => setServiceImagesDraft((prev) => prev.filter((x) => x !== url))}
+                          className="absolute right-2 top-2 rounded-md bg-white/90 px-2 py-1 text-xs font-medium text-red-700 shadow hover:bg-white"
+                        >
+                          Quitar
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="mt-4 text-sm text-neutral-500">Todavía no hay imágenes cargadas.</p>
+                )}
+              </div>
+
+              <div className="mt-5 flex justify-end gap-2">
+                <button
+                  type="button"
+                  disabled={serviceImagesUploading}
+                  onClick={async () => {
+                    try {
+                      const unique = Array.from(new Set(serviceImagesDraft)).slice(0, 5)
+                      const updated = await updateService(svc.id, { images: unique })
+                      setServices((prev) => prev.map((x) => (x.id === svc.id ? updated : x)))
+                      setServiceImagesModalId(null)
+                    } catch (err) {
+                      setError(
+                        (err as { response?: { data?: { error?: string } } })?.response?.data?.error ||
+                          'Error al guardar imágenes'
+                      )
+                    }
+                  }}
+                  className="rounded-lg bg-neutral-900 px-4 py-2 text-sm font-medium text-white hover:bg-neutral-800 disabled:opacity-60"
+                >
+                  Guardar
+                </button>
+              </div>
+            </div>
+          </div>
+        )
+      })()}
+
       {subServicesModalId && (() => {
         const svc = services.find((x) => x.id === subServicesModalId) ?? null
         if (!svc) return null
@@ -880,38 +1018,6 @@ export function DashboardContent({ section = 'all' }: { section?: DashboardSecti
                       className="w-full rounded border border-neutral-300 px-3 py-2 text-sm"
                     />
                   </div>
-                  <div className="mb-3 space-y-1">
-                    <label className="block text-xs font-medium text-neutral-500">
-                      Descripción corta (opcional)
-                    </label>
-                    <input
-                      type="text"
-                      defaultValue={s.shortDescription ?? ''}
-                      placeholder="Texto breve que se ve siempre"
-                      onChange={(e) =>
-                        setEditingServiceShortDesc((prev) => ({
-                          ...prev,
-                          [s.id]: e.target.value,
-                        }))
-                      }
-                      className="w-full rounded border border-neutral-300 px-3 py-2 text-xs"
-                    />
-                    <label className="block text-xs font-medium text-neutral-500">
-                      Descripción extendida (opcional)
-                    </label>
-                    <textarea
-                      rows={2}
-                      defaultValue={s.description ?? ''}
-                      placeholder="Texto que se mostrará al hacer clic en “Leer más”"
-                      onChange={(e) =>
-                        setEditingServiceDesc((prev) => ({
-                          ...prev,
-                          [s.id]: e.target.value,
-                        }))
-                      }
-                      className="w-full rounded border border-neutral-300 px-3 py-2 text-xs"
-                    />
-                  </div>
                   <div className="grid grid-cols-2 gap-3 sm:gap-4">
                     <div>
                       <label className="mb-1 block text-xs font-medium text-neutral-500">Precio ($)</label>
@@ -947,6 +1053,13 @@ export function DashboardContent({ section = 'all' }: { section?: DashboardSecti
                       className="rounded-lg border border-neutral-300 bg-white px-3 py-2 text-xs font-medium text-neutral-700 hover:bg-neutral-50"
                     >
                       Descripciones
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setServiceImagesModalId(s.id)}
+                      className="rounded-lg border border-neutral-300 bg-white px-3 py-2 text-xs font-medium text-neutral-700 hover:bg-neutral-50"
+                    >
+                      Imágenes
                     </button>
                     <button
                       type="button"
@@ -1023,26 +1136,6 @@ export function DashboardContent({ section = 'all' }: { section?: DashboardSecti
                             className="w-full rounded border border-neutral-300 px-2 py-1 text-sm"
                           />
                         </div>
-                        <div className="mt-2 space-y-1">
-                          <input
-                            type="text"
-                            defaultValue={s.shortDescription ?? ''}
-                            placeholder="Descripción corta (opcional)"
-                            onChange={(e) =>
-                              setEditingServiceShortDesc((prev) => ({ ...prev, [s.id]: e.target.value }))
-                            }
-                            className="w-full rounded border border-neutral-300 px-2 py-1 text-xs"
-                          />
-                          <textarea
-                            rows={2}
-                            defaultValue={s.description ?? ''}
-                            placeholder="Descripción extendida (opcional)"
-                            onChange={(e) =>
-                              setEditingServiceDesc((prev) => ({ ...prev, [s.id]: e.target.value }))
-                            }
-                            className="w-full rounded border border-neutral-300 px-2 py-1 text-xs"
-                          />
-                        </div>
                         {/* Subservices inline under the service name */}
                         <div className="mt-2 rounded bg-neutral-50 p-2">
                           <div className="flex flex-wrap gap-2">
@@ -1052,6 +1145,13 @@ export function DashboardContent({ section = 'all' }: { section?: DashboardSecti
                               className="rounded border border-neutral-300 bg-white px-2 py-1 text-[11px] font-medium text-neutral-700 hover:bg-neutral-100"
                             >
                               Descripciones
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setServiceImagesModalId(s.id)}
+                              className="rounded border border-neutral-300 bg-white px-2 py-1 text-[11px] font-medium text-neutral-700 hover:bg-neutral-100"
+                            >
+                              Imágenes
                             </button>
                             <button
                               type="button"

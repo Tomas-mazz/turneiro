@@ -96,6 +96,7 @@ model Service {
   updatedAt  DateTime @updatedAt
   shortDescription String? // Short text shown by default in UI
   description      String? // Extended text shown when user clicks "leer más"
+  images           String[] @default([]) // Up to 5 image URLs (enforced in API)
 
   // Relations
   business     Business      @relation(fields: [businessId], references: [id], onDelete: Cascade)

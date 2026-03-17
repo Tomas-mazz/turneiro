@@ -15,6 +15,7 @@ export interface ServiceListItem {
   isActive: boolean
   shortDescription: string | null
   description: string | null
+  images: string[]
 }
 
 export async function getServicesForBusinessService(
@@ -31,6 +32,7 @@ export async function getServicesForBusinessService(
       isActive: true,
       shortDescription: true,
       description: true,
+      images: true,
     },
   })
   return services
@@ -70,6 +72,7 @@ export async function updateServicePriceAndDurationService(
       ...(data.isActive !== undefined && { isActive: data.isActive }),
       ...(data.shortDescription !== undefined && { shortDescription: data.shortDescription ?? null }),
       ...(data.description !== undefined && { description: data.description ?? null }),
+      ...(data.images !== undefined && { images: data.images }),
     },
     select: {
       id: true,
@@ -79,6 +82,7 @@ export async function updateServicePriceAndDurationService(
       isActive: true,
       shortDescription: true,
       description: true,
+      images: true,
     },
   })
   return updated
@@ -97,6 +101,7 @@ export async function createServiceForAdmin(
       isActive: data.isActive ?? true,
       shortDescription: data.shortDescription ?? null,
       description: data.description ?? null,
+      images: data.images ?? [],
     },
     select: {
       id: true,
@@ -106,6 +111,7 @@ export async function createServiceForAdmin(
       isActive: true,
       shortDescription: true,
       description: true,
+      images: true,
     },
   })
   return service
@@ -141,6 +147,7 @@ export async function updateServiceForAdmin(
       ...(data.isActive !== undefined && { isActive: data.isActive }),
       ...(data.shortDescription !== undefined && { shortDescription: data.shortDescription ?? null }),
       ...(data.description !== undefined && { description: data.description ?? null }),
+      ...(data.images !== undefined && { images: data.images }),
     },
     select: {
       id: true,
@@ -150,6 +157,7 @@ export async function updateServiceForAdmin(
       isActive: true,
       shortDescription: true,
       description: true,
+      images: true,
     },
   })
   return updated

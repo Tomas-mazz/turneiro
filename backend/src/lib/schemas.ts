@@ -38,6 +38,7 @@ export const updateServiceSchema = z
     isActive: z.boolean().optional(),
     shortDescription: z.string().max(300).optional().nullable(),
     description: z.string().max(2000).optional().nullable(),
+    images: z.array(z.string().url()).max(5, 'Máximo 5 imágenes').optional(),
   })
   .refine(
     (data) =>
@@ -46,7 +47,8 @@ export const updateServiceSchema = z
       data.duration !== undefined ||
       data.isActive !== undefined ||
       data.shortDescription !== undefined ||
-      data.description !== undefined,
+      data.description !== undefined ||
+      data.images !== undefined,
     {
       message: 'Debe enviar al menos un campo para actualizar',
     }
@@ -66,6 +68,7 @@ export const createServiceAdminSchema = z.object({
   isActive: z.boolean().optional().default(true),
   shortDescription: z.string().max(300).optional().nullable(),
   description: z.string().max(2000).optional().nullable(),
+  images: z.array(z.string().url()).max(5, 'Máximo 5 imágenes').optional(),
 })
 
 export const updateServiceAdminSchema = z.object({
@@ -75,6 +78,7 @@ export const updateServiceAdminSchema = z.object({
   isActive: z.boolean().optional(),
   shortDescription: z.string().max(300).optional().nullable(),
   description: z.string().max(2000).optional().nullable(),
+  images: z.array(z.string().url()).max(5, 'Máximo 5 imágenes').optional(),
 })
 
 export type CreateServiceAdminInput = z.infer<typeof createServiceAdminSchema>

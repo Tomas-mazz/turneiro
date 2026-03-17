@@ -49,6 +49,8 @@ import {
   adminUpdateAppointmentStatusSchema,
   createEmployeeAdminSchema,
   updateEmployeeAdminSchema,
+  createServiceAdminSchema,
+  updateServiceAdminSchema,
   createSubServiceAdminSchema,
   updateSubServiceAdminSchema,
 } from '../lib/schemas'
@@ -173,13 +175,14 @@ export async function createService(req: AuthRequest, res: Response, next: NextF
   const businessId = getAdminBusinessIdOrRespond(req, res)
   if (businessId === undefined) return;
   try {
-    const body = req.body
-    const service = await createServiceForAdmin(businessId, {
-      name: body.name,
-      price: body.price,
-      duration: body.duration,
-      isActive: body.isActive,
-    })
+    const parsed = createServiceAdminSchema.safeParse(req.body)
+    if (!parsed.success) {
+      return res.status(400).json({
+        error: 'Error de validación',
+        details: (parsed.error as ZodError).errors,
+      })
+    }
+    const service = await createServiceForAdmin(businessId, parsed.data)
     res.status(201).json(service)
   } catch (err) {
     next(err)
@@ -193,13 +196,14 @@ export async function updateService(req: AuthRequest, res: Response, next: NextF
       res.status(400).json({ error: 'ID de servicio obligatorio' })
       return
     }
-    const body = req.body
-    const service = await updateServiceForAdmin(serviceId, {
-      name: body.name,
-      price: body.price,
-      duration: body.duration,
-      isActive: body.isActive,
-    })
+    const parsed = updateServiceAdminSchema.safeParse(req.body)
+    if (!parsed.success) {
+      return res.status(400).json({
+        error: 'Error de validación',
+        details: (parsed.error as ZodError).errors,
+      })
+    }
+    const service = await updateServiceForAdmin(serviceId, parsed.data)
     res.json(service)
   } catch (err) {
     if (err instanceof ServiceNotFoundError) {

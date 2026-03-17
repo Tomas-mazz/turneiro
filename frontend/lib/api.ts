@@ -62,6 +62,7 @@ export async function updateService(
     isActive?: boolean
     shortDescription?: string | null
     description?: string | null
+    images?: string[]
   }
 ): Promise<ServiceListItem> {
   const { data } = await api.patch<ServiceListItem>(`/services/${id}`, body)
@@ -187,6 +188,7 @@ export type CreateServiceAdminBody = {
   isActive?: boolean
   shortDescription?: string | null
   description?: string | null
+  images?: string[]
 }
 
 export type UpdateServiceAdminBody = {
@@ -196,6 +198,7 @@ export type UpdateServiceAdminBody = {
   isActive?: boolean
   shortDescription?: string | null
   description?: string | null
+  images?: string[]
 }
 
 export async function createAdminService(
