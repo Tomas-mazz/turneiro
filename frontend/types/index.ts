@@ -12,6 +12,8 @@ export interface ServiceListItem {
   price: number
   duration: number
   isActive: boolean
+  shortDescription?: string | null
+  description?: string | null
 }
 
 export interface SubServiceAdminItem {

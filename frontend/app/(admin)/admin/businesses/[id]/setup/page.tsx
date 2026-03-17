@@ -12,6 +12,8 @@ import {
   getAdminSubServices,
   createAdminSubService,
   deleteAdminSubService,
+  updateAdminService,
+  updateAdminSubService,
   getAdminWorkingHours,
   updateAdminWorkingHours,
   getAdminEmployees,
@@ -60,10 +62,36 @@ export default function AdminBusinessSetupPage() {
   const [error, setError] = useState<string | null>(null)
   const [services, setServices] = useState<ServiceListItem[]>([])
   const [servicesLoading, setServicesLoading] = useState(false)
-  const [newService, setNewService] = useState({ name: '', price: '', duration: '30', isActive: true })
+  const [newService, setNewService] = useState({
+    name: '',
+    price: '',
+    duration: '30',
+    isActive: true,
+    shortDescription: '',
+    description: '',
+  })
   const [creatingService, setCreatingService] = useState(false)
   const [subServicesByService, setSubServicesByService] = useState<Record<string, SubServiceAdminItem[]>>({})
-  const [newSubService, setNewSubService] = useState<Record<string, { name: string; price: string; duration: string }>>({})
+  const [newSubService, setNewSubService] = useState<
+    Record<string, { name: string; price: string; duration: string; shortDescription: string; description: string }>
+  >({})
+  const [serviceDescriptionsModalId, setServiceDescriptionsModalId] = useState<string | null>(null)
+  const [subServicesModalId, setSubServicesModalId] = useState<string | null>(null)
+  const [editingServiceShortDesc, setEditingServiceShortDesc] = useState<Record<string, string>>({})
+  const [editingServiceDesc, setEditingServiceDesc] = useState<Record<string, string>>({})
+  const [editingSubService, setEditingSubService] = useState<
+    Record<
+      string,
+      {
+        name?: string
+        price?: string
+        duration?: string
+        shortDescription?: string
+        description?: string
+        isActive?: boolean
+      }
+    >
+  >({})
   const [form, setForm] = useState<SetupFormState>({
     paymentRequired: false,
     paymentType: 'FULL',
@@ -165,9 +193,20 @@ export default function AdminBusinessSetupPage() {
         price: Number(newService.price),
         duration: Math.min(120, Math.max(15, Number(newService.duration))),
         isActive: newService.isActive,
+        ...(newService.shortDescription.trim()
+          ? { shortDescription: newService.shortDescription.trim() }
+          : {}),
+        ...(newService.description.trim() ? { description: newService.description.trim() } : {}),
       })
       setServices((prev) => [...prev, service])
-      setNewService({ name: '', price: '', duration: '30', isActive: true })
+      setNewService({
+        name: '',
+        price: '',
+        duration: '30',
+        isActive: true,
+        shortDescription: '',
+        description: '',
+      })
     } catch (err: unknown) {
       const msg =
         err && typeof err === 'object' && 'response' in err
@@ -203,7 +242,14 @@ export default function AdminBusinessSetupPage() {
     serviceId: string
   ) => {
     e.preventDefault()
-    const current = newSubService[serviceId] ?? { name: '', price: '', duration: '30' }
+    const current =
+      newSubService[serviceId] ?? {
+        name: '',
+        price: '',
+        duration: '30',
+        shortDescription: '',
+        description: '',
+      }
     if (!current.name.trim() || !current.price || !current.duration) return
     try {
       const created = await createAdminSubService(serviceId, {
@@ -211,6 +257,10 @@ export default function AdminBusinessSetupPage() {
         price: Number(current.price),
         duration: Math.min(120, Math.max(15, Number(current.duration))),
         isActive: true,
+        ...(current.shortDescription.trim()
+          ? { shortDescription: current.shortDescription.trim() }
+          : {}),
+        ...(current.description.trim() ? { description: current.description.trim() } : {}),
       })
       setSubServicesByService((prev) => ({
         ...prev,
@@ -218,7 +268,13 @@ export default function AdminBusinessSetupPage() {
       }))
       setNewSubService((prev) => ({
         ...prev,
-        [serviceId]: { name: '', price: '', duration: '30' },
+        [serviceId]: {
+          name: '',
+          price: '',
+          duration: '30',
+          shortDescription: '',
+          description: '',
+        },
       }))
     } catch (err: unknown) {
       const msg =
@@ -654,8 +710,9 @@ export default function AdminBusinessSetupPage() {
             Agregá los servicios que ofrece el negocio (nombre, precio, duración) y, cuando sea necesario, variantes dentro de cada servicio (subservicios con distinto precio/duración).
           </p>
 
-          <form onSubmit={handleAddService} className="mt-4 mb-4 flex flex-wrap items-end gap-3">
-            <div className="w-40">
+          <form onSubmit={handleAddService} className="mt-4 mb-6 rounded-lg border border-neutral-200 bg-neutral-50/40 p-4">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+              <div>
               <label htmlFor="newServiceName" className="mb-1 block text-xs text-neutral-600">
                 Nombre *
               </label>
@@ -668,8 +725,8 @@ export default function AdminBusinessSetupPage() {
                 placeholder="ej. Corte"
                 className="w-full rounded-lg border border-neutral-300 px-3 py-2 text-sm"
               />
-            </div>
-            <div className="w-24">
+              </div>
+              <div>
               <label htmlFor="newServicePrice" className="mb-1 block text-xs text-neutral-600">
                 Precio *
               </label>
@@ -684,8 +741,8 @@ export default function AdminBusinessSetupPage() {
                 placeholder="500"
                 className="w-full rounded-lg border border-neutral-300 px-3 py-2 text-sm"
               />
-            </div>
-            <div className="w-24">
+              </div>
+              <div>
               <label htmlFor="newServiceDuration" className="mb-1 block text-xs text-neutral-600">
                 Duración (min) *
               </label>
@@ -699,23 +756,62 @@ export default function AdminBusinessSetupPage() {
                 onChange={(e) => setNewService((p) => ({ ...p, duration: e.target.value }))}
                 className="w-full rounded-lg border border-neutral-300 px-3 py-2 text-sm"
               />
+              </div>
+              <div className="flex items-end gap-3">
+                <label className="flex items-center gap-2 pb-2">
+                  <input
+                    type="checkbox"
+                    checked={newService.isActive}
+                    onChange={(e) => setNewService((p) => ({ ...p, isActive: e.target.checked }))}
+                    className="rounded border-neutral-300"
+                  />
+                  <span className="text-xs text-neutral-600">Activo</span>
+                </label>
+                <button
+                  type="submit"
+                  disabled={creatingService}
+                  className="rounded-lg bg-neutral-900 px-4 py-2 text-sm font-medium text-white hover:bg-neutral-800 disabled:opacity-50"
+                >
+                  {creatingService ? 'Agregando...' : 'Agregar servicio'}
+                </button>
+              </div>
             </div>
-            <label className="flex items-center gap-2">
-              <input
-                type="checkbox"
-                checked={newService.isActive}
-                onChange={(e) => setNewService((p) => ({ ...p, isActive: e.target.checked }))}
-                className="rounded border-neutral-300"
-              />
-              <span className="text-xs text-neutral-600">Activo</span>
-            </label>
-            <button
-              type="submit"
-              disabled={creatingService}
-              className="rounded-lg bg-neutral-900 px-4 py-2 text-sm font-medium text-white hover:bg-neutral-800 disabled:opacity-50"
-            >
-              {creatingService ? 'Agregando...' : 'Agregar'}
-            </button>
+
+            <details className="mt-4 rounded-lg border border-neutral-200 bg-white px-3 py-2">
+              <summary className="cursor-pointer select-none text-xs font-semibold text-neutral-700">
+                Descripciones (opcional)
+              </summary>
+              <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
+                <div>
+                  <label htmlFor="newServiceShortDesc" className="mb-1 block text-xs text-neutral-600">
+                    Descripción corta
+                  </label>
+                  <input
+                    id="newServiceShortDesc"
+                    type="text"
+                    value={newService.shortDescription}
+                    onChange={(e) =>
+                      setNewService((p) => ({ ...p, shortDescription: e.target.value }))
+                    }
+                    placeholder="Texto breve que se ve siempre"
+                    className="w-full rounded-lg border border-neutral-300 px-3 py-2 text-xs"
+                  />
+                </div>
+                <div>
+                  <label htmlFor="newServiceDesc" className="mb-1 block text-xs text-neutral-600">
+                    Descripción extendida
+                  </label>
+                  <textarea
+                    id="newServiceDesc"
+                    rows={3}
+                    value={newService.description}
+                    onChange={(e) => setNewService((p) => ({ ...p, description: e.target.value }))}
+                    placeholder="Texto que se mostrará al hacer clic en “Leer más”"
+                    className="w-full rounded-lg border border-neutral-300 px-3 py-2 text-xs"
+                  />
+                </div>
+              </div>
+            </details>
           </form>
 
           {servicesLoading ? (
@@ -728,124 +824,451 @@ export default function AdminBusinessSetupPage() {
                     <span className="font-medium">
                       {s.name} · $ {s.price} · {s.duration} min
                     </span>
-                    <button
-                      type="button"
-                      onClick={() => handleDeleteService(s.id)}
-                      className="text-xs font-medium text-red-600 underline hover:text-red-800"
-                    >
-                      Eliminar servicio
-                    </button>
-                  </div>
-
-                  {/* Subservices for this service */}
-                  <div className="mt-3 rounded border border-neutral-200 bg-white px-3 py-3">
-                    <p className="text-xs font-semibold text-neutral-700">
-                      Subservicios (opcional)
-                    </p>
-                    <p className="mt-1 text-[11px] text-neutral-500">
-                      Ejemplo: “Teñir pelo” con “Rojo”, “Amarillo”, “Verde”, cada uno con distinto precio y duración.
-                    </p>
-                    <form
-                      onSubmit={(e) => handleAddSubService(e, s.id)}
-                      className="mt-2 mb-2 flex flex-wrap items-end gap-2"
-                    >
-                      <div className="w-32">
-                        <label className="mb-1 block text-[11px] text-neutral-600">
-                          Nombre
-                        </label>
-                        <input
-                          type="text"
-                          value={newSubService[s.id]?.name ?? ''}
-                          onChange={(e) =>
-                            setNewSubService((prev) => ({
-                              ...prev,
-                              [s.id]: {
-                                ...(prev[s.id] ?? { name: '', price: '', duration: '30' }),
-                                name: e.target.value,
-                              },
-                            }))
-                          }
-                          className="w-full rounded border border-neutral-300 px-2 py-1 text-xs"
-                          placeholder="Rojo"
-                        />
-                      </div>
-                      <div className="w-24">
-                        <label className="mb-1 block text-[11px] text-neutral-600">
-                          Precio
-                        </label>
-                        <input
-                          type="number"
-                          min={0}
-                          step={0.01}
-                          value={newSubService[s.id]?.price ?? ''}
-                          onChange={(e) =>
-                            setNewSubService((prev) => ({
-                              ...prev,
-                              [s.id]: {
-                                ...(prev[s.id] ?? { name: '', price: '', duration: '30' }),
-                                price: e.target.value,
-                              },
-                            }))
-                          }
-                          className="w-full rounded border border-neutral-300 px-2 py-1 text-xs"
-                          placeholder="500"
-                        />
-                      </div>
-                      <div className="w-24">
-                        <label className="mb-1 block text-[11px] text-neutral-600">
-                          Duración
-                        </label>
-                        <input
-                          type="number"
-                          min={15}
-                          max={120}
-                          value={newSubService[s.id]?.duration ?? '30'}
-                          onChange={(e) =>
-                            setNewSubService((prev) => ({
-                              ...prev,
-                              [s.id]: {
-                                ...(prev[s.id] ?? { name: '', price: '', duration: '30' }),
-                                duration: e.target.value,
-                              },
-                            }))
-                          }
-                          className="w-full rounded border border-neutral-300 px-2 py-1 text-xs"
-                        />
-                      </div>
+                    <div className="flex flex-wrap items-center justify-end gap-2">
                       <button
-                        type="submit"
-                        className="rounded bg-neutral-900 px-3 py-1.5 text-xs font-medium text-white hover:bg-neutral-800"
+                        type="button"
+                        onClick={() => setServiceDescriptionsModalId(s.id)}
+                        className="rounded border border-neutral-300 bg-white px-2.5 py-1 text-[11px] font-medium text-neutral-700 hover:bg-neutral-50"
                       >
-                        Agregar subservicio
+                        Descripciones
                       </button>
-                    </form>
-
-                    {(subServicesByService[s.id] ?? []).length > 0 && (
-                      <ul className="mt-1 space-y-1 text-[12px]">
-                        {subServicesByService[s.id].map((sub) => (
-                          <li
-                            key={sub.id}
-                            className="flex items-center justify-between rounded bg-neutral-50 px-2 py-1"
-                          >
-                            <span>
-                              {sub.name} · $ {sub.price} · {sub.duration} min
-                            </span>
-                            <button
-                              type="button"
-                              onClick={() => handleDeleteSubService(sub.id, s.id)}
-                              className="text-[11px] font-medium text-red-600 underline hover:text-red-800"
-                            >
-                              Eliminar
-                            </button>
-                          </li>
-                        ))}
-                      </ul>
-                    )}
+                      <button
+                        type="button"
+                        onClick={() => setSubServicesModalId(s.id)}
+                        className="rounded border border-neutral-300 bg-white px-2.5 py-1 text-[11px] font-medium text-neutral-700 hover:bg-neutral-50"
+                      >
+                        Subservicios
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleDeleteService(s.id)}
+                        className="text-xs font-medium text-red-600 underline hover:text-red-800"
+                      >
+                        Eliminar
+                      </button>
+                    </div>
                   </div>
                 </li>
               ))}
             </ul>
           ) : null}
+
+          {/* Service descriptions modal */}
+          {serviceDescriptionsModalId && (() => {
+            const svc = services.find((x) => x.id === serviceDescriptionsModalId) ?? null
+            if (!svc) return null
+            return (
+              <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+                <div className="w-full max-w-2xl rounded-xl bg-white p-5 shadow-xl">
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <h3 className="text-base font-semibold text-neutral-900">
+                        Descripciones · {svc.name}
+                      </h3>
+                      <p className="mt-1 text-xs text-neutral-500">
+                        La corta se ve siempre; la extendida aparece al tocar “Leer más” en la web.
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setServiceDescriptionsModalId(null)}
+                      className="rounded-lg border border-neutral-300 px-3 py-1.5 text-sm font-medium text-neutral-700 hover:bg-neutral-50"
+                    >
+                      Cerrar
+                    </button>
+                  </div>
+                  <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
+                    <div>
+                      <label className="mb-1 block text-xs font-medium text-neutral-700">
+                        Descripción corta
+                      </label>
+                      <input
+                        type="text"
+                        defaultValue={(svc as any).shortDescription ?? ''}
+                        onChange={(e) =>
+                          setEditingServiceShortDesc((prev) => ({
+                            ...prev,
+                            [svc.id]: e.target.value,
+                          }))
+                        }
+                        className="w-full rounded-lg border border-neutral-300 px-3 py-2 text-sm"
+                        placeholder="Texto breve"
+                      />
+                    </div>
+                    <div>
+                      <label className="mb-1 block text-xs font-medium text-neutral-700">
+                        Descripción extendida
+                      </label>
+                      <textarea
+                        rows={4}
+                        defaultValue={(svc as any).description ?? ''}
+                        onChange={(e) =>
+                          setEditingServiceDesc((prev) => ({
+                            ...prev,
+                            [svc.id]: e.target.value,
+                          }))
+                        }
+                        className="w-full rounded-lg border border-neutral-300 px-3 py-2 text-sm"
+                        placeholder="Texto para “Leer más”"
+                      />
+                    </div>
+                  </div>
+                  <div className="mt-4 flex justify-end gap-2">
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        try {
+                          const shortV = (editingServiceShortDesc[svc.id] ?? (svc as any).shortDescription ?? '').trim()
+                          const longV = (editingServiceDesc[svc.id] ?? (svc as any).description ?? '').trim()
+                          const updated = await updateAdminService(svc.id, {
+                            shortDescription: shortV ? shortV : null,
+                            description: longV ? longV : null,
+                          })
+                          setServices((prev) => prev.map((x) => (x.id === svc.id ? updated : x)))
+                          setServiceDescriptionsModalId(null)
+                        } catch (err: unknown) {
+                          const msg =
+                            err && typeof err === 'object' && 'response' in err
+                              ? (err as { response?: { data?: { error?: string } } }).response?.data?.error
+                              : null
+                          setError(msg || 'Error al guardar descripciones')
+                        }
+                      }}
+                      className="rounded-lg bg-neutral-900 px-4 py-2 text-sm font-medium text-white hover:bg-neutral-800"
+                    >
+                      Guardar
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )
+          })()}
+
+          {/* Subservices modal */}
+          {subServicesModalId && (() => {
+            const svc = services.find((x) => x.id === subServicesModalId) ?? null
+            if (!svc) return null
+            const subs = subServicesByService[svc.id] ?? []
+            return (
+              <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+                <div className="w-full max-w-4xl rounded-xl bg-white p-5 shadow-xl">
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <h3 className="text-base font-semibold text-neutral-900">
+                        Subservicios · {svc.name}
+                      </h3>
+                      <p className="mt-1 text-xs text-neutral-500">
+                        Cada subservicio tiene su precio, duración y descripciones.
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setSubServicesModalId(null)}
+                      className="rounded-lg border border-neutral-300 px-3 py-1.5 text-sm font-medium text-neutral-700 hover:bg-neutral-50"
+                    >
+                      Cerrar
+                    </button>
+                  </div>
+
+                  <div className="mt-4 rounded-lg border border-neutral-200 bg-neutral-50/40 p-4">
+                    <p className="text-sm font-semibold text-neutral-800">Agregar subservicio</p>
+                    <form onSubmit={(e) => handleAddSubService(e, svc.id)} className="mt-3">
+                      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                        <div>
+                          <label className="mb-1 block text-xs font-medium text-neutral-700">Nombre</label>
+                          <input
+                            type="text"
+                            value={newSubService[svc.id]?.name ?? ''}
+                            onChange={(e) =>
+                              setNewSubService((prev) => ({
+                                ...prev,
+                                [svc.id]: {
+                                  ...(prev[svc.id] ?? {
+                                    name: '',
+                                    price: '',
+                                    duration: '30',
+                                    shortDescription: '',
+                                    description: '',
+                                  }),
+                                  name: e.target.value,
+                                },
+                              }))
+                            }
+                            className="w-full rounded-lg border border-neutral-300 px-3 py-2 text-sm"
+                          />
+                        </div>
+                        <div>
+                          <label className="mb-1 block text-xs font-medium text-neutral-700">Precio</label>
+                          <input
+                            type="number"
+                            min={0}
+                            step={0.01}
+                            value={newSubService[svc.id]?.price ?? ''}
+                            onChange={(e) =>
+                              setNewSubService((prev) => ({
+                                ...prev,
+                                [svc.id]: {
+                                  ...(prev[svc.id] ?? {
+                                    name: '',
+                                    price: '',
+                                    duration: '30',
+                                    shortDescription: '',
+                                    description: '',
+                                  }),
+                                  price: e.target.value,
+                                },
+                              }))
+                            }
+                            className="w-full rounded-lg border border-neutral-300 px-3 py-2 text-sm"
+                          />
+                        </div>
+                        <div>
+                          <label className="mb-1 block text-xs font-medium text-neutral-700">Duración (min)</label>
+                          <input
+                            type="number"
+                            min={15}
+                            max={120}
+                            value={newSubService[svc.id]?.duration ?? '30'}
+                            onChange={(e) =>
+                              setNewSubService((prev) => ({
+                                ...prev,
+                                [svc.id]: {
+                                  ...(prev[svc.id] ?? {
+                                    name: '',
+                                    price: '',
+                                    duration: '30',
+                                    shortDescription: '',
+                                    description: '',
+                                  }),
+                                  duration: e.target.value,
+                                },
+                              }))
+                            }
+                            className="w-full rounded-lg border border-neutral-300 px-3 py-2 text-sm"
+                          />
+                        </div>
+                        <div className="flex items-end">
+                          <button
+                            type="submit"
+                            className="w-full rounded-lg bg-neutral-900 px-4 py-2 text-sm font-medium text-white hover:bg-neutral-800"
+                          >
+                            Agregar
+                          </button>
+                        </div>
+                      </div>
+                      <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
+                        <div>
+                          <label className="mb-1 block text-xs font-medium text-neutral-700">Descripción corta</label>
+                          <input
+                            type="text"
+                            value={newSubService[svc.id]?.shortDescription ?? ''}
+                            onChange={(e) =>
+                              setNewSubService((prev) => ({
+                                ...prev,
+                                [svc.id]: {
+                                  ...(prev[svc.id] ?? {
+                                    name: '',
+                                    price: '',
+                                    duration: '30',
+                                    shortDescription: '',
+                                    description: '',
+                                  }),
+                                  shortDescription: e.target.value,
+                                },
+                              }))
+                            }
+                            className="w-full rounded-lg border border-neutral-300 px-3 py-2 text-sm"
+                          />
+                        </div>
+                        <div>
+                          <label className="mb-1 block text-xs font-medium text-neutral-700">Descripción extendida</label>
+                          <textarea
+                            rows={3}
+                            value={newSubService[svc.id]?.description ?? ''}
+                            onChange={(e) =>
+                              setNewSubService((prev) => ({
+                                ...prev,
+                                [svc.id]: {
+                                  ...(prev[svc.id] ?? {
+                                    name: '',
+                                    price: '',
+                                    duration: '30',
+                                    shortDescription: '',
+                                    description: '',
+                                  }),
+                                  description: e.target.value,
+                                },
+                              }))
+                            }
+                            className="w-full rounded-lg border border-neutral-300 px-3 py-2 text-sm"
+                          />
+                        </div>
+                      </div>
+                    </form>
+                  </div>
+
+                  <div className="mt-4">
+                    <h4 className="text-sm font-semibold text-neutral-800">Subservicios</h4>
+                    {subs.length === 0 ? (
+                      <p className="mt-2 text-sm text-neutral-500">Todavía no hay subservicios.</p>
+                    ) : (
+                      <div className="mt-2 space-y-2">
+                        {subs.map((sub) => (
+                          <div key={sub.id} className="rounded-lg border border-neutral-200 p-4">
+                            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                              <div>
+                                <label className="mb-1 block text-xs font-medium text-neutral-700">Nombre</label>
+                                <input
+                                  type="text"
+                                  defaultValue={sub.name}
+                                  onChange={(e) =>
+                                    setEditingSubService((prev) => ({
+                                      ...prev,
+                                      [sub.id]: { ...(prev[sub.id] ?? {}), name: e.target.value },
+                                    }))
+                                  }
+                                  className="w-full rounded-lg border border-neutral-300 px-3 py-2 text-sm"
+                                />
+                              </div>
+                              <div>
+                                <label className="mb-1 block text-xs font-medium text-neutral-700">Precio</label>
+                                <input
+                                  type="number"
+                                  min={0}
+                                  step={0.01}
+                                  defaultValue={sub.price}
+                                  onChange={(e) =>
+                                    setEditingSubService((prev) => ({
+                                      ...prev,
+                                      [sub.id]: { ...(prev[sub.id] ?? {}), price: e.target.value },
+                                    }))
+                                  }
+                                  className="w-full rounded-lg border border-neutral-300 px-3 py-2 text-sm"
+                                />
+                              </div>
+                              <div>
+                                <label className="mb-1 block text-xs font-medium text-neutral-700">Duración</label>
+                                <input
+                                  type="number"
+                                  min={15}
+                                  max={120}
+                                  defaultValue={sub.duration}
+                                  onChange={(e) =>
+                                    setEditingSubService((prev) => ({
+                                      ...prev,
+                                      [sub.id]: { ...(prev[sub.id] ?? {}), duration: e.target.value },
+                                    }))
+                                  }
+                                  className="w-full rounded-lg border border-neutral-300 px-3 py-2 text-sm"
+                                />
+                              </div>
+                              <div>
+                                <label className="mb-1 block text-xs font-medium text-neutral-700">Activo</label>
+                                <select
+                                  defaultValue={sub.isActive ? 'true' : 'false'}
+                                  onChange={(e) =>
+                                    setEditingSubService((prev) => ({
+                                      ...prev,
+                                      [sub.id]: { ...(prev[sub.id] ?? {}), isActive: e.target.value === 'true' },
+                                    }))
+                                  }
+                                  className="w-full rounded-lg border border-neutral-300 px-3 py-2 text-sm"
+                                >
+                                  <option value="true">Activo</option>
+                                  <option value="false">Inactivo</option>
+                                </select>
+                              </div>
+                            </div>
+                            <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
+                              <div>
+                                <label className="mb-1 block text-xs font-medium text-neutral-700">Descripción corta</label>
+                                <input
+                                  type="text"
+                                  defaultValue={sub.shortDescription ?? ''}
+                                  onChange={(e) =>
+                                    setEditingSubService((prev) => ({
+                                      ...prev,
+                                      [sub.id]: { ...(prev[sub.id] ?? {}), shortDescription: e.target.value },
+                                    }))
+                                  }
+                                  className="w-full rounded-lg border border-neutral-300 px-3 py-2 text-sm"
+                                />
+                              </div>
+                              <div>
+                                <label className="mb-1 block text-xs font-medium text-neutral-700">Descripción extendida</label>
+                                <textarea
+                                  rows={3}
+                                  defaultValue={sub.description ?? ''}
+                                  onChange={(e) =>
+                                    setEditingSubService((prev) => ({
+                                      ...prev,
+                                      [sub.id]: { ...(prev[sub.id] ?? {}), description: e.target.value },
+                                    }))
+                                  }
+                                  className="w-full rounded-lg border border-neutral-300 px-3 py-2 text-sm"
+                                />
+                              </div>
+                            </div>
+                            <div className="mt-3 flex flex-wrap justify-end gap-2">
+                              <button
+                                type="button"
+                                onClick={async () => {
+                                  try {
+                                    const changes = editingSubService[sub.id] ?? {}
+                                    const body: any = {}
+                                    if (changes.name !== undefined) body.name = changes.name.trim()
+                                    if (changes.price !== undefined) body.price = Number(changes.price)
+                                    if (changes.duration !== undefined) body.duration = Number(changes.duration)
+                                    if (changes.isActive !== undefined) body.isActive = changes.isActive
+                                    if (changes.shortDescription !== undefined) {
+                                      const v = changes.shortDescription.trim()
+                                      body.shortDescription = v ? v : null
+                                    }
+                                    if (changes.description !== undefined) {
+                                      const v = changes.description.trim()
+                                      body.description = v ? v : null
+                                    }
+                                    const updated = await updateAdminSubService(sub.id, body)
+                                    setSubServicesByService((prev) => ({
+                                      ...prev,
+                                      [svc.id]: (prev[svc.id] ?? []).map((x) =>
+                                        x.id === sub.id ? updated : x
+                                      ),
+                                    }))
+                                    setEditingSubService((prev) => {
+                                      const next = { ...prev }
+                                      delete next[sub.id]
+                                      return next
+                                    })
+                                  } catch (err: unknown) {
+                                    const msg =
+                                      err && typeof err === 'object' && 'response' in err
+                                        ? (err as { response?: { data?: { error?: string } } }).response?.data?.error
+                                        : null
+                                    setError(msg || 'Error al guardar subservicio')
+                                  }
+                                }}
+                                className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm font-medium text-emerald-800 hover:bg-emerald-100"
+                              >
+                                Guardar
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleDeleteSubService(sub.id, svc.id)}
+                                className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm font-medium text-red-700 hover:bg-red-100"
+                              >
+                                Eliminar
+                              </button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )
+          })()}
 
           <div className="mt-6 flex flex-wrap gap-3">
             <button

@@ -27,6 +27,7 @@ export const cancelAppointmentSchema = z.object({
 
 export const updateServiceSchema = z
   .object({
+    name: z.string().min(1).max(200).optional(),
     price: z.number().positive('El precio debe ser positivo').optional(),
     duration: z
       .number()
@@ -35,11 +36,19 @@ export const updateServiceSchema = z
       .max(120, 'Duración máxima 120 min')
       .optional(),
     isActive: z.boolean().optional(),
+    shortDescription: z.string().max(300).optional().nullable(),
+    description: z.string().max(2000).optional().nullable(),
   })
   .refine(
-    (data) => data.price !== undefined || data.duration !== undefined || data.isActive !== undefined,
+    (data) =>
+      data.name !== undefined ||
+      data.price !== undefined ||
+      data.duration !== undefined ||
+      data.isActive !== undefined ||
+      data.shortDescription !== undefined ||
+      data.description !== undefined,
     {
-      message: 'Debe enviar al menos precio, duración o estado activo',
+      message: 'Debe enviar al menos un campo para actualizar',
     }
   )
 
@@ -55,6 +64,8 @@ export const createServiceAdminSchema = z.object({
   price: z.number().positive('El precio debe ser positivo'),
   duration: z.number().int().min(15, 'Duración mínima 15 min').max(120, 'Duración máxima 120 min'),
   isActive: z.boolean().optional().default(true),
+  shortDescription: z.string().max(300).optional().nullable(),
+  description: z.string().max(2000).optional().nullable(),
 })
 
 export const updateServiceAdminSchema = z.object({
@@ -62,6 +73,8 @@ export const updateServiceAdminSchema = z.object({
   price: z.number().positive().optional(),
   duration: z.number().int().min(15).max(120).optional(),
   isActive: z.boolean().optional(),
+  shortDescription: z.string().max(300).optional().nullable(),
+  description: z.string().max(2000).optional().nullable(),
 })
 
 export type CreateServiceAdminInput = z.infer<typeof createServiceAdminSchema>

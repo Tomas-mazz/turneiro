@@ -69,6 +69,7 @@ export function ServiceStep({
     : 'border border-neutral-300 bg-white text-black hover:bg-neutral-50'
   const [expandedServices, setExpandedServices] = useState<Set<string>>(new Set())
   const [expandedSubServices, setExpandedSubServices] = useState<Set<string>>(new Set())
+  const [openServiceSubLists, setOpenServiceSubLists] = useState<Set<string>>(new Set())
 
   const toggleServiceDescription = (serviceId: string) => {
     setExpandedServices((prev) => {
@@ -89,6 +90,18 @@ export function ServiceStep({
         next.delete(subServiceId)
       } else {
         next.add(subServiceId)
+      }
+      return next
+    })
+  }
+
+  const toggleServiceSubList = (serviceId: string) => {
+    setOpenServiceSubLists((prev) => {
+      const next = new Set(prev)
+      if (next.has(serviceId)) {
+        next.delete(serviceId)
+      } else {
+        next.add(serviceId)
       }
       return next
     })
@@ -143,6 +156,7 @@ export function ServiceStep({
               const hasSubServices = subServices.length > 0
               const serviceSelected = !!selectedService && selectedService.parentServiceId === s.id
               const directSelected = selectedService?.id === s.id && !selectedService?.parentServiceId
+              const isSubListOpen = openServiceSubLists.has(s.id) || serviceSelected
 
               return (
                 <li key={s.id} className="py-1">
@@ -150,7 +164,9 @@ export function ServiceStep({
                   <button
                     type="button"
                     onClick={() => {
-                      if (!hasSubServices) {
+                      if (hasSubServices) {
+                        toggleServiceSubList(s.id)
+                      } else {
                         onSelectService({
                           id: s.id,
                           name: s.name,
@@ -165,7 +181,7 @@ export function ServiceStep({
                       className={`mt-1.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full border-2 ${bulletBorder}`}
                       aria-hidden
                     >
-                      {(directSelected || serviceSelected) && (
+                      {(directSelected || serviceSelected || (hasSubServices && isSubListOpen)) && (
                         <span className={`h-2 w-2 rounded-full ${bulletFill}`} />
                       )}
                     </span>
@@ -179,24 +195,24 @@ export function ServiceStep({
                           {s.duration} min
                         </p>
                       )}
-                      {s.shortDescription && (
-                        <p className={`mt-2 text-xs md:text-sm ${serviceMetaColor}`}>
-                          {s.shortDescription}
-                        </p>
-                      )}
-                      {s.description && (
-                        <button
-                          type="button"
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            toggleServiceDescription(s.id)
-                          }}
-                          className={`mt-1 text-[11px] font-medium underline-offset-2 hover:underline ${
-                            isDarkTheme ? 'text-neutral-300' : 'text-neutral-800'
-                          }`}
-                        >
-                          {expandedServices.has(s.id) ? 'Leer menos' : 'Leer más'}
-                        </button>
+                      {(s.shortDescription || s.description) && (
+                        <div className={`mt-2 text-xs md:text-sm ${serviceMetaColor}`}>
+                          {s.shortDescription && <span>{s.shortDescription}</span>}
+                          {s.description && (
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                toggleServiceDescription(s.id)
+                              }}
+                              className={`ml-2 text-[11px] font-medium underline-offset-2 hover:underline ${
+                                isDarkTheme ? 'text-neutral-300' : 'text-neutral-800'
+                              }`}
+                            >
+                              {expandedServices.has(s.id) ? 'Leer menos' : 'Leer más'}
+                            </button>
+                          )}
+                        </div>
                       )}
                       {s.description && expandedServices.has(s.id) && (
                         <p className={`mt-1 text-xs md:text-sm ${serviceMetaColor}`}>
@@ -211,79 +227,95 @@ export function ServiceStep({
                         $ {s.price.toFixed(0)}
                       </span>
                     )}
+                    {hasSubServices && (
+                      <span
+                        className={`ml-4 mt-0.5 shrink-0 text-sm ${serviceMetaColor} transition-transform duration-200 ${
+                          isSubListOpen ? 'rotate-180' : 'rotate-0'
+                        }`}
+                        aria-hidden
+                      >
+                        ▼
+                      </span>
+                    )}
                   </button>
 
                   {/* Subservices list */}
                   {hasSubServices && (
-                    <ul className="mt-1 ml-8 space-y-1">
-                      {subServices.map((sub) => {
-                        const isSelected =
-                          selectedService?.id === sub.id &&
-                          selectedService?.parentServiceId === s.id
-                        return (
-                          <li key={sub.id}>
-                            <button
-                              type="button"
-                              onClick={() =>
-                                onSelectService({
-                                  id: sub.id,
-                                  name: `${s.name} - ${sub.name}`,
-                                  price: sub.price,
-                                  duration: sub.duration,
-                                  parentServiceId: s.id,
-                                  parentServiceName: s.name,
-                                })
-                              }
-                              className={`flex w-full items-start gap-3 py-2 pr-4 text-left text-sm md:text-base ${serviceRowHover}`}
-                            >
-                              <span
-                                className={`mt-1 flex h-4 w-4 shrink-0 items-center justify-center rounded-full border-2 ${bulletBorder}`}
-                                aria-hidden
+                    <div
+                      className={`ml-8 overflow-hidden transition-[max-height,opacity] duration-300 ease-out ${
+                        isSubListOpen ? 'max-h-[800px] opacity-100' : 'max-h-0 opacity-0'
+                      }`}
+                    >
+                      <ul className="mt-1 space-y-1 pb-1">
+                        {subServices.map((sub) => {
+                          const isSelected =
+                            selectedService?.id === sub.id &&
+                            selectedService?.parentServiceId === s.id
+                          return (
+                            <li key={sub.id}>
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  onSelectService({
+                                    id: sub.id,
+                                    name: `${s.name} - ${sub.name}`,
+                                    price: sub.price,
+                                    duration: sub.duration,
+                                    parentServiceId: s.id,
+                                    parentServiceName: s.name,
+                                  })
+                                }
+                                className={`flex w-full items-start gap-3 py-2 pr-4 text-left text-sm md:text-base ${serviceRowHover}`}
                               >
-                                {isSelected && (
-                                  <span className={`h-1.5 w-1.5 rounded-full ${bulletFill}`} />
-                                )}
-                              </span>
-                              <div className="min-w-0 flex-1">
-                                <span className={`${serviceNameColor}`}>{sub.name}</span>
-                                <p className={`mt-0.5 text-xs md:text-sm ${serviceMetaColor}`}>
-                                  {sub.duration} min
-                                </p>
-                                {sub.shortDescription && (
-                                  <p className={`mt-1 text-[11px] md:text-xs ${serviceMetaColor}`}>
-                                    {sub.shortDescription}
+                                <span
+                                  className={`mt-1 flex h-4 w-4 shrink-0 items-center justify-center rounded-full border-2 ${bulletBorder}`}
+                                  aria-hidden
+                                >
+                                  {isSelected && (
+                                    <span className={`h-1.5 w-1.5 rounded-full ${bulletFill}`} />
+                                  )}
+                                </span>
+                                <div className="min-w-0 flex-1">
+                                  <span className={`${serviceNameColor}`}>{sub.name}</span>
+                                  <p className={`mt-0.5 text-xs md:text-sm ${serviceMetaColor}`}>
+                                    {sub.duration} min
                                   </p>
-                                )}
-                                {sub.description && (
-                                  <button
-                                    type="button"
-                                    onClick={(e) => {
-                                      e.stopPropagation()
-                                      toggleSubServiceDescription(sub.id)
-                                    }}
-                                    className={`mt-1 text-[11px] font-medium underline-offset-2 hover:underline ${
-                                      isDarkTheme ? 'text-neutral-300' : 'text-neutral-800'
-                                    }`}
-                                  >
-                                    {expandedSubServices.has(sub.id) ? 'Leer menos' : 'Leer más'}
-                                  </button>
-                                )}
-                                {sub.description && expandedSubServices.has(sub.id) && (
-                                  <p className={`mt-1 text-[11px] md:text-xs ${serviceMetaColor}`}>
-                                    {sub.description}
-                                  </p>
-                                )}
-                              </div>
-                              <span
-                                className={`ml-4 shrink-0 pr-1 text-sm font-medium md:text-base ${serviceNameColor}`}
-                              >
-                                $ {sub.price.toFixed(0)}
-                              </span>
-                            </button>
-                          </li>
-                        )
-                      })}
-                    </ul>
+                                  {(sub.shortDescription || sub.description) && (
+                                    <div className={`mt-1 text-[11px] md:text-xs ${serviceMetaColor}`}>
+                                      {sub.shortDescription && <span>{sub.shortDescription}</span>}
+                                      {sub.description && (
+                                        <button
+                                          type="button"
+                                          onClick={(e) => {
+                                            e.stopPropagation()
+                                            toggleSubServiceDescription(sub.id)
+                                          }}
+                                          className={`ml-2 text-[11px] font-medium underline-offset-2 hover:underline ${
+                                            isDarkTheme ? 'text-neutral-300' : 'text-neutral-800'
+                                          }`}
+                                        >
+                                          {expandedSubServices.has(sub.id) ? 'Leer menos' : 'Leer más'}
+                                        </button>
+                                      )}
+                                    </div>
+                                  )}
+                                  {sub.description && expandedSubServices.has(sub.id) && (
+                                    <p className={`mt-1 text-[11px] md:text-xs ${serviceMetaColor}`}>
+                                      {sub.description}
+                                    </p>
+                                  )}
+                                </div>
+                                <span
+                                  className={`ml-4 shrink-0 pr-1 text-sm font-medium md:text-base ${serviceNameColor}`}
+                                >
+                                  $ {sub.price.toFixed(0)}
+                                </span>
+                              </button>
+                            </li>
+                          )
+                        })}
+                      </ul>
+                    </div>
                   )}
                 </li>
               )

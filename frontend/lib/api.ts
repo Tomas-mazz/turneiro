@@ -55,7 +55,14 @@ export async function getServices(): Promise<ServiceListItem[]> {
 
 export async function updateService(
   id: string,
-  body: { price?: number; duration?: number; isActive?: boolean }
+  body: {
+    name?: string
+    price?: number
+    duration?: number
+    isActive?: boolean
+    shortDescription?: string | null
+    description?: string | null
+  }
 ): Promise<ServiceListItem> {
   const { data } = await api.patch<ServiceListItem>(`/services/${id}`, body)
   return data
@@ -178,6 +185,8 @@ export type CreateServiceAdminBody = {
   price: number
   duration: number
   isActive?: boolean
+  shortDescription?: string | null
+  description?: string | null
 }
 
 export type UpdateServiceAdminBody = {
@@ -185,6 +194,8 @@ export type UpdateServiceAdminBody = {
   price?: number
   duration?: number
   isActive?: boolean
+  shortDescription?: string | null
+  description?: string | null
 }
 
 export async function createAdminService(

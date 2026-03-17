@@ -13,6 +13,8 @@ export interface ServiceListItem {
   price: number
   duration: number
   isActive: boolean
+  shortDescription: string | null
+  description: string | null
 }
 
 export async function getServicesForBusinessService(
@@ -27,6 +29,8 @@ export async function getServicesForBusinessService(
       price: true,
       duration: true,
       isActive: true,
+      shortDescription: true,
+      description: true,
     },
   })
   return services
@@ -60,9 +64,12 @@ export async function updateServicePriceAndDurationService(
   const updated = await prisma.service.update({
     where: { id: serviceId },
     data: {
+      ...(data.name !== undefined && { name: data.name.trim() }),
       ...(data.price !== undefined && { price: data.price }),
       ...(data.duration !== undefined && { duration: data.duration }),
       ...(data.isActive !== undefined && { isActive: data.isActive }),
+      ...(data.shortDescription !== undefined && { shortDescription: data.shortDescription ?? null }),
+      ...(data.description !== undefined && { description: data.description ?? null }),
     },
     select: {
       id: true,
@@ -70,6 +77,8 @@ export async function updateServicePriceAndDurationService(
       price: true,
       duration: true,
       isActive: true,
+      shortDescription: true,
+      description: true,
     },
   })
   return updated
@@ -86,6 +95,8 @@ export async function createServiceForAdmin(
       price: data.price,
       duration: data.duration,
       isActive: data.isActive ?? true,
+      shortDescription: data.shortDescription ?? null,
+      description: data.description ?? null,
     },
     select: {
       id: true,
@@ -93,6 +104,8 @@ export async function createServiceForAdmin(
       price: true,
       duration: true,
       isActive: true,
+      shortDescription: true,
+      description: true,
     },
   })
   return service
@@ -126,6 +139,8 @@ export async function updateServiceForAdmin(
       ...(data.price !== undefined && { price: data.price }),
       ...(data.duration !== undefined && { duration: data.duration }),
       ...(data.isActive !== undefined && { isActive: data.isActive }),
+      ...(data.shortDescription !== undefined && { shortDescription: data.shortDescription ?? null }),
+      ...(data.description !== undefined && { description: data.description ?? null }),
     },
     select: {
       id: true,
@@ -133,6 +148,8 @@ export async function updateServiceForAdmin(
       price: true,
       duration: true,
       isActive: true,
+      shortDescription: true,
+      description: true,
     },
   })
   return updated
