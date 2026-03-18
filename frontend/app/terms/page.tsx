@@ -2,11 +2,11 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 export const metadata: Metadata = {
-  title: "Términos de servicio | Turneiro",
+  title: "Términos del servicio | Turneiro",
   description: "Términos y condiciones de uso de Turneiro.",
 };
 
-const CONTACT_EMAIL = "contacto@turneiro.com";
+const CONTACT_EMAIL = "turneiro.info@gmail.com";
 
 export default function TermsPage() {
   return (
@@ -18,9 +18,9 @@ export default function TermsPage() {
           </Link>
         </p>
         <h1 className="font-heading mt-6 text-3xl font-bold text-gray-900">
-          Términos de servicio
+          Términos del servicio
         </h1>
-        <p className="mt-2 text-sm text-gray-500">Última actualización: marzo 2025</p>
+        <p className="mt-2 text-sm text-gray-500">Última actualización: 2026-03-18</p>
 
         <div className="prose prose-gray mt-8 max-w-none space-y-6 text-[15px] leading-relaxed">
           <section>
@@ -33,21 +33,22 @@ export default function TermsPage() {
           <section>
             <h2 className="font-heading text-xl font-semibold text-gray-900">2. Cuenta y uso</h2>
             <p className="mt-2">
-              Información veraz; responsable de tu cuenta y del login con Google. Uso lícito; los
-              negocios responden por su contenido y sus clientes.
+              Debés brindar información veraz y sos responsable de tu cuenta y del inicio de sesión
+              con Google. No podés usar la plataforma para actividades ilegales o abusivas.
             </p>
           </section>
           <section>
             <h2 className="font-heading text-xl font-semibold text-gray-900">3. Turnos</h2>
             <p className="mt-2">
-              Turneiro es herramienta tecnológica; la relación negocio–cliente es entre ellos.
+              Turneiro es una herramienta tecnológica; la relación entre negocio y cliente es entre
+              ellos.
             </p>
           </section>
           <section>
             <h2 className="font-heading text-xl font-semibold text-gray-900">4. Servicio</h2>
             <p className="mt-2">
-              Servicio según disponibilidad; podemos modificar funciones. Versión vigente en{" "}
-              <strong>https://turneiro.com/terms</strong>. Contacto:{" "}
+              El servicio se brinda según disponibilidad y puede modificarse. Si tenés dudas o
+              consultas, contactanos a{" "}
               <a href={`mailto:${CONTACT_EMAIL}`} className="underline">
                 {CONTACT_EMAIL}
               </a>

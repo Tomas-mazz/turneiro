@@ -19,6 +19,9 @@ const montserrat = Montserrat({
 export const metadata: Metadata = {
   title: 'Turneiro',
   description: 'Turneiro - plataforma de reservas',
+  verification: {
+    google: 'YdT4JE6fpBkZ6lPs1e-d7LWYl87Ve1yY77JG5rLyPkw',
+  },
   icons: {
     icon: '/logos/pngegg.png',
   },

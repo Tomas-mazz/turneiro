@@ -3,11 +3,10 @@ import Link from "next/link";
 
 export const metadata: Metadata = {
   title: "Política de privacidad | Turneiro",
-  description:
-    "Política de privacidad de Turneiro — plataforma de reservas y turnos online.",
+  description: "Política de privacidad de Turneiro — plataforma de reservas y turnos online.",
 };
 
-const CONTACT_EMAIL = "contacto@turneiro.com";
+const CONTACT_EMAIL = "turneiro.info@gmail.com";
 
 export default function PrivacyPage() {
   return (
@@ -21,17 +20,14 @@ export default function PrivacyPage() {
         <h1 className="font-heading mt-6 text-3xl font-bold text-gray-900">
           Política de privacidad
         </h1>
-        <p className="mt-2 text-sm text-gray-500">Última actualización: marzo 2025</p>
+        <p className="mt-2 text-sm text-gray-500">Última actualización: 2026-03-18</p>
 
         <div className="prose prose-gray mt-8 max-w-none space-y-6 text-[15px] leading-relaxed">
           <section>
-            <h2 className="font-heading text-xl font-semibold text-gray-900">
-              1. Responsable
-            </h2>
+            <h2 className="font-heading text-xl font-semibold text-gray-900">1. Responsable</h2>
             <p className="mt-2">
-              El servicio <strong>Turneiro</strong> (sitio principal{" "}
-              <strong>turneiro.com</strong> y subdominios asociados) facilita la gestión y reserva
-              de turnos. Consultas:{" "}
+              El servicio <strong>Turneiro</strong> (sitio principal <strong>turneiro.com</strong> y
+              subdominios asociados) facilita la gestión y reserva de turnos. Consultas:{" "}
               <a href={`mailto:${CONTACT_EMAIL}`} className="text-gray-900 underline">
                 {CONTACT_EMAIL}
               </a>
@@ -48,8 +44,8 @@ export default function PrivacyPage() {
                 negocio.
               </li>
               <li>
-                <strong>Google:</strong> si iniciás sesión con Google, los datos que Google
-                autorice (p. ej. email, nombre).
+                <strong>Google:</strong> si iniciás sesión con Google, los datos que Google autorice
+                (p. ej. email, nombre).
               </li>
               <li>
                 <strong>Reservas:</strong> turnos, servicios, horarios y datos necesarios para
@@ -66,14 +62,12 @@ export default function PrivacyPage() {
             </h2>
             <p className="mt-2">
               Gestionar cuentas, login (OAuth), turnos y comunicaciones del servicio. Conservación
-              mientras uses el servicio y según ley. Derechos: contacto arriba. Podés revocar
-              acceso Google desde tu cuenta Google.
+              mientras uses el servicio y según ley. Derechos: contacto arriba. Podés revocar acceso
+              Google desde tu cuenta Google.
             </p>
           </section>
           <section>
-            <h2 className="font-heading text-xl font-semibold text-gray-900">
-              4. Compartición
-            </h2>
+            <h2 className="font-heading text-xl font-semibold text-gray-900">4. Compartición</h2>
             <p className="mt-2">
               Datos de reserva visibles para el negocio y quien reserva. Proveedores de
               infraestructura bajo confidencialidad. No vendemos datos para marketing de terceros.
