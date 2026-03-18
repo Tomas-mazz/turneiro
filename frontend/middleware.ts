@@ -23,6 +23,8 @@ function getStoreSlugFromHost(hostname: string): string | null {
   if (lowerHost.endsWith('.turneiro.com')) {
     const withoutPort = lowerHost.split(':')[0]
     const base = withoutPort.replace(/\.turneiro\.com$/, '')
+    // Reserved subdomains should not behave like store slugs.
+    if (base === 'www') return null
     return base || null
   }
 
