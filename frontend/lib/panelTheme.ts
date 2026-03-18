@@ -13,8 +13,10 @@ export const panel = {
   footerLink: 'text-white hover:text-white',
   outlineBtn:
     'rounded-lg border border-neutral-600 px-3 py-2 text-left text-xs font-medium text-white hover:bg-neutral-800/80',
-  mobileBar: 'border-t border-neutral-900 bg-[hsl(0,0%,9%)]/95 shadow-[0_-4px_12px_rgba(0,0,0,0.4)]',
-  sheet: 'rounded-2xl border border-neutral-700 bg-[hsl(0,0%,9%)] shadow-xl',
+  mobileBar:
+    'border-t border-neutral-900 bg-[hsl(0,0%,9%)] shadow-[0_-6px_18px_rgba(0,0,0,0.5)] supports-[backdrop-filter]:bg-[hsl(0,0%,9%)]/90',
+  sheet:
+    'rounded-2xl border border-neutral-700 bg-[hsl(0,0%,9%)] shadow-[0_-18px_60px_rgba(0,0,0,0.65)]',
   sheetSection: 'bg-neutral-950/60 text-white/75',
   sheetRowHover: 'text-white hover:bg-neutral-800',
   sheetRowActive: 'bg-neutral-700 text-white',

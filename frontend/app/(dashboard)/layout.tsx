@@ -233,7 +233,7 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
         </div>
 
         <nav
-          className={`fixed inset-x-0 bottom-0 z-20 px-3 py-3 backdrop-blur md:hidden ${panel.mobileBar}`}
+          className={`fixed inset-x-0 bottom-0 z-20 px-3 pt-3 pb-[calc(env(safe-area-inset-bottom)+0.75rem)] backdrop-blur md:hidden ${panel.mobileBar}`}
         >
           <div className="mx-auto flex max-w-md items-center justify-between gap-1">
             {items.slice(0, 2).map((item) => {
@@ -246,8 +246,8 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
                   key={item.id}
                   type="button"
                   onClick={handleNavClick(item)}
-                  className={`flex flex-1 items-center justify-center rounded-md px-3 py-2 text-xs font-medium text-white ${
-                    isActive ? 'font-semibold' : ''
+                  className={`flex flex-1 items-center justify-center rounded-md px-3 py-2 text-xs font-medium text-white transition-colors ${
+                    isActive ? 'bg-white/10 font-semibold' : 'hover:bg-white/5'
                   }`}
                 >
                   <span className="truncate">
@@ -260,8 +260,8 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
             <button
               type="button"
               onClick={() => setIsMoreOpen((prev) => !prev)}
-              className={`flex flex-1 items-center justify-center gap-1 rounded-md px-3 py-2 text-xs font-medium text-white ${
-                isMoreOpen ? 'opacity-100' : 'opacity-95'
+              className={`flex flex-1 items-center justify-center gap-1 rounded-md px-3 py-2 text-xs font-medium text-white transition-colors ${
+                isMoreOpen ? 'bg-white/10 opacity-100' : 'opacity-95 hover:bg-white/5'
               }`}
             >
               <span className="truncate">Más</span>
@@ -273,73 +273,90 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
         </nav>
 
         {isMoreOpen && (
-          <div className="fixed inset-x-0 bottom-12 z-30 mx-auto max-h-[70vh] max-w-md overflow-y-auto px-3 pb-3 md:hidden">
-            <div className={`overflow-hidden ${panel.sheet}`}>
-              <div className="px-4 py-2 text-xs font-semibold uppercase tracking-wide text-white/90">
-                Más opciones
-              </div>
-              <div className={`border-t ${panel.navBorder}`}>
-                {isAdminHybrid && (
-                  <>
-                    <div
-                      className={`px-4 py-1.5 text-[0.65rem] font-semibold uppercase ${panel.sheetSection}`}
-                    >
-                      Admin
-                    </div>
-                    {ADMIN_ITEMS.map((item) => (
+          <div className="fixed inset-0 z-30 md:hidden">
+            <button
+              type="button"
+              onClick={() => setIsMoreOpen(false)}
+              className="absolute inset-0 bg-black/40"
+              aria-label="Cerrar menú"
+            />
+            <div className="absolute inset-x-0 bottom-0 px-3 pb-[calc(env(safe-area-inset-bottom)+0.75rem)]">
+              <div className={`mx-auto max-w-md overflow-hidden ${panel.sheet}`}>
+                <div className="flex items-center justify-between gap-3 px-4 py-3">
+                  <div className="text-xs font-semibold uppercase tracking-wide text-white/90">
+                    Más opciones
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setIsMoreOpen(false)}
+                    className="rounded-md px-2 py-1 text-xs font-medium text-white/85 hover:bg-white/10"
+                  >
+                    Cerrar
+                  </button>
+                </div>
+                <div className={`border-t ${panel.navBorder} max-h-[70vh] overflow-y-auto`}>
+                  {isAdminHybrid && (
+                    <>
+                      <div
+                        className={`px-4 py-1.5 text-[0.65rem] font-semibold uppercase ${panel.sheetSection}`}
+                      >
+                        Admin
+                      </div>
+                      {ADMIN_ITEMS.map((item) => (
+                        <button
+                          key={item.id}
+                          type="button"
+                          onClick={handleAdminNavClick(item)}
+                          className={`flex w-full items-center justify-between px-4 py-3 text-left text-sm ${panel.sheetRowHover}`}
+                        >
+                          <span>{item.label}</span>
+                        </button>
+                      ))}
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setIsMoreOpen(false)
+                          handleAdminOnlyClick()
+                        }}
+                        className={`flex w-full border-t ${panel.navBorder} px-4 py-3 text-left text-sm ${panel.sheetRowHover}`}
+                      >
+                        Ir solo a admin
+                      </button>
+                      <div
+                        className={`px-4 py-1.5 text-[0.65rem] font-semibold uppercase ${panel.sheetSection}`}
+                      >
+                        Tienda
+                      </div>
+                    </>
+                  )}
+                  {items.map((item) => {
+                    const isActive =
+                      item.id === 'home'
+                        ? effectivePath === '/setting' || effectivePath === '/setting/'
+                        : effectivePath.startsWith(item.href)
+                    return (
                       <button
                         key={item.id}
                         type="button"
-                        onClick={handleAdminNavClick(item)}
-                        className={`flex w-full items-center justify-between px-4 py-2.5 text-left text-sm ${panel.sheetRowHover}`}
+                        onClick={handleNavClick(item)}
+                        className={`flex w-full items-center justify-between px-4 py-3 text-left text-sm ${
+                          isActive ? panel.sheetRowActive : panel.sheetRowHover
+                        }`}
                       >
                         <span>{item.label}</span>
                       </button>
-                    ))}
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setIsMoreOpen(false)
-                        handleAdminOnlyClick()
-                      }}
-                      className={`flex w-full border-t ${panel.navBorder} px-4 py-2.5 text-left text-sm ${panel.sheetRowHover}`}
+                    )
+                  })}
+                  {businessSlug && (
+                    <Link
+                      href="/"
+                      onClick={() => setIsMoreOpen(false)}
+                      className={`flex w-full items-center justify-between border-t ${panel.navBorder} px-4 py-3 text-left text-sm ${panel.sheetRowHover}`}
                     >
-                      Ir solo a admin
-                    </button>
-                    <div
-                      className={`px-4 py-1.5 text-[0.65rem] font-semibold uppercase ${panel.sheetSection}`}
-                    >
-                      Tienda
-                    </div>
-                  </>
-                )}
-                {items.map((item) => {
-                  const isActive =
-                    item.id === 'home'
-                      ? effectivePath === '/setting' || effectivePath === '/setting/'
-                      : effectivePath.startsWith(item.href)
-                  return (
-                    <button
-                      key={item.id}
-                      type="button"
-                      onClick={handleNavClick(item)}
-                      className={`flex w-full items-center justify-between px-4 py-2.5 text-left text-sm ${
-                        isActive ? panel.sheetRowActive : panel.sheetRowHover
-                      }`}
-                    >
-                      <span>{item.label}</span>
-                    </button>
-                  )
-                })}
-                {businessSlug && (
-                  <Link
-                    href="/"
-                    onClick={() => setIsMoreOpen(false)}
-                    className={`flex w-full items-center justify-between border-t ${panel.navBorder} px-4 py-2.5 text-left text-sm ${panel.sheetRowHover}`}
-                  >
-                    <span>Ir a la página principal</span>
-                  </Link>
-                )}
+                      <span>Ir a la página principal</span>
+                    </Link>
+                  )}
+                </div>
               </div>
             </div>
           </div>

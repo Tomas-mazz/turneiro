@@ -87,9 +87,11 @@ export function ServiceAboutModal({
 
   return (
     <div className="fixed inset-0 z-50 bg-black/60">
-      <div className="fixed inset-0 p-0 md:flex md:items-center md:justify-center md:p-6">
+      <div className="fixed inset-0 flex items-center justify-center p-4 md:p-6">
         <div
-          className={`h-full w-full ${panelBg} md:h-auto md:max-h-[85vh] md:max-w-3xl md:rounded-2xl md:border ${border} md:shadow-2xl`}
+          className={`flex w-full flex-col ${panelBg} ${border} shadow-2xl
+            max-h-[85vh] min-h-[260px] rounded-2xl border
+            md:max-w-3xl`}
         >
           <div className={`flex items-center justify-between gap-3 border-b px-5 py-4 ${border}`}>
             <h3 className={`text-base font-semibold md:text-lg ${titleColor}`}>{title}</h3>
@@ -106,7 +108,7 @@ export function ServiceAboutModal({
             </button>
           </div>
 
-          <div className="h-[calc(100%-64px)] overflow-y-auto px-5 py-5 md:h-auto">
+          <div className="flex-1 overflow-y-auto px-5 py-5">
             {images?.length ? (
               <FocusImageCarousel images={images} title={title} isDarkTheme={isDarkTheme} />
             ) : null}

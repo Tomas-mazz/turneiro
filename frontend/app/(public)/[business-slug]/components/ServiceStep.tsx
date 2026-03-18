@@ -69,8 +69,6 @@ export function ServiceStep({
   const cartCtaClass = isDarkTheme
     ? 'bg-white text-black hover:opacity-90'
     : 'border border-neutral-300 bg-white text-black hover:bg-neutral-50'
-  const [expandedServices, setExpandedServices] = useState<Set<string>>(new Set())
-  const [expandedSubServices, setExpandedSubServices] = useState<Set<string>>(new Set())
   const [openServiceSubListId, setOpenServiceSubListId] = useState<string | null>(null)
   const [activeServiceId, setActiveServiceId] = useState<string | null>(null)
   const [aboutOpen, setAboutOpen] = useState(false)
@@ -81,33 +79,6 @@ export function ServiceStep({
       description?: string | null
     } | null>(null)
 
-  const toggleServiceDescription = (serviceId: string) => {
-    setExpandedServices((prev) => {
-      const next = new Set(prev)
-      if (next.has(serviceId)) {
-        next.delete(serviceId)
-      } else {
-        next.add(serviceId)
-      }
-      return next
-    })
-  }
-
-  const toggleSubServiceDescription = (subServiceId: string) => {
-    setExpandedSubServices((prev) => {
-      const next = new Set(prev)
-      if (next.has(subServiceId)) {
-        next.delete(subServiceId)
-      } else {
-        next.add(subServiceId)
-      }
-      return next
-    })
-  }
-
-  const toggleServiceSubList = (serviceId: string) => {
-    setOpenServiceSubListId((prev) => (prev === serviceId ? null : serviceId))
-  }
   const workingHoursByDay = (business.workingHours ?? []).reduce(
     (acc, wh) => {
       acc[wh.dayOfWeek] = wh
@@ -225,8 +196,8 @@ export function ServiceStep({
               const isActiveParent = activeServiceId === s.id
               const serviceShort = s.shortDescription?.trim() || ''
               const serviceLong = s.description?.trim() || ''
-              const serviceHasAbout =
-                (Array.isArray(s.images) && s.images.length > 0) || !!serviceShort || !!serviceLong
+              const serviceHasMoreDetails =
+                (Array.isArray(s.images) && s.images.length > 0) || !!serviceLong
 
               return (
                 <li key={s.id} className="py-1">
@@ -272,29 +243,32 @@ export function ServiceStep({
                           {s.duration} min
                         </p>
                       )}
-                      {(serviceShort || serviceLong) && (
+                      {(serviceShort || serviceHasMoreDetails) && (
                         <div className={`mt-2 text-xs md:text-sm ${serviceMetaColor}`}>
                           {serviceShort && <span>{serviceShort}</span>}
-                          {serviceLong && (
+                          {serviceHasMoreDetails && (
                             <button
                               type="button"
                               onClick={(e) => {
                                 e.stopPropagation()
-                                toggleServiceDescription(s.id)
+                                const sel: ServiceOption = {
+                                  id: s.id,
+                                  name: s.name,
+                                  price: s.price,
+                                  duration: s.duration,
+                                }
+                                onSelectService(sel)
+                                openAboutForSelection(sel)
                               }}
-                              className={`ml-2 text-[11px] font-medium underline-offset-2 hover:underline ${
+                              className={`ml-2 inline-flex items-center rounded-md px-1.5 py-0.5 text-[11px] font-medium underline-offset-2 hover:underline ${
                                 isDarkTheme ? 'text-neutral-300' : 'text-neutral-800'
                               }`}
+                              aria-label={`Acerca de ${s.name}`}
                             >
-                              {expandedServices.has(s.id) ? 'Leer menos' : 'Leer más'}
+                              Acerca
                             </button>
                           )}
                         </div>
-                      )}
-                      {serviceLong && expandedServices.has(s.id) && (
-                        <p className={`mt-1 text-xs md:text-sm ${serviceMetaColor}`}>
-                          {serviceLong}
-                        </p>
                       )}
                     </div>
                     {!hasSubServices && (
@@ -303,29 +277,6 @@ export function ServiceStep({
                       >
                         $ {s.price.toFixed(0)}
                       </span>
-                    )}
-                    {!hasSubServices && serviceHasAbout && (
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          const sel: ServiceOption = {
-                            id: s.id,
-                            name: s.name,
-                            price: s.price,
-                            duration: s.duration,
-                          }
-                          onSelectService(sel)
-                          openAboutForSelection(sel)
-                        }}
-                        className={`ml-2 shrink-0 rounded-full border px-3 py-1 text-xs font-medium ${
-                          isDarkTheme
-                            ? 'border-neutral-600 text-neutral-200 hover:bg-neutral-800'
-                            : 'border-neutral-300 text-neutral-800 hover:bg-neutral-50'
-                        }`}
-                      >
-                        Acerca
-                      </button>
                     )}
                     {hasSubServices && (
                       <span
@@ -350,10 +301,8 @@ export function ServiceStep({
                         {subServices.map((sub) => {
                           const subShort = sub.shortDescription?.trim() || ''
                           const subLong = sub.description?.trim() || ''
-                          const subHasAbout =
-                            (Array.isArray(sub.images) && sub.images.length > 0) ||
-                            !!subShort ||
-                            !!subLong
+                          const subHasMoreDetails =
+                            (Array.isArray(sub.images) && sub.images.length > 0) || !!subLong
                           const isSelected =
                             selectedService?.id === sub.id &&
                             selectedService?.parentServiceId === s.id
@@ -389,29 +338,36 @@ export function ServiceStep({
                                   <p className={`mt-0.5 text-xs md:text-sm ${serviceMetaColor}`}>
                                     {sub.duration} min
                                   </p>
-                                  {(subShort || subLong) && (
+                                  {(subShort || subHasMoreDetails) && (
                                     <div className={`mt-1 text-[11px] md:text-xs ${serviceMetaColor}`}>
                                       {subShort && <span>{subShort}</span>}
-                                      {subLong && (
+                                      {subHasMoreDetails && (
                                         <button
                                           type="button"
                                           onClick={(e) => {
                                             e.stopPropagation()
-                                            toggleSubServiceDescription(sub.id)
+                                            const sel: ServiceOption = {
+                                              id: sub.id,
+                                              name: `${s.name} - ${sub.name}`,
+                                              price: sub.price,
+                                              duration: sub.duration,
+                                              parentServiceId: s.id,
+                                              parentServiceName: s.name,
+                                            }
+                                            setOpenServiceSubListId(s.id)
+                                            setActiveServiceId(s.id)
+                                            onSelectService(sel)
+                                            openAboutForSelection(sel)
                                           }}
-                                          className={`ml-2 text-[11px] font-medium underline-offset-2 hover:underline ${
+                                          className={`ml-2 inline-flex items-center rounded-md px-1.5 py-0.5 text-[11px] font-medium underline-offset-2 hover:underline ${
                                             isDarkTheme ? 'text-neutral-300' : 'text-neutral-800'
                                           }`}
+                                          aria-label={`Acerca de ${sub.name}`}
                                         >
-                                          {expandedSubServices.has(sub.id) ? 'Leer menos' : 'Leer más'}
+                                          Acerca
                                         </button>
                                       )}
                                     </div>
-                                  )}
-                                  {subLong && expandedSubServices.has(sub.id) && (
-                                    <p className={`mt-1 text-[11px] md:text-xs ${serviceMetaColor}`}>
-                                      {subLong}
-                                    </p>
                                   )}
                                 </div>
                                 <span
@@ -419,33 +375,6 @@ export function ServiceStep({
                                 >
                                   $ {sub.price.toFixed(0)}
                                 </span>
-                                {subHasAbout && (
-                                  <button
-                                    type="button"
-                                    onClick={(e) => {
-                                      e.stopPropagation()
-                                      const sel: ServiceOption = {
-                                        id: sub.id,
-                                        name: `${s.name} - ${sub.name}`,
-                                        price: sub.price,
-                                        duration: sub.duration,
-                                        parentServiceId: s.id,
-                                        parentServiceName: s.name,
-                                      }
-                                      setOpenServiceSubListId(s.id)
-                                      setActiveServiceId(s.id)
-                                      onSelectService(sel)
-                                      openAboutForSelection(sel)
-                                    }}
-                                    className={`ml-2 shrink-0 rounded-full border px-3 py-1 text-[11px] font-medium ${
-                                      isDarkTheme
-                                        ? 'border-neutral-600 text-neutral-200 hover:bg-neutral-800'
-                                        : 'border-neutral-300 text-neutral-800 hover:bg-neutral-50'
-                                    }`}
-                                  >
-                                    Acerca
-                                  </button>
-                                )}
                               </button>
                             </li>
                           )

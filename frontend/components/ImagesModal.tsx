@@ -68,7 +68,7 @@ export function ImagesModal({
   if (!open) return null
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+    <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/50 p-4">
       <div className="w-full max-w-3xl rounded-xl bg-white p-5 shadow-xl">
         <div className="flex items-start justify-between gap-3">
           <div>
