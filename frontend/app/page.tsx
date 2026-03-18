@@ -26,10 +26,10 @@ export default function Home() {
   return (
     <main className="flex min-h-screen flex-col items-center justify-center bg-gradient-to-br from-gray-50 to-gray-100 px-6 py-16">
       <h1 className="font-heading text-4xl font-bold tracking-tight text-gray-900 sm:text-5xl">
-        Appointments Platform
+        Turneiro
       </h1>
-      <p className="mt-4 max-w-md text-center text-lg text-gray-500">
-        Seleccioná a qué sección querés acceder
+      <p className="mt-4 max-w-xl text-center text-lg text-gray-600">
+        Plataforma de turnos para negocios y clientes: administrá tu agenda y reservá citas online.
       </p>
 
       <div className="mt-12 grid w-full max-w-3xl gap-6 sm:grid-cols-3">
@@ -51,6 +51,15 @@ export default function Home() {
           </Link>
         ))}
       </div>
+
+      <footer className="mt-14 flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-sm text-gray-500">
+        <Link href="/privacy" className="hover:text-gray-700 underline underline-offset-4">
+          Política de privacidad
+        </Link>
+        <Link href="/terms" className="hover:text-gray-700 underline underline-offset-4">
+          Términos del servicio
+        </Link>
+      </footer>
     </main>
   );
 }
