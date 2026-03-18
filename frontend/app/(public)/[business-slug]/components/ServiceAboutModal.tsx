@@ -10,8 +10,57 @@ type Props = {
   description?: string | null
   isDarkTheme?: boolean
   primaryColor: string
+  showConfirmButton?: boolean
   onClose: () => void
   onConfirm: () => void
+}
+
+function parseColorToRgb(input: string): { r: number; g: number; b: number } | null {
+  const v = (input ?? '').trim().toLowerCase()
+  if (!v) return null
+
+  // #rgb / #rrggbb
+  if (v.startsWith('#')) {
+    const hex = v.slice(1)
+    if (hex.length === 3) {
+      const r = parseInt(hex[0] + hex[0], 16)
+      const g = parseInt(hex[1] + hex[1], 16)
+      const b = parseInt(hex[2] + hex[2], 16)
+      if ([r, g, b].some((n) => Number.isNaN(n))) return null
+      return { r, g, b }
+    }
+    if (hex.length === 6) {
+      const r = parseInt(hex.slice(0, 2), 16)
+      const g = parseInt(hex.slice(2, 4), 16)
+      const b = parseInt(hex.slice(4, 6), 16)
+      if ([r, g, b].some((n) => Number.isNaN(n))) return null
+      return { r, g, b }
+    }
+  }
+
+  // rgb() / rgba()
+  const m = v.match(/^rgba?\(\s*([0-9]{1,3})\s*,\s*([0-9]{1,3})\s*,\s*([0-9]{1,3})(?:\s*,\s*([0-9.]+))?\s*\)$/)
+  if (m) {
+    const r = Number(m[1])
+    const g = Number(m[2])
+    const b = Number(m[3])
+    if ([r, g, b].some((n) => Number.isNaN(n))) return null
+    return { r, g, b }
+  }
+
+  return null
+}
+
+function relativeLuminance({ r, g, b }: { r: number; g: number; b: number }) {
+  // sRGB → linear
+  const toLin = (c: number) => {
+    const x = c / 255
+    return x <= 0.04045 ? x / 12.92 : Math.pow((x + 0.055) / 1.055, 2.4)
+  }
+  const R = toLin(r)
+  const G = toLin(g)
+  const B = toLin(b)
+  return 0.2126 * R + 0.7152 * G + 0.0722 * B
 }
 
 export function ServiceAboutModal({
@@ -22,6 +71,7 @@ export function ServiceAboutModal({
   description,
   isDarkTheme = true,
   primaryColor,
+  showConfirmButton = false,
   onClose,
   onConfirm,
 }: Props) {
@@ -31,6 +81,9 @@ export function ServiceAboutModal({
   const titleColor = isDarkTheme ? 'text-white' : 'text-neutral-900'
   const textColor = isDarkTheme ? 'text-neutral-200' : 'text-neutral-700'
   const border = isDarkTheme ? 'border-neutral-700' : 'border-neutral-200'
+  const rgb = parseColorToRgb(primaryColor)
+  const isLightPrimary = rgb ? relativeLuminance(rgb) > 0.72 : false
+  const ctaText = isLightPrimary ? 'text-neutral-900' : 'text-white'
 
   return (
     <div className="fixed inset-0 z-50 bg-black/60">
@@ -69,19 +122,21 @@ export function ServiceAboutModal({
               </div>
             )}
 
-            <div className="mt-6">
-              <button
-                type="button"
-                onClick={onConfirm}
-                className="w-full rounded-xl px-4 py-3 text-sm font-semibold text-white"
-                style={{ backgroundColor: primaryColor }}
-              >
-                Confirmar
-              </button>
-              <p className={`mt-2 text-center text-xs ${textColor}`}>
-                Confirmá para continuar al calendario.
-              </p>
-            </div>
+            {showConfirmButton && (
+              <div className="mt-6">
+                <button
+                  type="button"
+                  onClick={onConfirm}
+                  className={`w-full rounded-xl px-4 py-3 text-sm font-semibold ${ctaText}`}
+                  style={{ backgroundColor: primaryColor }}
+                >
+                  Continuar
+                </button>
+                <p className={`mt-2 text-center text-xs ${textColor}`}>
+                  Continuá para ir al calendario.
+                </p>
+              </div>
+            )}
           </div>
         </div>
       </div>

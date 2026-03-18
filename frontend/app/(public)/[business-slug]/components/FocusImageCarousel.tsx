@@ -27,7 +27,7 @@ export function FocusImageCarousel({ images, title = 'Imagen', isDarkTheme = tru
         {/* Left (prev) */}
         {safe.length > 1 && (
           <div
-            className="absolute left-0 top-1/2 w-[70%] -translate-y-1/2 transition-transform duration-300 ease-out"
+            className="absolute left-0 top-1/2 w-[70%] -translate-y-1/2 transition-transform duration-300 ease-out md:w-[52%]"
             style={{ transform: 'translateY(-50%) translateZ(-140px) scale(0.92)' }}
             aria-hidden
           >
@@ -48,7 +48,7 @@ export function FocusImageCarousel({ images, title = 'Imagen', isDarkTheme = tru
         {/* Right (next) */}
         {safe.length > 1 && (
           <div
-            className="absolute right-0 top-1/2 w-[70%] -translate-y-1/2 transition-transform duration-300 ease-out"
+            className="absolute right-0 top-1/2 w-[70%] -translate-y-1/2 transition-transform duration-300 ease-out md:w-[52%]"
             style={{ transform: 'translateY(-50%) translateZ(-140px) scale(0.92)' }}
             aria-hidden
           >
@@ -68,7 +68,7 @@ export function FocusImageCarousel({ images, title = 'Imagen', isDarkTheme = tru
 
         {/* Center (current) */}
         <div
-          className="relative z-20 w-[78%] transition-transform duration-300 ease-out"
+          className="relative z-20 w-[78%] transition-transform duration-300 ease-out md:w-[70%]"
           style={{ transform: 'translateZ(0px) scale(1.02)' }}
         >
           <div className="relative aspect-[16/9] overflow-hidden rounded-xl bg-black shadow-2xl">
