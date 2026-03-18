@@ -1,74 +1,70 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 
-export const metadata = {
+export const metadata: Metadata = {
   title: "Términos del servicio | Turneiro",
+  description: "Términos y condiciones de uso de Turneiro.",
 };
+
+const CONTACT_EMAIL = "turneiro.info@gmail.com";
 
 export default function TermsPage() {
   return (
-    <main className="mx-auto w-full max-w-3xl px-6 py-14 text-gray-900">
-      <h1 className="font-heading text-3xl font-bold tracking-tight">
-        Términos del servicio
-      </h1>
-      <p className="mt-2 text-sm text-gray-500">Última actualización: 2026-03-18</p>
-
-      <section className="mt-8 space-y-4 text-gray-700 leading-relaxed">
-        <p>
-          Al usar Turneiro, aceptás estos términos. Si no estás de acuerdo, no uses el servicio.
+    <main className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 px-4 py-12 text-gray-800 sm:px-6">
+      <article className="mx-auto max-w-3xl rounded-2xl border border-gray-200 bg-white p-8 shadow-sm sm:p-10">
+        <p className="text-sm text-gray-500">
+          <Link href="/" className="text-gray-700 underline hover:text-gray-900">
+            ← Volver al inicio
+          </Link>
         </p>
+        <h1 className="font-heading mt-6 text-3xl font-bold text-gray-900">
+          Términos del servicio
+        </h1>
+        <p className="mt-2 text-sm text-gray-500">Última actualización: 2026-03-18</p>
 
-        <h2 className="pt-4 font-semibold text-gray-900">El servicio</h2>
-        <p>
-          Turneiro permite a negocios publicar servicios y disponibilidad, y a clientes reservar
-          turnos. El negocio es responsable de la prestación del servicio reservado.
+        <div className="prose prose-gray mt-8 max-w-none space-y-6 text-[15px] leading-relaxed">
+          <section>
+            <h2 className="font-heading text-xl font-semibold text-gray-900">1. Aceptación</h2>
+            <p className="mt-2">
+              Al usar <strong>Turneiro</strong> en <strong>turneiro.com</strong> y subdominios
+              aceptás estos términos.
+            </p>
+          </section>
+          <section>
+            <h2 className="font-heading text-xl font-semibold text-gray-900">2. Cuenta y uso</h2>
+            <p className="mt-2">
+              Debés brindar información veraz y sos responsable de tu cuenta y del inicio de sesión
+              con Google. No podés usar la plataforma para actividades ilegales o abusivas.
+            </p>
+          </section>
+          <section>
+            <h2 className="font-heading text-xl font-semibold text-gray-900">3. Turnos</h2>
+            <p className="mt-2">
+              Turneiro es una herramienta tecnológica; la relación entre negocio y cliente es entre
+              ellos.
+            </p>
+          </section>
+          <section>
+            <h2 className="font-heading text-xl font-semibold text-gray-900">4. Servicio</h2>
+            <p className="mt-2">
+              El servicio se brinda según disponibilidad y puede modificarse. Si tenés dudas o
+              consultas, contactanos a{" "}
+              <a href={`mailto:${CONTACT_EMAIL}`} className="underline">
+                {CONTACT_EMAIL}
+              </a>
+              .
+            </p>
+          </section>
+          <p className="mt-8 rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
+            <strong>Nota:</strong> plantilla general; revisá con un abogado.
+          </p>
+        </div>
+        <p className="mt-8 text-center text-sm text-gray-500">
+          <Link href="/privacy" className="underline hover:text-gray-800">
+            Política de privacidad
+          </Link>
         </p>
-
-        <h2 className="pt-4 font-semibold text-gray-900">Cuentas y uso</h2>
-        <ul className="list-disc pl-6 space-y-2">
-          <li>Debés brindar información veraz y mantener la confidencialidad de tu acceso.</li>
-          <li>No podés usar la plataforma para actividades ilegales o abusivas.</li>
-        </ul>
-
-        <h2 className="pt-4 font-semibold text-gray-900">Reservas, cambios y cancelaciones</h2>
-        <p>
-          Las políticas de cambios y cancelación pueden variar según el negocio. Turneiro puede
-          ofrecer herramientas para gestionar cancelaciones, pero no garantiza reembolsos ni
-          disponibilidad.
-        </p>
-
-        <h2 className="pt-4 font-semibold text-gray-900">Disponibilidad</h2>
-        <p>
-          El servicio se brinda &quot;tal cual&quot; y puede experimentar interrupciones. Hacemos esfuerzos
-          razonables para mantenerlo operativo.
-        </p>
-
-        <h2 className="pt-4 font-semibold text-gray-900">Limitación de responsabilidad</h2>
-        <p>
-          En la medida permitida por la ley, Turneiro no será responsable por daños indirectos,
-          pérdida de ganancias o disputas entre clientes y negocios.
-        </p>
-
-        <h2 className="pt-4 font-semibold text-gray-900">Contacto</h2>
-        <p>
-          Email:{" "}
-          <a className="underline underline-offset-4" href="mailto:turneiro.info@gmail.com">
-            turneiro.info@gmail.com
-          </a>
-        </p>
-      </section>
-
-      <div className="mt-10 flex items-center gap-4 text-sm text-gray-600">
-        <Link href="/" className="underline underline-offset-4 hover:text-gray-800">
-          Volver al inicio
-        </Link>
-        <span className="text-gray-300" aria-hidden>
-          |
-        </span>
-        <Link href="/privacy" className="underline underline-offset-4 hover:text-gray-800">
-          Ver política de privacidad
-        </Link>
-      </div>
+      </article>
     </main>
   );
 }
-

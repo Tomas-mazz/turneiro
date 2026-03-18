@@ -52,11 +52,12 @@ export default function Home() {
         ))}
       </div>
 
-      <footer className="mt-14 flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-sm text-gray-500">
-        <Link href="/privacy" className="hover:text-gray-700 underline underline-offset-4">
+      <footer className="mt-16 flex flex-wrap items-center justify-center gap-4 text-sm text-gray-500">
+        <Link href="/privacy" className="underline underline-offset-4 hover:text-gray-800">
           Política de privacidad
         </Link>
-        <Link href="/terms" className="hover:text-gray-700 underline underline-offset-4">
+        <span aria-hidden>·</span>
+        <Link href="/terms" className="underline underline-offset-4 hover:text-gray-800">
           Términos del servicio
         </Link>
       </footer>
