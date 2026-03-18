@@ -6,6 +6,8 @@ import type { AuthUser } from '@/lib/auth'
 import type { Business, ServiceOption } from '../types'
 import { BookingLayout } from './BookingLayout'
 import { BookingStepper } from './BookingStepper'
+import { ServiceAboutModal } from './ServiceAboutModal'
+// Confirm flow now happens inside ServiceAboutModal when enabled.
 
 const DAY_NAMES = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado']
 
@@ -67,6 +69,16 @@ export function ServiceStep({
   const cartCtaClass = isDarkTheme
     ? 'bg-white text-black hover:opacity-90'
     : 'border border-neutral-300 bg-white text-black hover:bg-neutral-50'
+  const [openServiceSubListId, setOpenServiceSubListId] = useState<string | null>(null)
+  const [activeServiceId, setActiveServiceId] = useState<string | null>(null)
+  const [aboutOpen, setAboutOpen] = useState(false)
+  const [aboutTarget, setAboutTarget] = useState<{
+      title: string
+      images: string[]
+      shortDescription?: string | null
+      description?: string | null
+    } | null>(null)
+
   const workingHoursByDay = (business.workingHours ?? []).reduce(
     (acc, wh) => {
       acc[wh.dayOfWeek] = wh
@@ -80,6 +92,54 @@ export function ServiceStep({
   useEffect(() => {
     if (selectedService) setIsClosing(false)
   }, [selectedService])
+
+  // Keep the "active" marker aligned with the last real selection
+  // unless the user is currently browsing a parent service with subservices.
+  useEffect(() => {
+    if (!selectedService) return
+    const parentId = selectedService.parentServiceId ?? null
+    const activeId = parentId ?? selectedService.id
+    setActiveServiceId(activeId)
+
+    // Ensure subservice panels reflect the current selection:
+    // - Selecting a leaf service closes any open subservice lists.
+    // - Selecting a subservice keeps its parent list open.
+    setOpenServiceSubListId(parentId)
+  }, [selectedService])
+
+  const openAboutForSelection = (sel: ServiceOption) => {
+    if (sel.parentServiceId) {
+      const parent = business.services.find((x) => x.id === sel.parentServiceId) ?? null
+      const sub = parent?.subServices?.find((x) => x.id === sel.id) ?? null
+      setAboutTarget({
+        title: sub?.name ?? sel.name,
+        images: sub?.images ?? [],
+        shortDescription: sub?.shortDescription ?? null,
+        description: sub?.description ?? null,
+      })
+    } else {
+      const svc = business.services.find((x) => x.id === sel.id) ?? null
+      setAboutTarget({
+        title: svc?.name ?? sel.name,
+        images: svc?.images ?? [],
+        shortDescription: svc?.shortDescription ?? null,
+        description: svc?.description ?? null,
+      })
+    }
+    setAboutOpen(true)
+  }
+
+  const handleAboutConfirm = () => {
+    const mustConfirm = !!business.settings?.showServiceConfirmModal
+    if (mustConfirm) {
+      setAboutOpen(false)
+      onContinue()
+      return
+    }
+    // Modo no obligatorio: el modal "Acerca" solo es informativo.
+    // Se cierra y el usuario continúa usando el botón "Continuar" del carrito.
+    setAboutOpen(false)
+  }
 
   const handleCloseCart = () => {
     setIsClosing(true)
@@ -104,6 +164,21 @@ export function ServiceStep({
       user={user}
       onLogout={onLogout}
     >
+      <ServiceAboutModal
+        open={aboutOpen}
+        title={aboutTarget?.title ?? ''}
+        images={aboutTarget?.images ?? []}
+        shortDescription={aboutTarget?.shortDescription ?? null}
+        description={aboutTarget?.description ?? null}
+        isDarkTheme={isDarkTheme}
+        primaryColor={primaryColor}
+        showConfirmButton={!!business.settings?.showServiceConfirmModal}
+        onClose={() => {
+          setAboutOpen(false)
+          setAboutTarget(null)
+        }}
+        onConfirm={handleAboutConfirm}
+      />
       <BookingStepper step="service" isDarkTheme={isDarkTheme} />
       <div className="flex max-w-4xl flex-col gap-8 md:max-w-4xl md:flex-row md:gap-10 lg:max-w-6xl lg:gap-12">
         {/* Left: services list */}
@@ -113,19 +188,48 @@ export function ServiceStep({
           </h2>
           <ul className={`divide-y ${isDarkTheme ? 'divide-neutral-600' : 'divide-neutral-300'}`}>
             {business.services.map((s) => {
-              const isSelected = selectedService?.id === s.id
+              const subServices = s.subServices ?? []
+              const hasSubServices = subServices.length > 0
+              const serviceSelected = !!selectedService && selectedService.parentServiceId === s.id
+              const directSelected = selectedService?.id === s.id && !selectedService?.parentServiceId
+              const isSubListOpen = openServiceSubListId === s.id || serviceSelected
+              const isActiveParent = activeServiceId === s.id
+              const serviceShort = s.shortDescription?.trim() || ''
+              const serviceLong = s.description?.trim() || ''
+              const serviceHasMoreDetails =
+                (Array.isArray(s.images) && s.images.length > 0) || !!serviceLong
+
               return (
-                <li key={s.id}>
+                <li key={s.id} className="py-1">
+                  {/* Parent service row */}
                   <button
                     type="button"
-                    onClick={() => onSelectService(s)}
-                    className={`flex w-full items-start gap-4 py-5 pl-1 pr-4 text-left transition-colors md:py-6 md:gap-5 ${serviceRowHover}`}
+                    onClick={() => {
+                      if (hasSubServices) {
+                        // Treat opening a parent list as the "active" service and
+                        // clear any previous selection so only the latest interaction stays marked.
+                        setActiveServiceId(s.id)
+                        setOpenServiceSubListId(s.id)
+                        onSelectService(null)
+                      } else {
+                        // Selecting a leaf service: close any open sublists and mark it active.
+                        setOpenServiceSubListId(null)
+                        setActiveServiceId(s.id)
+                        onSelectService({
+                          id: s.id,
+                          name: s.name,
+                          price: s.price,
+                          duration: s.duration,
+                        })
+                      }
+                    }}
+                    className={`flex w-full items-start gap-4 py-4 pl-1 pr-4 text-left transition-colors md:py-5 md:gap-5 ${serviceRowHover}`}
                   >
                     <span
                       className={`mt-1.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full border-2 ${bulletBorder}`}
                       aria-hidden
                     >
-                      {isSelected && (
+                      {(directSelected || serviceSelected || (hasSubServices && isSubListOpen) || isActiveParent) && (
                         <span className={`h-2 w-2 rounded-full ${bulletFill}`} />
                       )}
                     </span>
@@ -133,14 +237,151 @@ export function ServiceStep({
                       <span className={`text-base font-medium md:text-lg ${serviceNameColor}`}>
                         {s.name}
                       </span>
-                      <p className={`mt-1 text-sm md:text-base ${serviceMetaColor}`}>
-                        {s.duration} min
-                      </p>
+                      {/* If the service has subservices, we don't show duration/price here */}
+                      {!hasSubServices && (
+                        <p className={`mt-1 text-sm md:text-base ${serviceMetaColor}`}>
+                          {s.duration} min
+                        </p>
+                      )}
+                      {(serviceShort || serviceHasMoreDetails) && (
+                        <div className={`mt-2 text-xs md:text-sm ${serviceMetaColor}`}>
+                          {serviceShort && <span>{serviceShort}</span>}
+                          {serviceHasMoreDetails && (
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                const sel: ServiceOption = {
+                                  id: s.id,
+                                  name: s.name,
+                                  price: s.price,
+                                  duration: s.duration,
+                                }
+                                onSelectService(sel)
+                                openAboutForSelection(sel)
+                              }}
+                              className={`ml-2 inline-flex items-center rounded-md px-1.5 py-0.5 text-[11px] font-medium underline-offset-2 hover:underline ${
+                                isDarkTheme ? 'text-neutral-300' : 'text-neutral-800'
+                              }`}
+                              aria-label={`Acerca de ${s.name}`}
+                            >
+                              Acerca
+                            </button>
+                          )}
+                        </div>
+                      )}
                     </div>
-                    <span className={`ml-6 shrink-0 pr-2 text-base font-medium md:text-lg ${serviceNameColor}`}>
-                      $ {s.price.toFixed(0)}
-                    </span>
+                    {!hasSubServices && (
+                      <span
+                        className={`ml-6 shrink-0 pr-2 text-base font-medium md:text-lg ${serviceNameColor}`}
+                      >
+                        $ {s.price.toFixed(0)}
+                      </span>
+                    )}
+                    {hasSubServices && (
+                      <span
+                        className={`ml-4 mt-0.5 shrink-0 text-sm ${serviceMetaColor} transition-transform duration-200 ${
+                          isSubListOpen ? 'rotate-180' : 'rotate-0'
+                        }`}
+                        aria-hidden
+                      >
+                        ▼
+                      </span>
+                    )}
                   </button>
+
+                  {/* Subservices list */}
+                  {hasSubServices && (
+                    <div
+                      className={`ml-8 overflow-hidden transition-[max-height,opacity] duration-300 ease-out ${
+                        isSubListOpen ? 'max-h-[800px] opacity-100' : 'max-h-0 opacity-0'
+                      }`}
+                    >
+                      <ul className="mt-1 space-y-1 pb-1">
+                        {subServices.map((sub) => {
+                          const subShort = sub.shortDescription?.trim() || ''
+                          const subLong = sub.description?.trim() || ''
+                          const subHasMoreDetails =
+                            (Array.isArray(sub.images) && sub.images.length > 0) || !!subLong
+                          const isSelected =
+                            selectedService?.id === sub.id &&
+                            selectedService?.parentServiceId === s.id
+                          return (
+                            <li key={sub.id}>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  const sel: ServiceOption = {
+                                    id: sub.id,
+                                    name: `${s.name} - ${sub.name}`,
+                                    price: sub.price,
+                                    duration: sub.duration,
+                                    parentServiceId: s.id,
+                                    parentServiceName: s.name,
+                                  }
+                                  setOpenServiceSubListId(s.id)
+                                  setActiveServiceId(s.id)
+                                  onSelectService(sel)
+                                }}
+                                className={`flex w-full items-start gap-3 py-2 pr-4 text-left text-sm md:text-base ${serviceRowHover}`}
+                              >
+                                <span
+                                  className={`mt-1 flex h-4 w-4 shrink-0 items-center justify-center rounded-full border-2 ${bulletBorder}`}
+                                  aria-hidden
+                                >
+                                  {isSelected && (
+                                    <span className={`h-1.5 w-1.5 rounded-full ${bulletFill}`} />
+                                  )}
+                                </span>
+                                <div className="min-w-0 flex-1">
+                                  <span className={`${serviceNameColor}`}>{sub.name}</span>
+                                  <p className={`mt-0.5 text-xs md:text-sm ${serviceMetaColor}`}>
+                                    {sub.duration} min
+                                  </p>
+                                  {(subShort || subHasMoreDetails) && (
+                                    <div className={`mt-1 text-[11px] md:text-xs ${serviceMetaColor}`}>
+                                      {subShort && <span>{subShort}</span>}
+                                      {subHasMoreDetails && (
+                                        <button
+                                          type="button"
+                                          onClick={(e) => {
+                                            e.stopPropagation()
+                                            const sel: ServiceOption = {
+                                              id: sub.id,
+                                              name: `${s.name} - ${sub.name}`,
+                                              price: sub.price,
+                                              duration: sub.duration,
+                                              parentServiceId: s.id,
+                                              parentServiceName: s.name,
+                                            }
+                                            setOpenServiceSubListId(s.id)
+                                            setActiveServiceId(s.id)
+                                            onSelectService(sel)
+                                            openAboutForSelection(sel)
+                                          }}
+                                          className={`ml-2 inline-flex items-center rounded-md px-1.5 py-0.5 text-[11px] font-medium underline-offset-2 hover:underline ${
+                                            isDarkTheme ? 'text-neutral-300' : 'text-neutral-800'
+                                          }`}
+                                          aria-label={`Acerca de ${sub.name}`}
+                                        >
+                                          Acerca
+                                        </button>
+                                      )}
+                                    </div>
+                                  )}
+                                </div>
+                                <span
+                                  className={`ml-4 shrink-0 pr-1 text-sm font-medium md:text-base ${serviceNameColor}`}
+                                >
+                                  $ {sub.price.toFixed(0)}
+                                </span>
+                              </button>
+                            </li>
+                          )
+                        })}
+                      </ul>
+                    </div>
+                  )}
                 </li>
               )
             })}
@@ -262,7 +503,7 @@ export function ServiceStep({
       </div>
 
       {/* Cart bottom sheet — no overlay, side and bottom margins like reference */}
-      {selectedService && (
+      {selectedService && !aboutOpen && (
         <div
           className="fixed bottom-0 left-0 right-0 z-50 px-4 pb-6 md:px-6 md:pb-8 lg:px-10"
           role="dialog"

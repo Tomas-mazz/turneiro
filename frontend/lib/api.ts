@@ -11,6 +11,7 @@ import type {
   WorkingHoursItem,
   AdminAppointmentListItem,
   AdminEmployeeListItem,
+  SubServiceAdminItem,
 } from '@/types'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'
@@ -54,7 +55,15 @@ export async function getServices(): Promise<ServiceListItem[]> {
 
 export async function updateService(
   id: string,
-  body: { price?: number; duration?: number; isActive?: boolean }
+  body: {
+    name?: string
+    price?: number
+    duration?: number
+    isActive?: boolean
+    shortDescription?: string | null
+    description?: string | null
+    images?: string[]
+  }
 ): Promise<ServiceListItem> {
   const { data } = await api.patch<ServiceListItem>(`/services/${id}`, body)
   return data
@@ -165,11 +174,21 @@ export async function getAdminBusinessServices(businessId: string): Promise<Serv
   return data
 }
 
+export async function getAdminSubServices(
+  serviceId: string
+): Promise<SubServiceAdminItem[]> {
+  const { data } = await api.get<SubServiceAdminItem[]>(`/admin/services/${serviceId}/subservices`)
+  return data
+}
+
 export type CreateServiceAdminBody = {
   name: string
   price: number
   duration: number
   isActive?: boolean
+  shortDescription?: string | null
+  description?: string | null
+  images?: string[]
 }
 
 export type UpdateServiceAdminBody = {
@@ -177,6 +196,9 @@ export type UpdateServiceAdminBody = {
   price?: number
   duration?: number
   isActive?: boolean
+  shortDescription?: string | null
+  description?: string | null
+  images?: string[]
 }
 
 export async function createAdminService(
@@ -197,6 +219,52 @@ export async function updateAdminService(
 
 export async function deleteAdminService(serviceId: string): Promise<void> {
   await api.delete(`/admin/services/${serviceId}`)
+}
+
+export type CreateSubServiceAdminBody = {
+  name: string
+  price: number
+  duration: number
+  isActive?: boolean
+  shortDescription?: string | null
+  description?: string | null
+  images?: string[]
+}
+
+export type UpdateSubServiceAdminBody = {
+  name?: string
+  price?: number
+  duration?: number
+  isActive?: boolean
+  shortDescription?: string | null
+  description?: string | null
+  images?: string[]
+}
+
+export async function createAdminSubService(
+  serviceId: string,
+  body: CreateSubServiceAdminBody
+): Promise<SubServiceAdminItem> {
+  const { data } = await api.post<SubServiceAdminItem>(
+    `/admin/services/${serviceId}/subservices`,
+    body
+  )
+  return data
+}
+
+export async function updateAdminSubService(
+  subServiceId: string,
+  body: UpdateSubServiceAdminBody
+): Promise<SubServiceAdminItem> {
+  const { data } = await api.patch<SubServiceAdminItem>(
+    `/admin/subservices/${subServiceId}`,
+    body
+  )
+  return data
+}
+
+export async function deleteAdminSubService(subServiceId: string): Promise<void> {
+  await api.delete(`/admin/subservices/${subServiceId}`)
 }
 
 export async function getAdminWorkingHours(businessId: string): Promise<WorkingHoursItem[]> {
@@ -406,5 +474,21 @@ export async function updateBusinessImages(body: {
   coverVideoMobile?: string | null
 }): Promise<BusinessImages> {
   const { data } = await api.patch<BusinessImages>('/businesses/images', body)
+  return data
+}
+
+export type BusinessSettings = {
+  showServiceConfirmModal: boolean
+}
+
+export async function getBusinessSettings(): Promise<BusinessSettings> {
+  const { data } = await api.get<BusinessSettings>('/businesses/settings')
+  return data
+}
+
+export async function updateBusinessSettings(
+  body: Partial<BusinessSettings>
+): Promise<BusinessSettings> {
+  const { data } = await api.patch<BusinessSettings>('/businesses/settings', body)
   return data
 }

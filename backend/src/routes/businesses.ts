@@ -6,6 +6,8 @@ import {
   updateMyProfile,
   getBusinessImages,
   updateBusinessImages,
+  getBusinessSettings,
+  updateBusinessSettings,
 } from '../controllers/businesses.controller'
 import { requireBusinessOwner, requireOwnerOrAdminActing } from '../middleware/auth'
 import { requireBusinessContext } from '../middleware/businessContext'
@@ -19,6 +21,9 @@ router.patch('/profile', requireBusinessOwner, requireBusinessContext, updateMyP
 
 router.get('/images', requireOwnerOrAdminActing, requireBusinessContext, getBusinessImages)
 router.patch('/images', requireOwnerOrAdminActing, requireBusinessContext, updateBusinessImages)
+
+router.get('/settings', requireOwnerOrAdminActing, requireBusinessContext, getBusinessSettings)
+router.patch('/settings', requireOwnerOrAdminActing, requireBusinessContext, updateBusinessSettings)
 
 router.get('/:slug', getBusinessBySlug)
 

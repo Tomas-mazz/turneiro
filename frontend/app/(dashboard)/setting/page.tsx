@@ -10,6 +10,7 @@ import {
   getGoogleCalendarStatus,
   disconnectGoogleCalendar,
 } from '@/lib/api'
+import { panel } from '@/lib/panelTheme'
 
 const GOOGLE_CALENDAR_URL = 'https://calendar.google.com'
 
@@ -239,7 +240,7 @@ export default function SettingPage() {
             <Link
               key={card.id}
               href={card.href}
-              className="group flex h-full flex-col justify-between rounded-xl border border-neutral-200 bg-white p-4 shadow-sm transition hover:border-sky-200 hover:shadow-md"
+              className="group flex h-full flex-col justify-between rounded-xl border border-neutral-200 bg-white p-4 shadow-sm transition hover:border-neutral-400 hover:shadow-md"
             >
               <div>
                 <h3 className="text-base font-semibold text-neutral-900">
@@ -249,7 +250,7 @@ export default function SettingPage() {
                   {card.description}
                 </p>
               </div>
-              <span className="mt-3 inline-flex items-center text-sm font-medium text-sky-700 group-hover:text-sky-800">
+              <span className="mt-3 inline-flex items-center text-sm font-medium text-neutral-800 group-hover:text-neutral-950">
                 Ir a esta sección
                 <span aria-hidden className="ml-1">→</span>
               </span>

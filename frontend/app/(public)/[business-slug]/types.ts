@@ -20,10 +20,32 @@ export type Business = {
   phone: string | null
   email: string | null
   address: string | null
-  services: { id: string; name: string; price: number; duration: number }[]
+  services: {
+    id: string
+    name: string
+    price: number
+    duration: number
+    shortDescription?: string | null
+    description?: string | null
+    images?: string[]
+    subServices?: {
+      id: string
+      name: string
+      price: number
+      duration: number
+      shortDescription?: string | null
+      description?: string | null
+      images?: string[]
+    }[]
+  }[]
   workingHours: { dayOfWeek: number; startTime: string; endTime: string; isClosed: boolean }[]
   employees: Employee[]
-  settings: { paymentRequired: boolean; paymentType: string | null; depositPercentage: number | null } | null
+  settings: {
+    paymentRequired: boolean
+    paymentType: string | null
+    depositPercentage: number | null
+    showServiceConfirmModal?: boolean
+  } | null
 }
 
 export type Step = 'hero' | 'service' | 'date' | 'time' | 'form' | 'payment' | 'done'
@@ -33,6 +55,8 @@ export type ServiceOption = {
   name: string
   price: number
   duration: number
+  parentServiceId?: string
+  parentServiceName?: string
 }
 
 export type CreatedAppointment = {

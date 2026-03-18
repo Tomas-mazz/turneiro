@@ -3,6 +3,8 @@ import type {
   UpdateServiceInput,
   CreateServiceAdminInput,
   UpdateServiceAdminInput,
+  CreateSubServiceAdminInput,
+  UpdateSubServiceAdminInput,
 } from '../lib/schemas'
 
 export interface ServiceListItem {
@@ -11,6 +13,9 @@ export interface ServiceListItem {
   price: number
   duration: number
   isActive: boolean
+  shortDescription: string | null
+  description: string | null
+  images: string[]
 }
 
 export async function getServicesForBusinessService(
@@ -25,6 +30,9 @@ export async function getServicesForBusinessService(
       price: true,
       duration: true,
       isActive: true,
+      shortDescription: true,
+      description: true,
+      images: true,
     },
   })
   return services
@@ -34,6 +42,13 @@ export class ServiceNotFoundError extends Error {
   constructor(message: string = 'Servicio no encontrado') {
     super(message)
     this.name = 'ServiceNotFoundError'
+  }
+}
+
+export class SubServiceNotFoundError extends Error {
+  constructor(message: string = 'Subservicio no encontrado') {
+    super(message)
+    this.name = 'SubServiceNotFoundError'
   }
 }
 
@@ -51,9 +66,13 @@ export async function updateServicePriceAndDurationService(
   const updated = await prisma.service.update({
     where: { id: serviceId },
     data: {
+      ...(data.name !== undefined && { name: data.name.trim() }),
       ...(data.price !== undefined && { price: data.price }),
       ...(data.duration !== undefined && { duration: data.duration }),
       ...(data.isActive !== undefined && { isActive: data.isActive }),
+      ...(data.shortDescription !== undefined && { shortDescription: data.shortDescription ?? null }),
+      ...(data.description !== undefined && { description: data.description ?? null }),
+      ...(data.images !== undefined && { images: data.images }),
     },
     select: {
       id: true,
@@ -61,6 +80,9 @@ export async function updateServicePriceAndDurationService(
       price: true,
       duration: true,
       isActive: true,
+      shortDescription: true,
+      description: true,
+      images: true,
     },
   })
   return updated
@@ -77,6 +99,9 @@ export async function createServiceForAdmin(
       price: data.price,
       duration: data.duration,
       isActive: data.isActive ?? true,
+      shortDescription: data.shortDescription ?? null,
+      description: data.description ?? null,
+      images: data.images ?? [],
     },
     select: {
       id: true,
@@ -84,6 +109,9 @@ export async function createServiceForAdmin(
       price: true,
       duration: true,
       isActive: true,
+      shortDescription: true,
+      description: true,
+      images: true,
     },
   })
   return service
@@ -117,6 +145,9 @@ export async function updateServiceForAdmin(
       ...(data.price !== undefined && { price: data.price }),
       ...(data.duration !== undefined && { duration: data.duration }),
       ...(data.isActive !== undefined && { isActive: data.isActive }),
+      ...(data.shortDescription !== undefined && { shortDescription: data.shortDescription ?? null }),
+      ...(data.description !== undefined && { description: data.description ?? null }),
+      ...(data.images !== undefined && { images: data.images }),
     },
     select: {
       id: true,
@@ -124,6 +155,9 @@ export async function updateServiceForAdmin(
       price: true,
       duration: true,
       isActive: true,
+      shortDescription: true,
+      description: true,
+      images: true,
     },
   })
   return updated
@@ -156,5 +190,121 @@ export async function deleteServiceForBusiness(
   }
   await prisma.service.delete({
     where: { id: serviceId },
+  })
+}
+
+export interface SubServiceListItem {
+  id: string
+  name: string
+  price: number
+  duration: number
+  isActive: boolean
+  shortDescription: string | null
+  description: string | null
+  images: string[]
+}
+
+export async function getSubServicesForServiceAdmin(
+  serviceId: string
+): Promise<SubServiceListItem[]> {
+  const subServices = await prisma.subService.findMany({
+    where: { serviceId },
+    orderBy: { name: 'asc' },
+    select: {
+      id: true,
+      name: true,
+      price: true,
+      duration: true,
+      isActive: true,
+      shortDescription: true,
+      description: true,
+      images: true,
+    },
+  })
+  return subServices
+}
+
+export async function createSubServiceForAdmin(
+  serviceId: string,
+  data: CreateSubServiceAdminInput
+): Promise<SubServiceListItem> {
+  // Ensure parent service exists
+  const parent = await prisma.service.findUnique({
+    where: { id: serviceId },
+    select: { id: true },
+  })
+  if (!parent) {
+    throw new ServiceNotFoundError('Servicio padre no encontrado')
+  }
+
+  const sub = await prisma.subService.create({
+    data: {
+      serviceId,
+      name: data.name.trim(),
+      price: data.price,
+      duration: data.duration,
+      isActive: data.isActive ?? true,
+      shortDescription: data.shortDescription ?? null,
+      description: data.description ?? null,
+      images: data.images ?? [],
+    },
+    select: {
+      id: true,
+      name: true,
+      price: true,
+      duration: true,
+      isActive: true,
+      shortDescription: true,
+      description: true,
+      images: true,
+    },
+  })
+  return sub
+}
+
+export async function updateSubServiceForAdmin(
+  subServiceId: string,
+  data: UpdateSubServiceAdminInput
+): Promise<SubServiceListItem> {
+  const existing = await prisma.subService.findUnique({
+    where: { id: subServiceId },
+  })
+  if (!existing) {
+    throw new SubServiceNotFoundError('Subservicio no encontrado')
+  }
+  const updated = await prisma.subService.update({
+    where: { id: subServiceId },
+    data: {
+      ...(data.name !== undefined && { name: data.name.trim() }),
+      ...(data.price !== undefined && { price: data.price }),
+      ...(data.duration !== undefined && { duration: data.duration }),
+      ...(data.isActive !== undefined && { isActive: data.isActive }),
+      ...(data.shortDescription !== undefined && { shortDescription: data.shortDescription ?? null }),
+      ...(data.description !== undefined && { description: data.description ?? null }),
+      ...(data.images !== undefined && { images: data.images }),
+    },
+    select: {
+      id: true,
+      name: true,
+      price: true,
+      duration: true,
+      isActive: true,
+      shortDescription: true,
+      description: true,
+      images: true,
+    },
+  })
+  return updated
+}
+
+export async function deleteSubServiceForAdmin(subServiceId: string): Promise<void> {
+  const existing = await prisma.subService.findUnique({
+    where: { id: subServiceId },
+  })
+  if (!existing) {
+    throw new SubServiceNotFoundError('Subservicio no encontrado')
+  }
+  await prisma.subService.delete({
+    where: { id: subServiceId },
   })
 }

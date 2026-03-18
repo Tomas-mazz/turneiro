@@ -395,7 +395,7 @@ export default function AdminAppointmentsPage() {
                             apt.status === 'UPCOMING'
                               ? 'bg-emerald-50 text-emerald-800'
                               : apt.status === 'COMPLETED'
-                              ? 'bg-blue-50 text-blue-800'
+                              ? 'bg-neutral-200 text-neutral-800'
                               : 'bg-red-50 text-red-700'
                           }`}
                         >

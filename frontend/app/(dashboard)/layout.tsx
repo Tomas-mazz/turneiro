@@ -12,6 +12,7 @@ import {
 import { getMyBusiness } from '@/lib/api'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
 import { BusinessLogoProvider } from '@/lib/businessLogoContext'
+import { panel } from '@/lib/panelTheme'
 
 type DashboardRole = 'OWNER' | 'STAFF' | 'ADMIN_HYBRID' | null
 
@@ -133,18 +134,18 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
     }
 
   return (
-    <div className="flex h-screen bg-neutral-100">
-      <aside className="hidden w-72 shrink-0 flex-col bg-sky-700 text-sky-50 md:flex md:overflow-y-auto">
+    <div className={`flex h-screen ${panel.contentBg}`}>
+      <aside
+        className={`hidden w-72 shrink-0 flex-col ${panel.sidebarBg} text-white md:flex md:overflow-y-auto`}
+      >
         <div className="flex min-h-0 flex-1 flex-col gap-4 px-4 py-5">
           {isAdminHybrid && (
             <>
-              <div className="border-b border-sky-600 pb-3">
-                <p className="text-xs font-medium uppercase tracking-wide text-sky-200">
+              <div className={`border-b ${panel.navBorder} pb-3`}>
+                <p className={`text-xs font-medium uppercase tracking-wide ${panel.labelMuted}`}>
                   Turneiro (admin)
                 </p>
-                <p className="mt-1 text-xs text-sky-100">
-                  Panel global
-                </p>
+                <p className="mt-1 text-xs text-white/90">Panel global</p>
               </div>
               <nav className="space-y-1 text-sm">
                 {ADMIN_ITEMS.map((item) => {
@@ -155,9 +156,7 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
                       type="button"
                       onClick={handleAdminNavClick(item)}
                       className={`flex w-full items-center rounded-lg px-3 py-2 text-left transition-colors ${
-                        isActive
-                          ? 'bg-sky-500/90 text-white'
-                          : 'text-sky-100 hover:bg-sky-600/70 hover:text-white'
+                        isActive ? panel.navActive : panel.navInactive
                       }`}
                     >
                       <span className="text-sm font-medium">{item.label}</span>
@@ -168,15 +167,17 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
               <button
                 type="button"
                 onClick={handleAdminOnlyClick}
-                className="rounded-lg border border-sky-500/80 px-3 py-2 text-left text-xs font-medium text-sky-50 hover:bg-sky-600/50"
+                className={panel.outlineBtn}
               >
                 Ir solo a admin (sin tienda)
               </button>
-              <div className="my-2 border-t border-sky-500" role="separator" />
+              <div className={`my-2 border-t ${panel.navBorder}`} role="separator" />
             </>
           )}
-          <div className={isAdminHybrid ? 'border-b border-sky-600 pb-3' : 'border-b border-sky-600 pb-4'}>
-            <p className="text-xs font-medium uppercase tracking-wide text-sky-200">
+          <div
+            className={`border-b ${panel.navBorder} ${isAdminHybrid ? 'pb-3' : 'pb-4'}`}
+          >
+            <p className={`text-xs font-medium uppercase tracking-wide ${panel.labelMuted}`}>
               {isAdminHybrid ? 'Vista de la tienda' : 'Tu negocio'}
             </p>
             <p className="mt-1 text-sm font-semibold text-white line-clamp-2">
@@ -195,9 +196,7 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
                   type="button"
                   onClick={handleNavClick(item)}
                   className={`flex w-full items-center rounded-lg text-left transition-colors ${
-                    isActive
-                      ? 'bg-sky-500/90 text-white'
-                      : 'text-sky-100 hover:bg-sky-600/70 hover:text-white'
+                    isActive ? panel.navActive : panel.navInactive
                   } ${
                     item.id === 'block' && (role === 'OWNER' || role === 'ADMIN_HYBRID')
                       ? 'ml-4 px-2 py-1.5 text-xs'
@@ -210,14 +209,14 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
             })}
           </nav>
         </div>
-        <div className="shrink-0 border-t border-sky-600 px-4 py-4">
+        <div className={`shrink-0 border-t ${panel.navBorder} px-4 py-4`}>
           {businessSlug && (
             <Link
               href="/"
               onClick={(event) => {
                 event.stopPropagation()
               }}
-              className="inline-flex items-center gap-1.5 text-sm font-medium text-sky-50 hover:text-white"
+              className={`inline-flex items-center gap-1.5 text-sm font-medium ${panel.footerLink}`}
             >
               <span aria-hidden>←</span>
               Volver a la página principal
@@ -233,7 +232,9 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
           </BusinessLogoProvider>
         </div>
 
-        <nav className="fixed inset-x-0 bottom-0 z-20 border-t border-sky-800 bg-sky-700/95 px-3 py-3 shadow-[0_-4px_12px_rgba(15,23,42,0.35)] backdrop-blur md:hidden">
+        <nav
+          className={`fixed inset-x-0 bottom-0 z-20 px-3 pt-3 pb-[calc(env(safe-area-inset-bottom)+0.75rem)] backdrop-blur md:hidden ${panel.mobileBar}`}
+        >
           <div className="mx-auto flex max-w-md items-center justify-between gap-1">
             {items.slice(0, 2).map((item) => {
               const isActive =
@@ -245,8 +246,8 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
                   key={item.id}
                   type="button"
                   onClick={handleNavClick(item)}
-                  className={`flex flex-1 items-center justify-center rounded-md px-3 py-2 text-xs font-medium ${
-                    isActive ? 'text-white' : 'text-sky-100'
+                  className={`flex flex-1 items-center justify-center rounded-md px-3 py-2 text-xs font-medium text-white transition-colors ${
+                    isActive ? 'bg-white/10 font-semibold' : 'hover:bg-white/5'
                   }`}
                 >
                   <span className="truncate">
@@ -259,8 +260,8 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
             <button
               type="button"
               onClick={() => setIsMoreOpen((prev) => !prev)}
-              className={`flex flex-1 items-center justify-center gap-1 rounded-md px-3 py-2 text-xs font-medium ${
-                isMoreOpen ? 'text-white' : 'text-sky-100'
+              className={`flex flex-1 items-center justify-center gap-1 rounded-md px-3 py-2 text-xs font-medium text-white transition-colors ${
+                isMoreOpen ? 'bg-white/10 opacity-100' : 'opacity-95 hover:bg-white/5'
               }`}
             >
               <span className="truncate">Más</span>
@@ -272,71 +273,90 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
         </nav>
 
         {isMoreOpen && (
-          <div className="fixed inset-x-0 bottom-12 z-30 mx-auto max-h-[70vh] max-w-md overflow-y-auto px-3 pb-3 md:hidden">
-            <div className="overflow-hidden rounded-2xl border border-sky-600 bg-sky-700 shadow-xl">
-              <div className="px-4 py-2 text-xs font-semibold uppercase tracking-wide text-sky-100">
-                Más opciones
-              </div>
-              <div className="border-t border-sky-600">
-                {isAdminHybrid && (
-                  <>
-                    <div className="bg-sky-800/50 px-4 py-1.5 text-[0.65rem] font-semibold uppercase text-sky-200">
-                      Admin
-                    </div>
-                    {ADMIN_ITEMS.map((item) => (
+          <div className="fixed inset-0 z-30 md:hidden">
+            <button
+              type="button"
+              onClick={() => setIsMoreOpen(false)}
+              className="absolute inset-0 bg-black/40"
+              aria-label="Cerrar menú"
+            />
+            <div className="absolute inset-x-0 bottom-0 px-3 pb-[calc(env(safe-area-inset-bottom)+0.75rem)]">
+              <div className={`mx-auto max-w-md overflow-hidden ${panel.sheet}`}>
+                <div className="flex items-center justify-between gap-3 px-4 py-3">
+                  <div className="text-xs font-semibold uppercase tracking-wide text-white/90">
+                    Más opciones
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setIsMoreOpen(false)}
+                    className="rounded-md px-2 py-1 text-xs font-medium text-white/85 hover:bg-white/10"
+                  >
+                    Cerrar
+                  </button>
+                </div>
+                <div className={`border-t ${panel.navBorder} max-h-[70vh] overflow-y-auto`}>
+                  {isAdminHybrid && (
+                    <>
+                      <div
+                        className={`px-4 py-1.5 text-[0.65rem] font-semibold uppercase ${panel.sheetSection}`}
+                      >
+                        Admin
+                      </div>
+                      {ADMIN_ITEMS.map((item) => (
+                        <button
+                          key={item.id}
+                          type="button"
+                          onClick={handleAdminNavClick(item)}
+                          className={`flex w-full items-center justify-between px-4 py-3 text-left text-sm ${panel.sheetRowHover}`}
+                        >
+                          <span>{item.label}</span>
+                        </button>
+                      ))}
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setIsMoreOpen(false)
+                          handleAdminOnlyClick()
+                        }}
+                        className={`flex w-full border-t ${panel.navBorder} px-4 py-3 text-left text-sm ${panel.sheetRowHover}`}
+                      >
+                        Ir solo a admin
+                      </button>
+                      <div
+                        className={`px-4 py-1.5 text-[0.65rem] font-semibold uppercase ${panel.sheetSection}`}
+                      >
+                        Tienda
+                      </div>
+                    </>
+                  )}
+                  {items.map((item) => {
+                    const isActive =
+                      item.id === 'home'
+                        ? effectivePath === '/setting' || effectivePath === '/setting/'
+                        : effectivePath.startsWith(item.href)
+                    return (
                       <button
                         key={item.id}
                         type="button"
-                        onClick={handleAdminNavClick(item)}
-                        className="flex w-full items-center justify-between px-4 py-2.5 text-left text-sm text-sky-50 hover:bg-sky-600"
+                        onClick={handleNavClick(item)}
+                        className={`flex w-full items-center justify-between px-4 py-3 text-left text-sm ${
+                          isActive ? panel.sheetRowActive : panel.sheetRowHover
+                        }`}
                       >
                         <span>{item.label}</span>
                       </button>
-                    ))}
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setIsMoreOpen(false)
-                        handleAdminOnlyClick()
-                      }}
-                      className="flex w-full border-t border-sky-600 px-4 py-2.5 text-left text-sm text-sky-50 hover:bg-sky-600"
+                    )
+                  })}
+                  {businessSlug && (
+                    <Link
+                      href="/"
+                      onClick={() => setIsMoreOpen(false)}
+                      className={`flex w-full items-center justify-between border-t ${panel.navBorder} px-4 py-3 text-left text-sm ${panel.sheetRowHover}`}
                     >
-                      Ir solo a admin
-                    </button>
-                    <div className="bg-sky-800/50 px-4 py-1.5 text-[0.65rem] font-semibold uppercase text-sky-200">
-                      Tienda
-                    </div>
-                  </>
-                )}
-                {items.map((item) => {
-                  const isActive =
-                    item.id === 'home'
-                      ? effectivePath === '/setting' || effectivePath === '/setting/'
-                      : effectivePath.startsWith(item.href)
-                  return (
-                    <button
-                      key={item.id}
-                      type="button"
-                      onClick={handleNavClick(item)}
-                      className={`flex w-full items-center justify-between px-4 py-2.5 text-left text-sm ${
-                        isActive
-                          ? 'bg-sky-500 text-white'
-                          : 'text-sky-50 hover:bg-sky-600'
-                      }`}
-                    >
-                      <span>{item.label}</span>
-                    </button>
-                  )
-                })}
-                {businessSlug && (
-                  <Link
-                    href="/"
-                    onClick={() => setIsMoreOpen(false)}
-                    className="flex w-full items-center justify-between border-t border-sky-600 px-4 py-2.5 text-left text-sm text-sky-50 hover:bg-sky-600"
-                  >
-                    <span>Ir a la página principal</span>
-                  </Link>
-                )}
+                      <span>Ir a la página principal</span>
+                    </Link>
+                  )}
+                </div>
               </div>
             </div>
           </div>

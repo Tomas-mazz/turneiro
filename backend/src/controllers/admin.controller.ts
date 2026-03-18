@@ -11,6 +11,11 @@ import {
   updateServiceForAdmin,
   deleteServiceForAdmin,
   ServiceNotFoundError,
+  getSubServicesForServiceAdmin,
+  createSubServiceForAdmin,
+  updateSubServiceForAdmin,
+  deleteSubServiceForAdmin,
+  SubServiceNotFoundError,
 } from '../services/services.service'
 import {
   getWorkingHoursForBusiness,
@@ -44,6 +49,10 @@ import {
   adminUpdateAppointmentStatusSchema,
   createEmployeeAdminSchema,
   updateEmployeeAdminSchema,
+  createServiceAdminSchema,
+  updateServiceAdminSchema,
+  createSubServiceAdminSchema,
+  updateSubServiceAdminSchema,
 } from '../lib/schemas'
 import type { AuthRequest } from '../middleware/auth'
 import { getAdminBusinessIdOrRespond } from '../lib/requestGuards'
@@ -131,6 +140,7 @@ export async function updateBusiness(req: AuthRequest, res: Response, next: Next
       lateCancellationFee: body.lateCancellationFee,
       bufferTime: body.bufferTime,
       slotIntervalMinutes: body.slotIntervalMinutes,
+      showServiceConfirmModal: body.showServiceConfirmModal,
       ownerEmail: body.ownerEmail,
       ownerPassword: body.ownerPassword,
     })
@@ -166,13 +176,14 @@ export async function createService(req: AuthRequest, res: Response, next: NextF
   const businessId = getAdminBusinessIdOrRespond(req, res)
   if (businessId === undefined) return;
   try {
-    const body = req.body
-    const service = await createServiceForAdmin(businessId, {
-      name: body.name,
-      price: body.price,
-      duration: body.duration,
-      isActive: body.isActive,
-    })
+    const parsed = createServiceAdminSchema.safeParse(req.body)
+    if (!parsed.success) {
+      return res.status(400).json({
+        error: 'Error de validación',
+        details: (parsed.error as ZodError).errors,
+      })
+    }
+    const service = await createServiceForAdmin(businessId, parsed.data)
     res.status(201).json(service)
   } catch (err) {
     next(err)
@@ -186,13 +197,14 @@ export async function updateService(req: AuthRequest, res: Response, next: NextF
       res.status(400).json({ error: 'ID de servicio obligatorio' })
       return
     }
-    const body = req.body
-    const service = await updateServiceForAdmin(serviceId, {
-      name: body.name,
-      price: body.price,
-      duration: body.duration,
-      isActive: body.isActive,
-    })
+    const parsed = updateServiceAdminSchema.safeParse(req.body)
+    if (!parsed.success) {
+      return res.status(400).json({
+        error: 'Error de validación',
+        details: (parsed.error as ZodError).errors,
+      })
+    }
+    const service = await updateServiceForAdmin(serviceId, parsed.data)
     res.json(service)
   } catch (err) {
     if (err instanceof ServiceNotFoundError) {
@@ -214,6 +226,104 @@ export async function deleteService(req: AuthRequest, res: Response, next: NextF
     res.json({ ok: true })
   } catch (err) {
     if (err instanceof ServiceNotFoundError) {
+      res.status(404).json({ error: err.message })
+      return
+    }
+    next(err)
+  }
+}
+
+export async function getSubServices(
+  req: AuthRequest,
+  res: Response,
+  next: NextFunction
+) {
+  try {
+    const serviceId = req.params.serviceId
+    if (!serviceId) {
+      res.status(400).json({ error: 'ID de servicio obligatorio' })
+      return
+    }
+    const subServices = await getSubServicesForServiceAdmin(serviceId)
+    res.json(subServices)
+  } catch (err) {
+    next(err)
+  }
+}
+
+export async function createSubService(
+  req: AuthRequest,
+  res: Response,
+  next: NextFunction
+) {
+  try {
+    const serviceId = req.params.serviceId
+    if (!serviceId) {
+      res.status(400).json({ error: 'ID de servicio obligatorio' })
+      return
+    }
+    const parsed = createSubServiceAdminSchema.safeParse(req.body)
+    if (!parsed.success) {
+      return res.status(400).json({
+        error: 'Error de validación',
+        details: (parsed.error as ZodError).errors,
+      })
+    }
+    const sub = await createSubServiceForAdmin(serviceId, parsed.data)
+    res.status(201).json(sub)
+  } catch (err) {
+    if (err instanceof ServiceNotFoundError) {
+      res.status(404).json({ error: err.message })
+      return
+    }
+    next(err)
+  }
+}
+
+export async function updateSubService(
+  req: AuthRequest,
+  res: Response,
+  next: NextFunction
+) {
+  try {
+    const id = req.params.id
+    if (!id) {
+      res.status(400).json({ error: 'ID de subservicio obligatorio' })
+      return
+    }
+    const parsed = updateSubServiceAdminSchema.safeParse(req.body)
+    if (!parsed.success) {
+      return res.status(400).json({
+        error: 'Error de validación',
+        details: (parsed.error as ZodError).errors,
+      })
+    }
+    const sub = await updateSubServiceForAdmin(id, parsed.data)
+    res.json(sub)
+  } catch (err) {
+    if (err instanceof SubServiceNotFoundError) {
+      res.status(404).json({ error: err.message })
+      return
+    }
+    next(err)
+  }
+}
+
+export async function deleteSubService(
+  req: AuthRequest,
+  res: Response,
+  next: NextFunction
+) {
+  try {
+    const id = req.params.id
+    if (!id) {
+      res.status(400).json({ error: 'ID de subservicio obligatorio' })
+      return
+    }
+    await deleteSubServiceForAdmin(id)
+    res.status(204).send()
+  } catch (err) {
+    if (err instanceof SubServiceNotFoundError) {
       res.status(404).json({ error: err.message })
       return
     }

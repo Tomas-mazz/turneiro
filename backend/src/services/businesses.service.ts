@@ -37,6 +37,21 @@ export async function getBusinessBySlugService(slug: string) {
           name: true,
           price: true,
           duration: true,
+          shortDescription: true,
+          description: true,
+          images: true,
+          subServices: {
+            where: { isActive: true },
+            select: {
+              id: true,
+              name: true,
+              price: true,
+              duration: true,
+              shortDescription: true,
+              description: true,
+              images: true,
+            },
+          },
         },
       },
       workingHours: {
@@ -55,6 +70,7 @@ export async function getBusinessBySlugService(slug: string) {
           paymentRequired: true,
           paymentType: true,
           depositPercentage: true,
+          showServiceConfirmModal: true,
         },
       },
       employees: {
@@ -221,6 +237,7 @@ export async function getBusinessByIdForAdmin(
           lateCancellationFee: true,
           bufferTime: true,
           slotIntervalMinutes: true,
+          showServiceConfirmModal: true,
         },
       },
       users: {
@@ -391,6 +408,7 @@ export interface UpdateBusinessForAdminInput {
   lateCancellationFee?: number | null
   bufferTime?: number | null
   slotIntervalMinutes?: number
+  showServiceConfirmModal?: boolean
   ownerEmail?: string
   ownerPassword?: string
 }
@@ -453,7 +471,8 @@ export async function updateBusinessForAdmin(
       input.cancellationHasCost !== undefined ||
       input.lateCancellationFee !== undefined ||
       input.bufferTime !== undefined ||
-      input.slotIntervalMinutes !== undefined
+      input.slotIntervalMinutes !== undefined ||
+      input.showServiceConfirmModal !== undefined
 
     if (hasSettingsInput) {
       const existingSettings = existing.settings
@@ -485,6 +504,10 @@ export async function updateBusinessForAdmin(
         input.slotIntervalMinutes !== undefined
           ? input.slotIntervalMinutes
           : existingSettings?.slotIntervalMinutes ?? 15
+      const showServiceConfirmModal =
+        input.showServiceConfirmModal !== undefined
+          ? input.showServiceConfirmModal
+          : existingSettings?.showServiceConfirmModal ?? false
 
       await tx.businessSettings.upsert({
         where: { businessId },
@@ -499,6 +522,7 @@ export async function updateBusinessForAdmin(
           lateCancellationFee,
           bufferTime,
           slotIntervalMinutes,
+          showServiceConfirmModal,
         },
         update: {
           paymentRequired,
@@ -509,6 +533,7 @@ export async function updateBusinessForAdmin(
           lateCancellationFee,
           bufferTime,
           slotIntervalMinutes,
+          showServiceConfirmModal,
         },
       })
     }
@@ -633,4 +658,41 @@ export async function updateBusinessImagesService(
     },
   })
   return updated
+}
+
+export type BusinessSettings = {
+  showServiceConfirmModal: boolean
+}
+
+export async function getBusinessSettingsService(
+  businessId: string
+): Promise<BusinessSettings> {
+  const settings = await prisma.businessSettings.findUnique({
+    where: { businessId },
+    select: { showServiceConfirmModal: true },
+  })
+  return { showServiceConfirmModal: settings?.showServiceConfirmModal ?? false }
+}
+
+export async function updateBusinessSettingsService(
+  businessId: string,
+  input: Partial<BusinessSettings>
+): Promise<BusinessSettings> {
+  const updated = await prisma.businessSettings.upsert({
+    where: { businessId },
+    create: {
+      businessId,
+      // keep other settings defaults
+      paymentRequired: false,
+      requireRegistrationBeforePayment: true,
+      showServiceConfirmModal: input.showServiceConfirmModal ?? false,
+    },
+    update: {
+      ...(input.showServiceConfirmModal !== undefined && {
+        showServiceConfirmModal: input.showServiceConfirmModal,
+      }),
+    },
+    select: { showServiceConfirmModal: true },
+  })
+  return { showServiceConfirmModal: updated.showServiceConfirmModal }
 }
