@@ -20,7 +20,7 @@ export const metadata: Metadata = {
   title: 'Turneiro',
   description: 'Turneiro - plataforma de reservas',
   verification: {
-    google: 'YdT4JE6fpBkZ6lPs1e-d7LWYl87Ve1yY77JG5rLyPkw',
+    google: 'uSv3BhswGG0gLTYDKUe5o0VAgoGj5JeKgU4qSEB1sSo',
   },
   icons: {
     icon: '/logos/pngegg.png',
