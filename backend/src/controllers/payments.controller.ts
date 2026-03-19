@@ -3,7 +3,7 @@ import { prisma } from '../lib/prisma'
 import * as mercadopagoService from '../services/mercadopago.service'
 
 /**
- * Create payment preference (Mercado Pago)
+ * Create Mercado Pago preference for appointment payment
  */
 export async function createPaymentIntent(req: Request, res: Response) {
   try {
@@ -125,14 +125,8 @@ export async function confirmPayment(req: Request, res: Response) {
       return res.status(400).json({ error: 'Payment Intent ID no coincide' })
     }
 
-    // Verify payment status with provider
-    let paymentVerified = false
-
-    if (aptPaymentProvider === 'MERCADOPAGO') {
-      // For Mercado Pago, we rely on webhooks for confirmation
-      // This endpoint is more for client-side confirmation UI
-      paymentVerified = true
-    }
+    // For Mercado Pago we rely on webhooks for confirmation; this endpoint is for client-side UI
+    const paymentVerified = aptPaymentProvider === 'MERCADOPAGO'
 
     if (!paymentVerified) {
       return res.status(400).json({ error: 'Pago no verificado' })

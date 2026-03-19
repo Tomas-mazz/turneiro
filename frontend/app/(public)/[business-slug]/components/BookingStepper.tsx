@@ -12,6 +12,7 @@ const STEPS: { id: Step; label: string }[] = [
   { id: 'service', label: 'Servicio' },
   { id: 'date', label: 'Día y hora' },
   { id: 'form', label: 'Confirmar' },
+  { id: 'payment', label: 'Pago' },
 ]
 
 export function BookingStepper({ step, isDarkTheme = true, onStepChange }: BookingStepperProps) {

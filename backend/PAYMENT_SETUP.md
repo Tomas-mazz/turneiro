@@ -1,166 +1,82 @@
-# Payment Backend Setup
+# Payment Backend Setup (Mercado Pago)
 
-This document describes the payment backend implementation for Stripe and Mercado Pago.
+This document describes the payment backend implementation for Mercado Pago.
 
 ## What Was Implemented
 
-### 1. Prisma Schema Updates
-- Added payment fields to `Appointment` model:
-  - `paymentProvider` - STRIPE or MERCADOPAGO
-  - `paymentIntentId` - Stripe Payment Intent ID or Mercado Pago Preference ID
+### 1. Prisma Schema
+- Payment fields on `Appointment` model:
+  - `paymentProvider` - MERCADOPAGO
+  - `paymentIntentId` - Mercado Pago Preference ID
   - `paymentAmount` - Amount paid (deposit or full)
   - `refundAmount` - Amount refunded (if cancelled)
-  - Updated `paymentStatus` to include PARTIALLY_REFUNDED
+  - `paymentStatus` - PENDING, PAID, REFUNDED, PARTIALLY_REFUNDED
 
-### 2. Payment Services
-- **Stripe Service** (`src/services/stripe.service.ts`):
-  - `createPaymentIntent()` - Create payment intent with metadata
-  - `processRefund()` - Process full or partial refund
-  - `verifyWebhookSignature()` - Verify webhook signature
-  - `getPaymentIntent()` - Get payment intent details
-
-- **Mercado Pago Service** (`src/services/mercadopago.service.ts`):
-  - `createPreference()` - Create payment preference
-  - `processRefund()` - Process refund
-  - `verifyWebhookSignature()` - Verify webhook (basic implementation)
-  - `getPayment()` - Get payment details
+### 2. Mercado Pago Service (`src/services/mercadopago.service.ts`)
+- `createPreference()` - Create payment preference
+- `processRefund()` - Process refund
+- `verifyWebhookSignature()` - Verify webhook (basic implementation)
+- `getPayment()` - Get payment details
 
 ### 3. Payment Controller & Routes
 - **POST /api/payments/create-intent**
-  - Body: `{ appointmentId, provider }` (provider: STRIPE or MERCADOPAGO)
-  - Returns: `{ clientSecret, paymentIntentId, amount }` for Stripe or `{ preferenceId, initPoint, amount }` for Mercado Pago
+  - Body: `{ appointmentId, provider }` (provider: MERCADOPAGO)
+  - Returns: `{ preferenceId, initPoint, amount }`
   - Calculates payment amount based on BusinessSettings (percentage or full)
 
 - **POST /api/payments/confirm**
-  - Body: `{ appointmentId, paymentIntentId }`
-  - Verifies payment and updates appointment status to PAID
+  - Body: `{ appointmentId, paymentIntentId }` (paymentIntentId = preferenceId)
+  - Updates appointment status to PAID
 
-### 4. Webhook Handlers
-- **POST /api/webhooks/stripe**
-  - Handles: `payment_intent.succeeded`, `payment_intent.payment_failed`, `charge.refunded`
-  - Updates appointment paymentStatus automatically
-
+### 4. Webhook
 - **POST /api/webhooks/mercadopago**
   - Handles IPN notifications
-  - Updates appointment based on payment status
+  - Updates appointment based on payment status (approved, rejected, refunded)
 
 ### 5. Refund Logic
-- Added automatic refund processing to cancellation functions:
-  - `cancelAppointmentService()` - Client cancellation (within free window)
-  - `cancelAppointmentByOwnerService()` - Owner cancellation (always full refund)
-- Refunds are processed through the original payment provider
-- Appointment status updates to REFUNDED or PARTIALLY_REFUNDED
-
-### 6. Seed Updates
-- Updated `BusinessSettings` in seed with payment configuration:
-  - `paymentRequired: true`
-  - `paymentType: 'PERCENTAGE'`
-  - `depositPercentage: 10`
-  - `freeCancellationWindow: 24`
+- Refunds on cancellation (client within free window, or owner cancel) via Mercado Pago.
 
 ## Setup Instructions
 
 ### 1. Install Dependencies
-Already installed:
-- `stripe` (for Stripe integration)
-- `mercadopago` (for Mercado Pago integration)
+- `mercadopago` (backend)
 
 ### 2. Environment Variables
 Add to `backend/.env`:
 
 ```bash
-# Stripe
-STRIPE_SECRET_KEY="sk_test_..."
-STRIPE_WEBHOOK_SECRET="whsec_..."
-
 # Mercado Pago
 MERCADOPAGO_ACCESS_TOKEN="your-mercadopago-access-token"
 MERCADOPAGO_PUBLIC_KEY="your-mercadopago-public-key"
 MERCADOPAGO_WEBHOOK_SECRET="your-mercadopago-webhook-secret"
+MERCADOPAGO_WEBHOOK_ENABLED=false
 ```
 
-### 3. Run Database Migration
-```bash
-cd backend
-npx prisma migrate dev --name add_payment_fields
-```
+Frontend (`.env.local`): `NEXT_PUBLIC_MERCADOPAGO_PUBLIC_KEY`
 
-### 4. Reseed Database (Optional)
-```bash
-npm run db:seed
-```
+### 3. Testing Webhooks Locally
+Use ngrok to expose the backend, then set the webhook URL in Mercado Pago to `https://your-ngrok-url.ngrok.io/api/webhooks/mercadopago`
 
-## Testing Webhooks Locally
+## Mercado Pago Checkout Bricks (Requisitos previos)
 
-### Stripe
-Use Stripe CLI to forward webhooks:
-```bash
-stripe listen --forward-to http://localhost:3001/api/webhooks/stripe
-```
-This will give you a webhook secret to add to `.env`
+Ver [Requisitos previos - Mercado Pago](https://www.mercadopago.com.ar/developers/es/docs/checkout-bricks/prerequisites):
 
-### Mercado Pago
-Use ngrok or similar to expose local server:
-```bash
-ngrok http 3001
-```
-Then configure the webhook URL in Mercado Pago dashboard to `https://your-ngrok-url.ngrok.io/api/webhooks/mercadopago`
+| Requisito | Descripción |
+|-----------|-------------|
+| **Aplicación** | Crear una aplicación en [Tus integraciones](https://www.mercadopago.com.ar/developers/panel/app). |
+| **Cuenta de vendedor** | Mercado Pago o Mercado Libre. |
+| **Credenciales** | Public key (frontend) y Access Token (backend). |
+| **SDK** | Backend: `mercadopago`. Frontend: `@mercadopago/sdk-react`. |
 
-## Payment Flow
+### Flujo con Bricks
 
-1. **Client selects service and time** on public booking page
-2. **Client enters name and phone** (required before payment)
-3. **Frontend calls POST /api/payments/create-intent** with appointmentId and provider
-4. **Backend calculates payment amount** based on BusinessSettings
-5. **Backend creates payment intent/preference** and returns to frontend
-6. **Client completes payment** using Stripe Elements or Mercado Pago SDK
-7. **Webhook confirms payment** and updates appointment to PAID
-8. **Booking is confirmed** and notifications sent
-
-## Cancellation & Refund Flow
-
-### Client Cancellation (Within Free Window)
-1. Client clicks cancellation link
-2. System checks if within free cancellation window (24h by default)
-3. If yes: Process full refund automatically, update appointment to CANCELLED + REFUNDED
-4. If no: Show error, no cancellation allowed
-
-### Owner Cancellation
-1. Owner cancels from dashboard with mandatory reason
-2. System processes full refund automatically (business's responsibility)
-3. Appointment updated to CANCELLED + REFUNDED
-4. Client receives notification
-
-## API Endpoints Summary
-
-```
-POST /api/payments/create-intent
-  → Create payment intent (Stripe) or preference (Mercado Pago)
-
-POST /api/payments/confirm
-  → Confirm payment completion
-
-POST /api/webhooks/stripe
-  → Stripe webhook handler (payment events)
-
-POST /api/webhooks/mercadopago
-  → Mercado Pago webhook handler (IPN notifications)
-```
-
-## Next Steps (Frontend)
-
-To complete the payment integration, the frontend needs:
-
-1. Add `'payment'` step to booking flow (between `'form'` and `'done'`)
-2. Install Stripe Elements or Mercado Pago SDK
-3. Call `/api/payments/create-intent` after client enters their info
-4. Display payment UI (Stripe card element or Mercado Pago checkout)
-5. Handle payment confirmation and redirect to `'done'` step
+1. Usuario elige "Pagar con Mercado Pago" en el paso de pago.
+2. Frontend llama `POST /api/payments/create-intent` con `provider: 'MERCADOPAGO'`.
+3. Backend crea la preferencia y devuelve `preferenceId` y `amount`.
+4. Se muestra el Payment Brick en la misma página.
+5. Tras el pago, Mercado Pago redirige a las `back_urls` o el webhook actualiza el estado.
 
 ## Notes
 
-- All amounts are in the currency specified (USD for Stripe by default, ARS for Mercado Pago)
-- Stripe amounts are converted to cents internally
-- Refunds are processed asynchronously through webhooks
-- Failed refunds are logged but don't block cancellation (admin must handle manually)
-- Payment provider is stored per appointment for proper refund routing
+- Amounts in ARS (Mercado Pago).
+- Failed refunds are logged but do not block cancellation.

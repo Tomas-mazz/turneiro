@@ -11,7 +11,7 @@ type MercadoPagoPaymentLike = {
 
 /**
  * Mercado Pago webhook handler (IPN).
- * Disabled until HMAC verification is implemented. Set MERCADOPAGO_WEBHOOK_ENABLED=true to enable.
+ * Set MERCADOPAGO_WEBHOOK_ENABLED=true to enable.
  */
 export async function mercadopagoWebhook(req: Request, res: Response) {
   if (process.env.MERCADOPAGO_WEBHOOK_ENABLED !== 'true') {

@@ -18,7 +18,7 @@ Multi-tenant appointment booking platform for businesses (barbershops, salons, s
 - **Authentication**: JWT
 
 ### Integrations
-- **Payments**: Stripe + Mercado Pago
+- **Payments**: Mercado Pago
 - **Notifications**: Twilio WhatsApp API
 - **Calendar**: Google Calendar API
 
@@ -55,6 +55,7 @@ npm run install:all
    - Copy `frontend/.env.example` to `frontend/.env.local`
    - Copy `backend/.env.example` to `backend/.env`
    - Configure your database and API keys
+   - For **Mercado Pago** (Checkout Bricks): add `NEXT_PUBLIC_MERCADOPAGO_PUBLIC_KEY` in frontend and `MERCADOPAGO_ACCESS_TOKEN` / `MERCADOPAGO_PUBLIC_KEY` in backend. See [backend/PAYMENT_SETUP.md](backend/PAYMENT_SETUP.md).
 
 4. Set up database:
 ```bash

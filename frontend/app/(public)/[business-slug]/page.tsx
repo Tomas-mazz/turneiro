@@ -61,9 +61,12 @@ export default function BusinessBookingPage() {
   const [submitLoading, setSubmitLoading] = useState(false)
   const [submitError, setSubmitError] = useState<string | null>(null)
   const [createdAppointment, setCreatedAppointment] = useState<CreatedAppointment | null>(null)
+  const [paymentIntentId, setPaymentIntentId] = useState<string | null>(null)
   const [paymentAmount, setPaymentAmount] = useState<number | null>(null)
   const [paymentLoading, setPaymentLoading] = useState(false)
   const [paymentError, setPaymentError] = useState<string | null>(null)
+  const [paymentProvider, setPaymentProvider] = useState<'MERCADOPAGO' | null>(null)
+  const [mercadoPagoPreferenceId, setMercadoPagoPreferenceId] = useState<string | null>(null)
   const [themeMode, setThemeMode] = useState<ThemeMode>('DARK')
   const [isLoginOpen, setIsLoginOpen] = useState(false)
   const [user, setUser] = useState(() => (typeof window !== 'undefined' ? getAuthUser() : null))
@@ -449,9 +452,10 @@ export default function BusinessBookingPage() {
       })
       .then((res) => {
         setCreatedAppointment(res.data)
-        // For now, always finalize the booking immediately after creating
-        // the appointment and show the confirmation screen. The payment
-        // step remains available separately when needed.
+        if (business.settings?.paymentRequired) {
+          // Quedamos en 'form': se muestra "Reserva creada" + botón "Continuar al pago" (Mercado Pago)
+          return
+        }
         goToStep('done')
       })
       .catch((err) => {
@@ -487,7 +491,10 @@ export default function BusinessBookingPage() {
           businessSlug: slug,
         }
         sessionStorage.setItem('mp_booking', JSON.stringify(storage))
-        window.location.href = res.data.initPoint
+        setPaymentProvider('MERCADOPAGO')
+        setPaymentIntentId(res.data.preferenceId)
+        setPaymentAmount(res.data.amount)
+        setMercadoPagoPreferenceId(res.data.preferenceId)
       })
       .catch((err) => {
         const status = err.response?.status
@@ -500,6 +507,13 @@ export default function BusinessBookingPage() {
         )
       })
       .finally(() => setPaymentLoading(false))
+  }
+
+  const handleMercadoPagoBack = () => {
+    setMercadoPagoPreferenceId(null)
+    setPaymentProvider(null)
+    setPaymentIntentId(null)
+    setPaymentAmount(null)
   }
 
   const primaryColor = business?.primaryColor || '#f5f5f5'
@@ -684,16 +698,30 @@ export default function BusinessBookingPage() {
         createdAppointment &&
         selectedService &&
         selectedDate &&
-        selectedSlot && (
+        selectedSlot &&
+        business && (
           <PaymentStep
+            businessName={business.name}
+            logo={business.logo}
             createdAppointment={createdAppointment}
             selectedDate={selectedDate}
             selectedSlot={selectedSlot}
             paymentAmount={paymentAmount}
             paymentError={paymentError}
+            mercadoPagoPreferenceId={mercadoPagoPreferenceId}
             paymentLoading={paymentLoading}
             onMercadoPagoIntent={handleCreateMercadoPagoIntent}
+            onPaymentError={setPaymentError}
+            onMercadoPagoBack={handleMercadoPagoBack}
             onBack={handleBack}
+            onGoToServices={() => goToStep('service')}
+            primaryColor={primaryColor}
+            isDarkTheme={isDarkTheme}
+            onToggleTheme={() => setThemeMode((prev) => (prev === 'DARK' ? 'LIGHT' : 'DARK'))}
+            onOpenLogin={handleOpenLogin}
+            onOpenRegister={() => router.push('/register')}
+            user={user}
+            onLogout={handleLogout}
           />
         )}
 
