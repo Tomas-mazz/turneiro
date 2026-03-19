@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useState, useCallback } from 'react'
+import { useEffect, useMemo, useState, useCallback, useRef } from 'react'
 import { useParams, usePathname, useRouter } from 'next/navigation'
 import { api } from '@/lib/api'
 import {
@@ -67,6 +67,10 @@ export default function BusinessBookingPage() {
   const [paymentError, setPaymentError] = useState<string | null>(null)
   const [paymentProvider, setPaymentProvider] = useState<'MERCADOPAGO' | null>(null)
   const [mercadoPagoPreferenceId, setMercadoPagoPreferenceId] = useState<string | null>(null)
+  const [mercadoPagoRedirectMode, setMercadoPagoRedirectMode] = useState<
+    'idle' | 'redirecting' | 'fallback'
+  >('idle')
+  const mpFallbackTimerRef = useRef<number | null>(null)
   const [themeMode, setThemeMode] = useState<ThemeMode>('DARK')
   const [isLoginOpen, setIsLoginOpen] = useState(false)
   const [user, setUser] = useState(() => (typeof window !== 'undefined' ? getAuthUser() : null))
@@ -74,6 +78,15 @@ export default function BusinessBookingPage() {
 
   useEffect(() => {
     setUser(getAuthUser())
+  }, [])
+
+  useEffect(() => {
+    return () => {
+      if (mpFallbackTimerRef.current != null) {
+        window.clearTimeout(mpFallbackTimerRef.current)
+        mpFallbackTimerRef.current = null
+      }
+    }
   }, [])
 
   const handleLogout = () => {
@@ -511,6 +524,30 @@ export default function BusinessBookingPage() {
         setPaymentIntentId(res.data.preferenceId)
         setPaymentAmount(res.data.amount)
         setMercadoPagoPreferenceId(res.data.preferenceId)
+
+        // Prefer Mercado Pago redirect/checkout (hosted), so the user selects/uses
+        // their cards/medium inside MP (not on our page). If it fails to redirect,
+        // we fall back to the embedded Brick.
+        if (typeof window === 'undefined' || !res.data.initPoint) {
+          setMercadoPagoRedirectMode('fallback')
+          return
+        }
+
+        setMercadoPagoRedirectMode('redirecting')
+        if (mpFallbackTimerRef.current != null) {
+          window.clearTimeout(mpFallbackTimerRef.current)
+        }
+        mpFallbackTimerRef.current = window.setTimeout(() => {
+          // If we stayed on this page after a short delay, redirect likely didn't happen.
+          setMercadoPagoRedirectMode('fallback')
+        }, 2500)
+
+        try {
+          window.location.href = res.data.initPoint
+        } catch {
+          // If setting location throws for any reason, show embedded payment.
+          setMercadoPagoRedirectMode('fallback')
+        }
       })
       .catch((err) => {
         const status = err.response?.status
@@ -521,6 +558,7 @@ export default function BusinessBookingPage() {
             ? 'No se pudo iniciar el pago. Por favor intentá de nuevo.'
             : (msg || 'No se pudo iniciar el pago')
         )
+        setMercadoPagoRedirectMode('idle')
       })
       .finally(() => setPaymentLoading(false))
   }
@@ -540,7 +578,21 @@ export default function BusinessBookingPage() {
     setPaymentProvider(null)
     setPaymentIntentId(null)
     setPaymentAmount(null)
+    setMercadoPagoRedirectMode('idle')
+    if (mpFallbackTimerRef.current != null) {
+      window.clearTimeout(mpFallbackTimerRef.current)
+      mpFallbackTimerRef.current = null
+    }
     goToStep('date')
+  }
+
+  const handleForceMercadoPagoBrick = () => {
+    if (!mercadoPagoPreferenceId) return
+    setMercadoPagoRedirectMode('fallback')
+    if (mpFallbackTimerRef.current != null) {
+      window.clearTimeout(mpFallbackTimerRef.current)
+      mpFallbackTimerRef.current = null
+    }
   }
 
   const primaryColor = business?.primaryColor || '#f5f5f5'
@@ -745,10 +797,12 @@ export default function BusinessBookingPage() {
             paymentError={paymentError}
             mercadoPagoPreferenceId={mercadoPagoPreferenceId}
             mercadoPagoPublicKey={business.settings?.mercadoPagoPublicKey ?? null}
+            mercadoPagoRedirectMode={mercadoPagoRedirectMode}
             paymentLoading={paymentLoading}
             onMercadoPagoIntent={handleCreateMercadoPagoIntent}
             onPaymentError={setPaymentError}
             onMercadoPagoBack={handleCancelPendingAndBack}
+            onForceMercadoPagoBrick={handleForceMercadoPagoBrick}
             onBack={handleCancelPendingAndBack}
             onGoToServices={() => goToStep('service')}
             showPaymentStep={showPaymentStep}

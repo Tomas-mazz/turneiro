@@ -18,10 +18,13 @@ type PaymentStepProps = {
   /** When set, show Mercado Pago Checkout Brick in-page */
   mercadoPagoPreferenceId: string | null
   mercadoPagoPublicKey: string | null
+  /** Where we are in the MP flow: redirect first, then fallback to brick if needed */
+  mercadoPagoRedirectMode?: 'idle' | 'redirecting' | 'fallback'
   paymentLoading: boolean
   onMercadoPagoIntent: () => void
   onPaymentError: (msg: string) => void
   onMercadoPagoBack?: () => void
+  onForceMercadoPagoBrick?: () => void
   onBack?: () => void
   onGoToServices: () => void
   showPaymentStep?: boolean
@@ -44,10 +47,12 @@ export function PaymentStep({
   paymentError,
   mercadoPagoPreferenceId,
   mercadoPagoPublicKey,
+  mercadoPagoRedirectMode = 'idle',
   paymentLoading,
   onMercadoPagoIntent,
   onPaymentError,
   onMercadoPagoBack,
+  onForceMercadoPagoBrick,
   onBack,
   onGoToServices,
   showPaymentStep = false,
@@ -59,8 +64,10 @@ export function PaymentStep({
   user = null,
   onLogout,
 }: PaymentStepProps) {
-  const showMethodButtons = !mercadoPagoPreferenceId
-  const showMercadoPagoBrick = mercadoPagoPreferenceId && paymentAmount != null
+  const showMethodButtons = mercadoPagoRedirectMode === 'idle'
+  const showMercadoPagoBrick =
+    mercadoPagoRedirectMode === 'fallback' && mercadoPagoPreferenceId && paymentAmount != null
+  const showRedirecting = mercadoPagoRedirectMode === 'redirecting'
 
   const titleText = isDarkTheme ? 'text-white' : 'text-neutral-800'
   const subText = isDarkTheme ? 'text-neutral-400' : 'text-neutral-600'
@@ -160,6 +167,24 @@ export function PaymentStep({
             {onBack && (
               <button type="button" onClick={onBack} className={secondaryBtnClass}>
                 Volver
+              </button>
+            )}
+          </div>
+        )}
+
+        {showRedirecting && (
+          <div className="mb-6 rounded-2xl px-4 py-4 shadow-sm border border-neutral-700/50 bg-neutral-900/20">
+            <p className="text-sm font-medium text-neutral-100">Abriendo Mercado Pago...</p>
+            <p className="mt-1 text-xs text-neutral-400">
+              Si no se abre automáticamente, podés pagar con tarjeta en esta página.
+            </p>
+            {onForceMercadoPagoBrick && (
+              <button
+                type="button"
+                onClick={onForceMercadoPagoBrick}
+                className="mt-3 w-full rounded-lg bg-neutral-800 py-2.5 text-sm font-medium text-white hover:bg-neutral-700"
+              >
+                Pagar con tarjeta en esta página
               </button>
             )}
           </div>
