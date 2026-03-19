@@ -17,6 +17,9 @@ export const createAppointmentSchema = z.object({
   // Optional for backwards compatibility; when multi-employee is enabled,
   // frontend must send the selected employee id.
   employeeId: z.string().cuid().optional().nullable(),
+  // When true, appointment is created but confirmation side-effects (email/calendar)
+  // are deferred until payment is confirmed.
+  deferConfirmationUntilPayment: z.boolean().optional(),
 })
 
 export type CreateAppointmentInput = z.infer<typeof createAppointmentSchema>
@@ -231,8 +234,12 @@ export const updateBusinessSchema = z.object({
   coverVideoMobile: optionalUrl.optional().nullable(),
   theme: z.enum(['DARK', 'LIGHT']).optional(),
   paymentRequired: z.boolean().optional(),
+  paymentOptionalEnabled: z.boolean().optional(),
   paymentType: z.enum(['PERCENTAGE', 'FULL']).optional(),
   depositPercentage: z.number().min(1, 'Mínimo 1%').max(100, 'Máximo 100%').optional().nullable(),
+  mercadoPagoPublicKey: z.string().max(255).optional().nullable(),
+  mercadoPagoAccessToken: z.string().max(500).optional().nullable(),
+  mercadoPagoWebhookSecret: z.string().max(500).optional().nullable(),
   freeCancellationWindow: z.number().int().min(0, 'Mínimo 0 horas').optional().nullable(),
   cancellationHasCost: z.boolean().optional(),
   lateCancellationFee: z.number().min(0, 'Mínimo 0%').max(100, 'Máximo 100%').optional().nullable(),

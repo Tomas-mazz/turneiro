@@ -68,8 +68,10 @@ export async function getBusinessBySlugService(slug: string) {
       settings: {
         select: {
           paymentRequired: true,
+          paymentOptionalEnabled: true,
           paymentType: true,
           depositPercentage: true,
+          mercadoPagoPublicKey: true,
           showServiceConfirmModal: true,
         },
       },
@@ -158,8 +160,12 @@ export interface AdminBusinessDetail {
   updatedAt: string
   settings: {
     paymentRequired: boolean
+    paymentOptionalEnabled: boolean
     paymentType: string | null
     depositPercentage: number | null
+    mercadoPagoPublicKey: string | null
+    mercadoPagoAccessToken: string | null
+    mercadoPagoWebhookSecret: string | null
     freeCancellationWindow: number | null
     cancellationHasCost: boolean
     lateCancellationFee: number | null
@@ -190,8 +196,12 @@ type BusinessByIdAdminRow = {
   updatedAt: Date
   settings: {
     paymentRequired: boolean
+    paymentOptionalEnabled: boolean
     paymentType: string | null
     depositPercentage: number | null
+    mercadoPagoPublicKey: string | null
+    mercadoPagoAccessToken: string | null
+    mercadoPagoWebhookSecret: string | null
     freeCancellationWindow: number | null
     cancellationHasCost: boolean
     lateCancellationFee: number | null
@@ -230,8 +240,12 @@ export async function getBusinessByIdForAdmin(
       settings: {
         select: {
           paymentRequired: true,
+          paymentOptionalEnabled: true,
           paymentType: true,
           depositPercentage: true,
+          mercadoPagoPublicKey: true,
+          mercadoPagoAccessToken: true,
+          mercadoPagoWebhookSecret: true,
           freeCancellationWindow: true,
           cancellationHasCost: true,
           lateCancellationFee: true,
@@ -332,6 +346,7 @@ export async function createBusinessForAdmin(
       data: {
         businessId: b.id,
         paymentRequired: input.paymentRequired,
+        paymentOptionalEnabled: false,
         paymentType: input.paymentRequired ? 'FULL' : null,
         depositPercentage: null,
         requireRegistrationBeforePayment: true,
@@ -401,8 +416,12 @@ export interface UpdateBusinessForAdminInput {
   coverVideoMobile?: string | null
   theme?: 'DARK' | 'LIGHT'
   paymentRequired?: boolean
+  paymentOptionalEnabled?: boolean
   paymentType?: 'PERCENTAGE' | 'FULL'
   depositPercentage?: number | null
+  mercadoPagoPublicKey?: string | null
+  mercadoPagoAccessToken?: string | null
+  mercadoPagoWebhookSecret?: string | null
   freeCancellationWindow?: number | null
   cancellationHasCost?: boolean
   lateCancellationFee?: number | null
@@ -465,8 +484,12 @@ export async function updateBusinessForAdmin(
 
     const hasSettingsInput =
       input.paymentRequired !== undefined ||
+      input.paymentOptionalEnabled !== undefined ||
       input.paymentType !== undefined ||
       input.depositPercentage !== undefined ||
+      input.mercadoPagoPublicKey !== undefined ||
+      input.mercadoPagoAccessToken !== undefined ||
+      input.mercadoPagoWebhookSecret !== undefined ||
       input.freeCancellationWindow !== undefined ||
       input.cancellationHasCost !== undefined ||
       input.lateCancellationFee !== undefined ||
@@ -478,6 +501,8 @@ export async function updateBusinessForAdmin(
       const existingSettings = existing.settings
       const paymentRequired =
         input.paymentRequired ?? existingSettings?.paymentRequired ?? false
+      const paymentOptionalEnabled =
+        input.paymentOptionalEnabled ?? existingSettings?.paymentOptionalEnabled ?? false
       const paymentType =
         input.paymentType ??
         existingSettings?.paymentType ??
@@ -486,6 +511,24 @@ export async function updateBusinessForAdmin(
         input.depositPercentage !== undefined
           ? input.depositPercentage
           : existingSettings?.depositPercentage ?? null
+      const mercadoPagoPublicKey =
+        input.mercadoPagoPublicKey !== undefined
+          ? input.mercadoPagoPublicKey && input.mercadoPagoPublicKey.trim()
+            ? input.mercadoPagoPublicKey.trim()
+            : null
+          : existingSettings?.mercadoPagoPublicKey ?? null
+      const mercadoPagoAccessToken =
+        input.mercadoPagoAccessToken !== undefined
+          ? input.mercadoPagoAccessToken && input.mercadoPagoAccessToken.trim()
+            ? input.mercadoPagoAccessToken.trim()
+            : null
+          : existingSettings?.mercadoPagoAccessToken ?? null
+      const mercadoPagoWebhookSecret =
+        input.mercadoPagoWebhookSecret !== undefined
+          ? input.mercadoPagoWebhookSecret && input.mercadoPagoWebhookSecret.trim()
+            ? input.mercadoPagoWebhookSecret.trim()
+            : null
+          : existingSettings?.mercadoPagoWebhookSecret ?? null
       const freeCancellationWindow =
         input.freeCancellationWindow !== undefined
           ? input.freeCancellationWindow
@@ -508,14 +551,25 @@ export async function updateBusinessForAdmin(
         input.showServiceConfirmModal !== undefined
           ? input.showServiceConfirmModal
           : existingSettings?.showServiceConfirmModal ?? false
+      const normalizedPaymentType = paymentRequired
+        ? paymentType
+        : paymentOptionalEnabled
+          ? 'FULL'
+          : null
+      const normalizedDepositPercentage =
+        paymentRequired && normalizedPaymentType === 'PERCENTAGE' ? depositPercentage : null
 
       await tx.businessSettings.upsert({
         where: { businessId },
         create: {
           businessId,
           paymentRequired,
-          paymentType: paymentRequired ? paymentType : null,
-          depositPercentage: paymentType === 'PERCENTAGE' ? depositPercentage : null,
+          paymentOptionalEnabled,
+          paymentType: normalizedPaymentType,
+          depositPercentage: normalizedDepositPercentage,
+          mercadoPagoPublicKey,
+          mercadoPagoAccessToken,
+          mercadoPagoWebhookSecret,
           requireRegistrationBeforePayment: true,
           freeCancellationWindow,
           cancellationHasCost,
@@ -526,8 +580,12 @@ export async function updateBusinessForAdmin(
         },
         update: {
           paymentRequired,
-          paymentType: paymentRequired ? paymentType : null,
-          depositPercentage: paymentType === 'PERCENTAGE' ? depositPercentage : null,
+          paymentOptionalEnabled,
+          paymentType: normalizedPaymentType,
+          depositPercentage: normalizedDepositPercentage,
+          mercadoPagoPublicKey,
+          mercadoPagoAccessToken,
+          mercadoPagoWebhookSecret,
           freeCancellationWindow,
           cancellationHasCost,
           lateCancellationFee,
@@ -661,7 +719,20 @@ export async function updateBusinessImagesService(
 }
 
 export type BusinessSettings = {
+  paymentRequired: boolean
+  paymentOptionalEnabled: boolean
+  paymentType: 'PERCENTAGE' | 'FULL' | null
+  depositPercentage: number | null
+  mercadoPagoPublicKey: string | null
+  hasMercadoPagoAccessToken: boolean
+  mercadoPagoWebhookSecret: string | null
   showServiceConfirmModal: boolean
+}
+
+export type UpdateBusinessSettingsInput = Partial<
+  Omit<BusinessSettings, 'hasMercadoPagoAccessToken'>
+> & {
+  mercadoPagoAccessToken?: string | null
 }
 
 export async function getBusinessSettingsService(
@@ -669,30 +740,116 @@ export async function getBusinessSettingsService(
 ): Promise<BusinessSettings> {
   const settings = await prisma.businessSettings.findUnique({
     where: { businessId },
-    select: { showServiceConfirmModal: true },
+    select: {
+      paymentRequired: true,
+      paymentOptionalEnabled: true,
+      paymentType: true,
+      depositPercentage: true,
+      mercadoPagoPublicKey: true,
+      mercadoPagoAccessToken: true,
+      mercadoPagoWebhookSecret: true,
+      showServiceConfirmModal: true,
+    },
   })
-  return { showServiceConfirmModal: settings?.showServiceConfirmModal ?? false }
+  return {
+    paymentRequired: settings?.paymentRequired ?? false,
+    paymentOptionalEnabled: settings?.paymentOptionalEnabled ?? false,
+    paymentType:
+      (settings?.paymentType as 'PERCENTAGE' | 'FULL' | null | undefined) ?? null,
+    depositPercentage: settings?.depositPercentage ?? null,
+    mercadoPagoPublicKey: settings?.mercadoPagoPublicKey ?? null,
+    hasMercadoPagoAccessToken: !!settings?.mercadoPagoAccessToken,
+    mercadoPagoWebhookSecret: settings?.mercadoPagoWebhookSecret ?? null,
+    showServiceConfirmModal: settings?.showServiceConfirmModal ?? false,
+  }
 }
 
 export async function updateBusinessSettingsService(
   businessId: string,
-  input: Partial<BusinessSettings>
+  input: UpdateBusinessSettingsInput
 ): Promise<BusinessSettings> {
+  const existing = await prisma.businessSettings.findUnique({
+    where: { businessId },
+    select: {
+      paymentRequired: true,
+      paymentOptionalEnabled: true,
+      paymentType: true,
+      depositPercentage: true,
+    },
+  })
+  const paymentRequired = input.paymentRequired ?? existing?.paymentRequired ?? false
+  const paymentOptionalEnabled =
+    input.paymentOptionalEnabled ?? existing?.paymentOptionalEnabled ?? false
+  const paymentType =
+    (input.paymentType ?? existing?.paymentType ?? null) as 'PERCENTAGE' | 'FULL' | null
+  const normalizedPaymentType = paymentRequired
+    ? paymentType ?? 'FULL'
+    : paymentOptionalEnabled
+      ? 'FULL'
+      : null
+  const depositPercentage =
+    input.depositPercentage !== undefined
+      ? input.depositPercentage
+      : existing?.depositPercentage ?? null
+  const normalizedDepositPercentage =
+    paymentRequired && normalizedPaymentType === 'PERCENTAGE' ? depositPercentage : null
+
   const updated = await prisma.businessSettings.upsert({
     where: { businessId },
     create: {
       businessId,
       // keep other settings defaults
-      paymentRequired: false,
+      paymentRequired,
+      paymentOptionalEnabled,
+      paymentType: normalizedPaymentType,
+      depositPercentage: normalizedDepositPercentage,
+      mercadoPagoPublicKey: input.mercadoPagoPublicKey ?? null,
+      mercadoPagoAccessToken: input.mercadoPagoAccessToken?.trim() || null,
+      mercadoPagoWebhookSecret: input.mercadoPagoWebhookSecret ?? null,
       requireRegistrationBeforePayment: true,
       showServiceConfirmModal: input.showServiceConfirmModal ?? false,
     },
     update: {
+      ...(input.paymentRequired !== undefined && {
+        paymentRequired: input.paymentRequired,
+      }),
+      ...(input.paymentOptionalEnabled !== undefined && {
+        paymentOptionalEnabled: input.paymentOptionalEnabled,
+      }),
+      paymentType: normalizedPaymentType,
+      depositPercentage: normalizedDepositPercentage,
+      ...(input.mercadoPagoPublicKey !== undefined && {
+        mercadoPagoPublicKey: input.mercadoPagoPublicKey?.trim() || null,
+      }),
+      ...(input.mercadoPagoWebhookSecret !== undefined && {
+        mercadoPagoWebhookSecret: input.mercadoPagoWebhookSecret?.trim() || null,
+      }),
+      ...(input.mercadoPagoAccessToken !== undefined && {
+        mercadoPagoAccessToken: input.mercadoPagoAccessToken?.trim() || null,
+      }),
       ...(input.showServiceConfirmModal !== undefined && {
         showServiceConfirmModal: input.showServiceConfirmModal,
       }),
     },
-    select: { showServiceConfirmModal: true },
+    select: {
+      paymentRequired: true,
+      paymentOptionalEnabled: true,
+      paymentType: true,
+      depositPercentage: true,
+      mercadoPagoPublicKey: true,
+      mercadoPagoAccessToken: true,
+      mercadoPagoWebhookSecret: true,
+      showServiceConfirmModal: true,
+    },
   })
-  return { showServiceConfirmModal: updated.showServiceConfirmModal }
+  return {
+    paymentRequired: updated.paymentRequired,
+    paymentOptionalEnabled: updated.paymentOptionalEnabled,
+    paymentType: (updated.paymentType as 'PERCENTAGE' | 'FULL' | null | undefined) ?? null,
+    depositPercentage: updated.depositPercentage ?? null,
+    mercadoPagoPublicKey: updated.mercadoPagoPublicKey ?? null,
+    hasMercadoPagoAccessToken: !!updated.mercadoPagoAccessToken,
+    mercadoPagoWebhookSecret: updated.mercadoPagoWebhookSecret ?? null,
+    showServiceConfirmModal: updated.showServiceConfirmModal,
+  }
 }

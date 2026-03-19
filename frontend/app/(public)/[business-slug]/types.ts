@@ -42,8 +42,10 @@ export type Business = {
   employees: Employee[]
   settings: {
     paymentRequired: boolean
+    paymentOptionalEnabled?: boolean
     paymentType: string | null
     depositPercentage: number | null
+    mercadoPagoPublicKey?: string | null
     showServiceConfirmModal?: boolean
   } | null
 }

@@ -1,4 +1,6 @@
 import crypto from 'crypto'
+
+const PAYMENT_HOLD_MINUTES = 5
 import { prisma } from '../lib/prisma'
 import { getAvailabilityService } from './availability.service'
 import type { CreateAppointmentInput } from '../lib/schemas'
@@ -418,6 +420,7 @@ export async function resyncStaffUpcomingAppointmentsToOwnCalendar(
 export async function createAppointmentService(data: CreateAppointmentInput) {
   const business = await prisma.business.findUnique({
     where: { slug: data.businessSlug },
+    include: { settings: true },
   })
 
   if (!business) {
@@ -498,6 +501,9 @@ export async function createAppointmentService(data: CreateAppointmentInput) {
       serviceName: finalName,
       price: finalPrice,
       paymentStatus: 'PENDING',
+      paymentHoldExpiresAt: data.deferConfirmationUntilPayment
+        ? new Date(Date.now() + PAYMENT_HOLD_MINUTES * 60 * 1000)
+        : null,
       clientName: data.clientName,
       clientEmail: data.clientEmail,
       clientPhone: data.clientPhone,
@@ -526,23 +532,28 @@ export async function createAppointmentService(data: CreateAppointmentInput) {
     },
   })
 
-  // Use queue for async tasks when available (recommended for production)
-  // Falls back to direct execution if queue is not configured
-  if (isQueueEnabled()) {
-    enqueueAppointmentJobs(appointment.id, business.id, preloadedOwner).catch(err => {
-      console.error('Failed to enqueue appointment jobs:', err)
-    })
-  } else {
-    // Fallback: run tasks directly (may cause connection pool issues under load)
-    syncToGoogleCalendarForLoadedAppointment(appointment, business.id, preloadedOwner).catch(err => {
-      console.error('Failed to sync to Google Calendar:', err)
-    })
-    sendAppointmentConfirmationEmailUsingLoadedAppointment(appointment).catch(err => {
-      console.error('Failed to send confirmation email:', err)
-    })
-    sendEmployeeAppointmentNotificationUsingLoadedAppointment(appointment, preloadedOwner).catch(err => {
-      console.error('Failed to send employee notification email:', err)
-    })
+  const shouldDeferConfirmationUntilPayment =
+    !!data.deferConfirmationUntilPayment || !!business.settings?.paymentRequired
+
+  // If payment is required/selected, reserve the slot now but defer confirmations
+  // (emails + Google Calendar) until payment is confirmed.
+  if (!shouldDeferConfirmationUntilPayment) {
+    if (isQueueEnabled()) {
+      enqueueAppointmentJobs(appointment.id, business.id, preloadedOwner).catch(err => {
+        console.error('Failed to enqueue appointment jobs:', err)
+      })
+    } else {
+      // Fallback: run tasks directly (may cause connection pool issues under load)
+      syncToGoogleCalendarForLoadedAppointment(appointment, business.id, preloadedOwner).catch(err => {
+        console.error('Failed to sync to Google Calendar:', err)
+      })
+      sendAppointmentConfirmationEmailUsingLoadedAppointment(appointment).catch(err => {
+        console.error('Failed to send confirmation email:', err)
+      })
+      sendEmployeeAppointmentNotificationUsingLoadedAppointment(appointment, preloadedOwner).catch(err => {
+        console.error('Failed to send employee notification email:', err)
+      })
+    }
   }
 
   return {
@@ -554,6 +565,55 @@ export async function createAppointmentService(data: CreateAppointmentInput) {
     status: appointment.status,
     cancellationToken: appointment.cancellationToken,
   }
+}
+
+export async function finalizeAppointmentAfterPaymentService(
+  appointmentId: string
+): Promise<void> {
+  const appointment = await prisma.appointment.findUnique({
+    where: { id: appointmentId },
+    include: {
+      business: {
+        include: { settings: true },
+      },
+      employee: {
+        include: { user: true },
+      },
+    },
+  })
+
+  if (!appointment) return
+  if (appointment.paymentStatus !== 'PAID') return
+  // If already synced once, we assume side-effects already executed.
+  if (appointment.googleEventId) return
+
+  const preloadedOwner = await prisma.user.findFirst({
+    where: { businessId: appointment.businessId, role: 'OWNER' },
+    select: {
+      id: true,
+      email: true,
+      name: true,
+      googleRefreshToken: true,
+      googleCalendarId: true,
+    },
+  })
+
+  if (isQueueEnabled()) {
+    enqueueAppointmentJobs(appointment.id, appointment.businessId, preloadedOwner).catch(err => {
+      console.error('Failed to enqueue appointment jobs after payment:', err)
+    })
+    return
+  }
+
+  syncToGoogleCalendarForLoadedAppointment(appointment, appointment.businessId, preloadedOwner).catch(err => {
+    console.error('Failed to sync to Google Calendar after payment:', err)
+  })
+  sendAppointmentConfirmationEmailUsingLoadedAppointment(appointment).catch(err => {
+    console.error('Failed to send confirmation email after payment:', err)
+  })
+  sendEmployeeAppointmentNotificationUsingLoadedAppointment(appointment, preloadedOwner).catch(err => {
+    console.error('Failed to send employee notification after payment:', err)
+  })
 }
 
 export async function cancelAppointmentService(token: string) {
