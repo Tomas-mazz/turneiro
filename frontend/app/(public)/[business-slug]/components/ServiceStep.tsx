@@ -43,6 +43,14 @@ export function ServiceStep({
   user = null,
   onLogout,
 }: ServiceStepProps) {
+  const truncateWords = (text: string, maxWords: number) => {
+    const cleaned = (text ?? '').trim().replace(/\s+/g, ' ')
+    if (!cleaned) return ''
+    const words = cleaned.split(' ')
+    if (words.length <= maxWords) return cleaned
+    return `${words.slice(0, maxWords).join(' ')}…`
+  }
+
   const titleColor = isDarkTheme ? 'text-neutral-300' : 'text-neutral-800'
   const serviceNameColor = isDarkTheme ? 'text-white' : 'text-neutral-900'
   const serviceMetaColor = isDarkTheme ? 'text-neutral-400' : 'text-neutral-700'
@@ -69,6 +77,11 @@ export function ServiceStep({
   const cartCtaClass = isDarkTheme
     ? 'bg-white text-black hover:opacity-90'
     : 'border border-neutral-300 bg-white text-black hover:bg-neutral-50'
+
+  const verMasBtnClass = isDarkTheme
+    ? 'inline-flex h-5 items-center rounded-full border border-neutral-700/70 bg-neutral-800/20 px-2 text-[10px] font-medium leading-none text-neutral-300 transition-colors hover:bg-neutral-800 hover:text-white'
+    : 'inline-flex h-5 items-center rounded-full border border-neutral-200 bg-white/70 px-2 text-[10px] font-medium leading-none text-neutral-700 transition-colors hover:bg-neutral-50 hover:text-neutral-900'
+
   const [openServiceSubListId, setOpenServiceSubListId] = useState<string | null>(null)
   const [activeServiceId, setActiveServiceId] = useState<string | null>(null)
   const [aboutOpen, setAboutOpen] = useState(false)
@@ -88,6 +101,8 @@ export function ServiceStep({
   )
   const [isClosing, setIsClosing] = useState(false)
   const panelRef = useRef<HTMLDivElement>(null)
+
+  const mustConfirmBeforeCalendar = !!business.settings?.showServiceConfirmModal
 
   useEffect(() => {
     if (selectedService) setIsClosing(false)
@@ -130,8 +145,7 @@ export function ServiceStep({
   }
 
   const handleAboutConfirm = () => {
-    const mustConfirm = !!business.settings?.showServiceConfirmModal
-    if (mustConfirm) {
+    if (mustConfirmBeforeCalendar) {
       setAboutOpen(false)
       onContinue()
       return
@@ -139,6 +153,17 @@ export function ServiceStep({
     // Modo no obligatorio: el modal "Acerca" solo es informativo.
     // Se cierra y el usuario continúa usando el botón "Continuar" del carrito.
     setAboutOpen(false)
+  }
+
+  const handleCartContinue = () => {
+    if (!selectedService) return
+    if (!mustConfirmBeforeCalendar) {
+      onContinue()
+      return
+    }
+    // When confirmation is required, force the user to see/confirm the selected
+    // service/subservice details in the modal before proceeding to the calendar.
+    openAboutForSelection(selectedService)
   }
 
   const handleCloseCart = () => {
@@ -172,7 +197,7 @@ export function ServiceStep({
         description={aboutTarget?.description ?? null}
         isDarkTheme={isDarkTheme}
         primaryColor={primaryColor}
-        showConfirmButton={!!business.settings?.showServiceConfirmModal}
+        showConfirmButton={mustConfirmBeforeCalendar}
         onClose={() => {
           setAboutOpen(false)
           setAboutTarget(null)
@@ -192,12 +217,13 @@ export function ServiceStep({
               const hasSubServices = subServices.length > 0
               const serviceSelected = !!selectedService && selectedService.parentServiceId === s.id
               const directSelected = selectedService?.id === s.id && !selectedService?.parentServiceId
-              const isSubListOpen = openServiceSubListId === s.id || serviceSelected
+              const isSubListOpen = openServiceSubListId === s.id
               const isActiveParent = activeServiceId === s.id
               const serviceShort = s.shortDescription?.trim() || ''
               const serviceLong = s.description?.trim() || ''
               const serviceHasMoreDetails =
                 (Array.isArray(s.images) && s.images.length > 0) || !!serviceLong
+              const serviceShortTruncated = truncateWords(serviceShort, 6)
 
               return (
                 <li key={s.id} className="py-1">
@@ -206,11 +232,12 @@ export function ServiceStep({
                     type="button"
                     onClick={() => {
                       if (hasSubServices) {
-                        // Treat opening a parent list as the "active" service and
-                        // clear any previous selection so only the latest interaction stays marked.
+                        // Toggle: clicking the parent again closes its subservice list.
                         setActiveServiceId(s.id)
-                        setOpenServiceSubListId(s.id)
-                        onSelectService(null)
+                        setOpenServiceSubListId((prev) => (prev === s.id ? null : s.id))
+                        // When opening a parent list, clear any previous leaf selection so
+                        // the UI doesn't imply a final choice until the user picks a subservice.
+                        if (openServiceSubListId !== s.id) onSelectService(null)
                       } else {
                         // Selecting a leaf service: close any open sublists and mark it active.
                         setOpenServiceSubListId(null)
@@ -234,9 +261,11 @@ export function ServiceStep({
                       )}
                     </span>
                     <div className="min-w-0 flex-1">
-                      <span className={`text-base font-medium md:text-lg ${serviceNameColor}`}>
-                        {s.name}
-                      </span>
+                      <div className="flex min-w-0 items-center gap-2">
+                        <span className={`min-w-0 truncate text-base font-medium md:text-lg ${serviceNameColor}`}>
+                          {s.name}
+                        </span>
+                      </div>
                       {/* If the service has subservices, we don't show duration/price here */}
                       {!hasSubServices && (
                         <p className={`mt-1 text-sm md:text-base ${serviceMetaColor}`}>
@@ -245,8 +274,31 @@ export function ServiceStep({
                       )}
                       {(serviceShort || serviceHasMoreDetails) && (
                         <div className={`mt-2 text-xs md:text-sm ${serviceMetaColor}`}>
-                          {serviceShort && <span>{serviceShort}</span>}
-                          {serviceHasMoreDetails && (
+                          {serviceShort ? (
+                            <span className="min-w-0" title={serviceShort}>
+                              {serviceShortTruncated}
+                              {serviceHasMoreDetails && (
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation()
+                                    const sel: ServiceOption = {
+                                      id: s.id,
+                                      name: s.name,
+                                      price: s.price,
+                                      duration: s.duration,
+                                    }
+                                    onSelectService(sel)
+                                    openAboutForSelection(sel)
+                                  }}
+                                  className={`${verMasBtnClass} ml-2 align-middle`}
+                                  aria-label={`Ver más sobre ${s.name}`}
+                                >
+                                  Ver más
+                                </button>
+                              )}
+                            </span>
+                          ) : serviceHasMoreDetails ? (
                             <button
                               type="button"
                               onClick={(e) => {
@@ -260,14 +312,12 @@ export function ServiceStep({
                                 onSelectService(sel)
                                 openAboutForSelection(sel)
                               }}
-                              className={`ml-2 inline-flex items-center rounded-md px-1.5 py-0.5 text-[11px] font-medium underline-offset-2 hover:underline ${
-                                isDarkTheme ? 'text-neutral-300' : 'text-neutral-800'
-                              }`}
-                              aria-label={`Acerca de ${s.name}`}
+                              className={verMasBtnClass}
+                              aria-label={`Ver más sobre ${s.name}`}
                             >
-                              Acerca
+                              Ver más
                             </button>
-                          )}
+                          ) : null}
                         </div>
                       )}
                     </div>
@@ -303,6 +353,7 @@ export function ServiceStep({
                           const subLong = sub.description?.trim() || ''
                           const subHasMoreDetails =
                             (Array.isArray(sub.images) && sub.images.length > 0) || !!subLong
+                          const subShortTruncated = truncateWords(subShort, 6)
                           const isSelected =
                             selectedService?.id === sub.id &&
                             selectedService?.parentServiceId === s.id
@@ -334,14 +385,43 @@ export function ServiceStep({
                                   )}
                                 </span>
                                 <div className="min-w-0 flex-1">
-                                  <span className={`${serviceNameColor}`}>{sub.name}</span>
+                                  <div className="flex min-w-0 items-center gap-2">
+                                    <span className={`min-w-0 truncate ${serviceNameColor}`}>{sub.name}</span>
+                                  </div>
                                   <p className={`mt-0.5 text-xs md:text-sm ${serviceMetaColor}`}>
                                     {sub.duration} min
                                   </p>
                                   {(subShort || subHasMoreDetails) && (
                                     <div className={`mt-1 text-[11px] md:text-xs ${serviceMetaColor}`}>
-                                      {subShort && <span>{subShort}</span>}
-                                      {subHasMoreDetails && (
+                                      {subShort ? (
+                                        <span className="min-w-0" title={subShort}>
+                                          {subShortTruncated}
+                                          {subHasMoreDetails && (
+                                            <button
+                                              type="button"
+                                              onClick={(e) => {
+                                                e.stopPropagation()
+                                                const sel: ServiceOption = {
+                                                  id: sub.id,
+                                                  name: `${s.name} - ${sub.name}`,
+                                                  price: sub.price,
+                                                  duration: sub.duration,
+                                                  parentServiceId: s.id,
+                                                  parentServiceName: s.name,
+                                                }
+                                                setOpenServiceSubListId(s.id)
+                                                setActiveServiceId(s.id)
+                                                onSelectService(sel)
+                                                openAboutForSelection(sel)
+                                              }}
+                                              className={`${verMasBtnClass} ml-2 align-middle`}
+                                              aria-label={`Ver más sobre ${sub.name}`}
+                                            >
+                                              Ver más
+                                            </button>
+                                          )}
+                                        </span>
+                                      ) : subHasMoreDetails ? (
                                         <button
                                           type="button"
                                           onClick={(e) => {
@@ -359,14 +439,12 @@ export function ServiceStep({
                                             onSelectService(sel)
                                             openAboutForSelection(sel)
                                           }}
-                                          className={`ml-2 inline-flex items-center rounded-md px-1.5 py-0.5 text-[11px] font-medium underline-offset-2 hover:underline ${
-                                            isDarkTheme ? 'text-neutral-300' : 'text-neutral-800'
-                                          }`}
-                                          aria-label={`Acerca de ${sub.name}`}
+                                          className={verMasBtnClass}
+                                          aria-label={`Ver más sobre ${sub.name}`}
                                         >
-                                          Acerca
+                                          Ver más
                                         </button>
-                                      )}
+                                      ) : null}
                                     </div>
                                   )}
                                 </div>
@@ -538,7 +616,7 @@ export function ServiceStep({
             <div className="flex justify-center">
               <button
                 type="button"
-                onClick={onContinue}
+                onClick={handleCartContinue}
                 className={`flex w-2/3 min-w-0 items-center justify-center gap-2 rounded-lg px-4 py-3.5 text-base font-medium transition-opacity ${cartCtaClass}`}
               >
                 Continuar
