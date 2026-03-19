@@ -48,6 +48,7 @@ type DateStepProps = {
   onContinue: () => void
   onBack: () => void
   onGoToServices: () => void
+  showPaymentStep?: boolean
   primaryColor: string
   isDarkTheme?: boolean
   onToggleTheme?: () => void
@@ -79,6 +80,7 @@ export function DateStep({
   onContinue,
   onBack,
   onGoToServices,
+  showPaymentStep = false,
   primaryColor,
   isDarkTheme = true,
   onToggleTheme,
@@ -169,6 +171,7 @@ export function DateStep({
         <BookingStepper
           step="date"
           isDarkTheme={isDarkTheme}
+          showPaymentStep={showPaymentStep}
           onStepChange={(target) => {
             if (target === 'service') {
               onGoToServices()

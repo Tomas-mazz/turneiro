@@ -1,20 +1,24 @@
 import { MercadoPagoConfig, Preference, Payment } from 'mercadopago'
 
-const token = process.env.MERCADOPAGO_ACCESS_TOKEN
+const fallbackToken = process.env.MERCADOPAGO_ACCESS_TOKEN
 
-let preferenceClient: Preference | null = null
-let paymentClient: Payment | null = null
+const clientsByToken = new Map<string, { preferenceClient: Preference; paymentClient: Payment }>()
 
-function getClients(): { preferenceClient: Preference; paymentClient: Payment } {
+function getClients(accessToken?: string | null): { preferenceClient: Preference; paymentClient: Payment } {
+  const token = accessToken?.trim() || fallbackToken
   if (!token) {
     throw new Error('Mercado Pago no configurado: falta MERCADOPAGO_ACCESS_TOKEN')
   }
-  if (!preferenceClient || !paymentClient) {
-    const client = new MercadoPagoConfig({ accessToken: token })
-    preferenceClient = new Preference(client)
-    paymentClient = new Payment(client)
+  const cached = clientsByToken.get(token)
+  if (cached) return cached
+
+  const client = new MercadoPagoConfig({ accessToken: token })
+  const created = {
+    preferenceClient: new Preference(client),
+    paymentClient: new Payment(client),
   }
-  return { preferenceClient: preferenceClient!, paymentClient: paymentClient! }
+  clientsByToken.set(token, created)
+  return created
 }
 
 type MercadoPagoRefundBody = { amount?: number }
@@ -34,9 +38,10 @@ export async function createPreference(
     businessId: string
     clientName: string
     clientPhone: string
-  }
+  },
+  options?: { accessToken?: string | null }
 ): Promise<{ preferenceId: string; initPoint: string }> {
-  const { preferenceClient: pref } = getClients()
+  const { preferenceClient: pref } = getClients(options?.accessToken)
   try {
     const preference = await pref.create({
       body: {
@@ -55,8 +60,7 @@ export async function createPreference(
           failure: `${process.env.FRONTEND_URL}/booking/failure?appointmentId=${metadata.appointmentId}`,
           pending: `${process.env.FRONTEND_URL}/booking/pending?appointmentId=${metadata.appointmentId}`,
         },
-        auto_return: 'approved',
-        notification_url: `${process.env.APP_URL}/api/webhooks/mercadopago`,
+        notification_url: `${process.env.BACKEND_URL || 'http://localhost:3001'}/api/webhooks/mercadopago`,
       },
     })
 
@@ -75,9 +79,10 @@ export async function createPreference(
  */
 export async function processRefund(
   paymentId: string,
-  amount?: number
+  amount?: number,
+  options?: { accessToken?: string | null }
 ): Promise<{ refundId: string; amount: number; status: string }> {
-  const { paymentClient: pay } = getClients()
+  const { paymentClient: pay } = getClients(options?.accessToken)
   try {
     const payment = await pay.get({ id: Number(paymentId) })
 
@@ -111,9 +116,6 @@ export async function verifyWebhookSignature(
   xRequestId: string,
   dataId: string
 ): Promise<boolean> {
-  if (!token) {
-    return false
-  }
   if (!xSignature || !xRequestId) {
     return false
   }
@@ -124,11 +126,11 @@ export async function verifyWebhookSignature(
   return true
 }
 
-/**
- * Get payment details
- */
-export async function getPayment(paymentId: string): Promise<unknown> {
-  const { paymentClient: pay } = getClients()
+export async function getPayment(
+  paymentId: string,
+  options?: { accessToken?: string | null }
+): Promise<unknown> {
+  const { paymentClient: pay } = getClients(options?.accessToken)
   try {
     const payment = await pay.get({ id: Number(paymentId) })
     return payment
