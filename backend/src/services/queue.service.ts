@@ -5,9 +5,25 @@ const baseUrl = process.env.QSTASH_BASE_URL || process.env.FRONTEND_URL?.replace
 
 let qstashClient: Client | null = null
 
+/** QStash cannot call loopback URLs; only use queue with a public API URL (e.g. https://api.tudominio.com). */
+function isLoopbackUrl(url: string | undefined): boolean {
+  if (!url || typeof url !== 'string') return true
+  try {
+    const u = new URL(url)
+    const h = u.hostname.toLowerCase()
+    return (
+      h === 'localhost' ||
+      h === '127.0.0.1' ||
+      h === '::1' ||
+      h === '[::1]'
+    )
+  } catch {
+    return true
+  }
+}
+
 function getClient(): Client | null {
   if (!qstashToken) {
-    console.warn('QSTASH_TOKEN not configured; jobs will run synchronously')
     return null
   }
   if (!qstashClient) {
@@ -45,8 +61,12 @@ export async function enqueueJob(
   jobType: JobType,
   payload: AppointmentJobPayload | DeleteCalendarEventPayload
 ): Promise<boolean> {
+  if (!isQueueEnabled()) {
+    return false
+  }
+
   const client = getClient()
-  
+
   if (!client || !baseUrl) {
     return false
   }
@@ -73,8 +93,12 @@ export async function enqueueAppointmentJobs(
   businessId: string,
   preloadedOwner?: AppointmentJobPayload['preloadedOwner']
 ): Promise<boolean> {
+  if (!isQueueEnabled()) {
+    return false
+  }
+
   const client = getClient()
-  
+
   if (!client || !baseUrl) {
     return false
   }
@@ -120,6 +144,19 @@ export async function enqueueDeleteCalendarEvent(
   return enqueueJob('delete-google-calendar-event', payload)
 }
 
+/**
+ * Use Upstash QStash only in production with a reachable (non-loopback) API base URL.
+ * In development, jobs run synchronously (see appointments.service.ts).
+ */
 export function isQueueEnabled(): boolean {
-  return !!qstashToken && !!baseUrl
+  if (process.env.NODE_ENV !== 'production') {
+    return false
+  }
+  if (!qstashToken?.trim() || !baseUrl?.trim()) {
+    return false
+  }
+  if (isLoopbackUrl(baseUrl)) {
+    return false
+  }
+  return true
 }

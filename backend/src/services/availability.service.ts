@@ -142,6 +142,15 @@ export async function getAvailabilityService(
       status: { not: 'CANCELLED' },
       startTime: { lt: dayEnd },
       endTime: { gt: dayStart },
+      AND: [
+        {
+          OR: [
+            { paymentStatus: { not: 'PENDING' } },
+            { paymentHoldExpiresAt: null },
+            { paymentHoldExpiresAt: { gt: new Date() } },
+          ],
+        },
+      ],
       ...(employeeId ? { employeeId } : {}),
     },
     select: { startTime: true, endTime: true },
