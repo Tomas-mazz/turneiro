@@ -19,17 +19,13 @@ type ClientFormStepProps = {
   onClientEmail: (v: string) => void
   onClientPhone: (v: string) => void
   onSubmit: (e: React.FormEvent) => void
-  onSubmitAndPay?: () => void
   submitLoading: boolean
   submitError: string | null
   createdAppointment?: CreatedAppointment | null
   onContinueToPayment?: () => void
-  paymentRequired?: boolean
-  paymentOptionalEnabled?: boolean
   onBack?: () => void
   onBackToCalendar?: () => void
   onGoToServices: () => void
-  showPaymentStep?: boolean
   primaryColor: string
   isDarkTheme?: boolean
   onToggleTheme?: () => void
@@ -52,17 +48,13 @@ export function ClientFormStep({
   onClientEmail,
   onClientPhone,
   onSubmit,
-  onSubmitAndPay,
   submitLoading,
   submitError,
   createdAppointment,
   onContinueToPayment,
-  paymentRequired = false,
-  paymentOptionalEnabled = false,
   onBack,
   onBackToCalendar,
   onGoToServices,
-  showPaymentStep = false,
   primaryColor,
   isDarkTheme = true,
   onToggleTheme,
@@ -100,7 +92,6 @@ export function ClientFormStep({
         <BookingStepper
           step="form"
           isDarkTheme={isDarkTheme}
-          showPaymentStep={showPaymentStep}
           onStepChange={(target) => {
             if (target === 'service') {
               onGoToServices()
@@ -165,7 +156,6 @@ export function ClientFormStep({
       <BookingStepper
         step="form"
         isDarkTheme={isDarkTheme}
-        showPaymentStep={showPaymentStep}
         onStepChange={(target) => {
           if (target === 'service') {
             onGoToServices()
@@ -261,39 +251,14 @@ export function ClientFormStep({
             </p>
           )}
           <div className="flex flex-col gap-3 pt-2">
-            {paymentOptionalEnabled && !paymentRequired && onSubmitAndPay ? (
-              <>
-                <button
-                  type="submit"
-                  disabled={submitLoading}
-                  className="w-full rounded-lg py-3 font-medium text-black transition-opacity hover:opacity-90 disabled:opacity-50"
-                  style={{ backgroundColor: primaryColor }}
-                >
-                  {submitLoading ? 'Reservando...' : 'Confirmar reserva gratis'}
-                </button>
-                <button
-                  type="button"
-                  disabled={submitLoading}
-                  onClick={onSubmitAndPay}
-                  className="w-full rounded-lg border border-neutral-400 bg-transparent py-3 font-medium text-white transition-opacity hover:opacity-90 disabled:opacity-50"
-                >
-                  {submitLoading ? 'Reservando...' : 'Confirmar y pagar'}
-                </button>
-              </>
-            ) : (
-              <button
-                type="submit"
-                disabled={submitLoading}
-                className="w-full rounded-lg py-3 font-medium text-black transition-opacity hover:opacity-90 disabled:opacity-50"
-                style={{ backgroundColor: primaryColor }}
-              >
-                {submitLoading
-                  ? 'Reservando...'
-                  : paymentRequired
-                    ? 'Confirmar y continuar al pago'
-                    : 'Confirmar reserva'}
-              </button>
-            )}
+            <button
+              type="submit"
+              disabled={submitLoading}
+              className="w-full rounded-lg py-3 font-medium text-black transition-opacity hover:opacity-90 disabled:opacity-50"
+              style={{ backgroundColor: primaryColor }}
+            >
+              {submitLoading ? 'Reservando...' : 'Confirmar reserva'}
+            </button>
             {onBack && (
               <button
                 type="button"

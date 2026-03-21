@@ -137,31 +137,8 @@ export async function updateBusinessSettings(req: AuthRequest, res: Response, ne
     const ctx = getBusinessContextOrRespond(req, res)
     if (!ctx) return
     const { businessId } = ctx
-    const {
-      showServiceConfirmModal,
-      paymentRequired,
-      paymentOptionalEnabled,
-      paymentType,
-      depositPercentage,
-      mercadoPagoPublicKey,
-      mercadoPagoAccessToken,
-      mercadoPagoWebhookSecret,
-    } = req.body ?? {}
+    const { showServiceConfirmModal } = req.body ?? {}
     const updated = await updateBusinessSettingsService(businessId, {
-      ...(paymentRequired !== undefined && { paymentRequired: !!paymentRequired }),
-      ...(paymentOptionalEnabled !== undefined && {
-        paymentOptionalEnabled: !!paymentOptionalEnabled,
-      }),
-      ...(paymentType !== undefined && { paymentType }),
-      ...(depositPercentage !== undefined && {
-        depositPercentage:
-          depositPercentage === null || depositPercentage === ''
-            ? null
-            : Number(depositPercentage),
-      }),
-      ...(mercadoPagoPublicKey !== undefined && { mercadoPagoPublicKey }),
-      ...(mercadoPagoAccessToken !== undefined && { mercadoPagoAccessToken }),
-      ...(mercadoPagoWebhookSecret !== undefined && { mercadoPagoWebhookSecret }),
       ...(showServiceConfirmModal !== undefined && { showServiceConfirmModal: !!showServiceConfirmModal }),
     })
     res.json(updated)

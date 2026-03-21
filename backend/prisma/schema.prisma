@@ -137,7 +137,6 @@ model Appointment {
   paymentProvider      String? // STRIPE, MERCADOPAGO
   paymentIntentId      String? // Stripe Payment Intent ID or Mercado Pago Preference ID
   paymentAmount        Float? // Amount paid (deposit or full)
-  paymentHoldExpiresAt DateTime?
   refundAmount         Float? // Amount refunded (if cancelled)
   clientName           String
   clientEmail          String?
@@ -216,12 +215,8 @@ model BlockedSlot {
 model BusinessSettings {
   id                               String   @id @default(cuid())
   paymentRequired                  Boolean  @default(false)
-  paymentOptionalEnabled           Boolean  @default(false)
   paymentType                      String? // PERCENTAGE or FULL
   depositPercentage                Float? // If paymentType is PERCENTAGE
-  mercadoPagoPublicKey             String?
-  mercadoPagoAccessToken           String?
-  mercadoPagoWebhookSecret         String?
   requireRegistrationBeforePayment Boolean  @default(true)
   freeCancellationWindow           Int? // Hours before appointment (e.g., 24)
   cancellationHasCost              Boolean  @default(false)

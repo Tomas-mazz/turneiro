@@ -48,11 +48,11 @@ app.use(
   }),
 )
 
-app.use(express.json())
-app.use(express.urlencoded({ extended: true }))
-
 import webhooksRoutes from './routes/webhooks'
 app.use('/api/webhooks', webhooksRoutes)
+
+app.use(express.json())
+app.use(express.urlencoded({ extended: true }))
 
 // Health check (Vercel and load balancers often hit /api/health)
 app.get('/health', (req, res) => {

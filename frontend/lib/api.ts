@@ -478,13 +478,6 @@ export async function updateBusinessImages(body: {
 }
 
 export type BusinessSettings = {
-  paymentRequired: boolean
-  paymentOptionalEnabled: boolean
-  paymentType: 'PERCENTAGE' | 'FULL' | null
-  depositPercentage: number | null
-  mercadoPagoPublicKey: string | null
-  hasMercadoPagoAccessToken: boolean
-  mercadoPagoWebhookSecret: string | null
   showServiceConfirmModal: boolean
 }
 
@@ -494,7 +487,7 @@ export async function getBusinessSettings(): Promise<BusinessSettings> {
 }
 
 export async function updateBusinessSettings(
-  body: Partial<BusinessSettings> & { mercadoPagoAccessToken?: string | null }
+  body: Partial<BusinessSettings>
 ): Promise<BusinessSettings> {
   const { data } = await api.patch<BusinessSettings>('/businesses/settings', body)
   return data

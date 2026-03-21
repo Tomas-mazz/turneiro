@@ -48,8 +48,7 @@ import type {
 
 const GOOGLE_CALENDAR_URL = 'https://calendar.google.com'
 
-type DashboardSection = 'all' | 'services' | 'payments' | 'blocking' | 'hours' | 'cancel'
-type PaymentMode = 'REQUIRED' | 'OPTIONAL' | 'CONFIRM_ONLY'
+type DashboardSection = 'all' | 'services' | 'blocking' | 'hours' | 'cancel'
 
 export function DashboardContent({ section = 'all' }: { section?: DashboardSection }) {
   const [businessTitle, setBusinessTitle] = useState<string | null>(null)
@@ -112,16 +111,6 @@ export function DashboardContent({ section = 'all' }: { section?: DashboardSecti
   } | null>(null)
   const [showServiceConfirmModal, setShowServiceConfirmModal] = useState(false)
   const [showServiceConfirmModalSaving, setShowServiceConfirmModalSaving] = useState(false)
-  const [paymentRequired, setPaymentRequired] = useState(false)
-  const [paymentOptionalEnabled, setPaymentOptionalEnabled] = useState(false)
-  const [paymentMode, setPaymentMode] = useState<PaymentMode>('CONFIRM_ONLY')
-  const [paymentType, setPaymentType] = useState<'FULL' | 'PERCENTAGE'>('FULL')
-  const [depositPercentage, setDepositPercentage] = useState('30')
-  const [mercadoPagoPublicKey, setMercadoPagoPublicKey] = useState('')
-  const [mercadoPagoAccessToken, setMercadoPagoAccessToken] = useState('')
-  const [mercadoPagoWebhookSecret, setMercadoPagoWebhookSecret] = useState('')
-  const [hasMercadoPagoAccessToken, setHasMercadoPagoAccessToken] = useState(false)
-  const [savingPaymentSettings, setSavingPaymentSettings] = useState(false)
   const [workingHours, setWorkingHours] = useState<WorkingHoursItem[]>([])
   const [loadingWorkingHours, setLoadingWorkingHours] = useState(false)
   const [savingWorkingHours, setSavingWorkingHours] = useState(false)
@@ -173,32 +162,8 @@ export function DashboardContent({ section = 'all' }: { section?: DashboardSecti
   useEffect(() => {
     if (!actsAsOwner) return
     getBusinessSettings()
-      .then((s) => {
-        setShowServiceConfirmModal(!!s.showServiceConfirmModal)
-        setPaymentRequired(!!s.paymentRequired)
-        setPaymentOptionalEnabled(!!s.paymentOptionalEnabled)
-        const mode: PaymentMode = s.paymentRequired
-          ? 'REQUIRED'
-          : s.paymentOptionalEnabled
-            ? 'OPTIONAL'
-            : 'CONFIRM_ONLY'
-        setPaymentMode(mode)
-        setPaymentType(s.paymentType === 'PERCENTAGE' ? 'PERCENTAGE' : 'FULL')
-        setDepositPercentage(
-          s.depositPercentage != null && Number.isFinite(s.depositPercentage)
-            ? String(s.depositPercentage)
-            : '30'
-        )
-        setMercadoPagoPublicKey(s.mercadoPagoPublicKey ?? '')
-        setMercadoPagoWebhookSecret(s.mercadoPagoWebhookSecret ?? '')
-        setHasMercadoPagoAccessToken(!!s.hasMercadoPagoAccessToken)
-      })
-      .catch(() => {
-        setShowServiceConfirmModal(false)
-        setPaymentMode('CONFIRM_ONLY')
-        setPaymentRequired(false)
-        setPaymentOptionalEnabled(false)
-      })
+      .then((s) => setShowServiceConfirmModal(!!s.showServiceConfirmModal))
+      .catch(() => setShowServiceConfirmModal(false))
   }, [actsAsOwner])
 
   useEffect(() => {
@@ -490,54 +455,6 @@ export function DashboardContent({ section = 'all' }: { section?: DashboardSecti
     }
   }
 
-  const handleSavePaymentSettings = async () => {
-    setSavingPaymentSettings(true)
-    try {
-      const parsedDeposit = Number(depositPercentage)
-      const safeDeposit =
-        Number.isFinite(parsedDeposit) && parsedDeposit > 0
-          ? Math.min(100, Math.max(1, parsedDeposit))
-          : null
-      const nextPaymentRequired = paymentMode === 'REQUIRED'
-      const nextPaymentOptional = paymentMode === 'OPTIONAL'
-
-      const updated = await updateBusinessSettings({
-        paymentRequired: nextPaymentRequired,
-        paymentOptionalEnabled: nextPaymentOptional,
-        paymentType: paymentType === 'PERCENTAGE' ? 'PERCENTAGE' : 'FULL',
-        depositPercentage:
-          nextPaymentRequired && paymentType === 'PERCENTAGE' ? safeDeposit : null,
-        mercadoPagoPublicKey: mercadoPagoPublicKey.trim() || null,
-        mercadoPagoAccessToken: mercadoPagoAccessToken.trim() || undefined,
-        mercadoPagoWebhookSecret: mercadoPagoWebhookSecret.trim() || null,
-      })
-      setPaymentRequired(updated.paymentRequired)
-      setPaymentOptionalEnabled(updated.paymentOptionalEnabled)
-      setPaymentMode(
-        updated.paymentRequired
-          ? 'REQUIRED'
-          : updated.paymentOptionalEnabled
-            ? 'OPTIONAL'
-            : 'CONFIRM_ONLY'
-      )
-      setPaymentType(updated.paymentType === 'PERCENTAGE' ? 'PERCENTAGE' : 'FULL')
-      setDepositPercentage(
-        updated.depositPercentage != null ? String(updated.depositPercentage) : '30'
-      )
-      setMercadoPagoPublicKey(updated.mercadoPagoPublicKey ?? '')
-      setMercadoPagoWebhookSecret(updated.mercadoPagoWebhookSecret ?? '')
-      setHasMercadoPagoAccessToken(updated.hasMercadoPagoAccessToken)
-      setMercadoPagoAccessToken('')
-    } catch (err) {
-      setError(
-        (err as { response?: { data?: { error?: string } } })?.response?.data?.error ||
-          'Error al guardar configuración de pagos'
-      )
-    } finally {
-      setSavingPaymentSettings(false)
-    }
-  }
-
   if (!businessTitle) {
     return (
       <main className="flex min-h-[40vh] items-center justify-center p-8">
@@ -734,114 +651,6 @@ export function DashboardContent({ section = 'all' }: { section?: DashboardSecti
           />
         )
       })()}
-
-      {actsAsOwner && (section === 'all' || section === 'payments') && (
-        <section className="mb-8 rounded-xl border border-neutral-200 bg-white p-4 shadow-sm sm:p-6">
-          <div className="mb-4">
-            <h2 className="text-lg font-semibold text-neutral-900">Pagos (Mercado Pago)</h2>
-            <p className="mt-1 text-sm text-neutral-600">
-              Configura si el pago es obligatorio u opcional y las credenciales de tu cuenta.
-            </p>
-          </div>
-          <div className="grid gap-4 md:grid-cols-2">
-            <div className="md:col-span-2">
-              <p className="mb-2 text-sm font-medium text-neutral-800">Modo de pago</p>
-              <div className="space-y-2">
-                <label className="flex items-center gap-2 text-sm text-neutral-800">
-                  <input
-                    type="radio"
-                    name="paymentMode"
-                    checked={paymentMode === 'REQUIRED'}
-                    onChange={() => setPaymentMode('REQUIRED')}
-                  />
-                  Exigir pago antes de confirmar reserva
-                </label>
-                <label className="flex items-center gap-2 text-sm text-neutral-800">
-                  <input
-                    type="radio"
-                    name="paymentMode"
-                    checked={paymentMode === 'OPTIONAL'}
-                    onChange={() => setPaymentMode('OPTIONAL')}
-                  />
-                  Permitir pago opcional al reservar
-                </label>
-                <label className="flex items-center gap-2 text-sm text-neutral-800">
-                  <input
-                    type="radio"
-                    name="paymentMode"
-                    checked={paymentMode === 'CONFIRM_ONLY'}
-                    onChange={() => setPaymentMode('CONFIRM_ONLY')}
-                  />
-                  Solo confirmación, sin opción de pago
-                </label>
-              </div>
-            </div>
-            <label className="flex flex-col gap-1 text-sm text-neutral-800">
-              Tipo de cobro
-              <select
-                className="rounded-lg border border-neutral-300 px-3 py-2"
-                value={paymentType}
-                onChange={(e) => setPaymentType(e.target.value as 'FULL' | 'PERCENTAGE')}
-                disabled={paymentMode !== 'REQUIRED'}
-              >
-                <option value="FULL">Total</option>
-                <option value="PERCENTAGE">Seña (%)</option>
-              </select>
-            </label>
-            {paymentMode === 'REQUIRED' && paymentType === 'PERCENTAGE' && (
-              <label className="flex flex-col gap-1 text-sm text-neutral-800">
-                Porcentaje de seña
-                <input
-                  type="number"
-                  min={1}
-                  max={100}
-                  className="rounded-lg border border-neutral-300 px-3 py-2"
-                  value={depositPercentage}
-                  onChange={(e) => setDepositPercentage(e.target.value)}
-                />
-              </label>
-            )}
-            <label className="flex flex-col gap-1 text-sm text-neutral-800 md:col-span-2">
-              Mercado Pago Public Key
-              <input
-                type="text"
-                className="rounded-lg border border-neutral-300 px-3 py-2"
-                value={mercadoPagoPublicKey}
-                onChange={(e) => setMercadoPagoPublicKey(e.target.value)}
-              />
-            </label>
-            <label className="flex flex-col gap-1 text-sm text-neutral-800 md:col-span-2">
-              Mercado Pago Access Token {hasMercadoPagoAccessToken ? '(ya cargado)' : ''}
-              <input
-                type="password"
-                className="rounded-lg border border-neutral-300 px-3 py-2"
-                value={mercadoPagoAccessToken}
-                onChange={(e) => setMercadoPagoAccessToken(e.target.value)}
-                placeholder={hasMercadoPagoAccessToken ? 'Dejar vacío para mantener actual' : ''}
-              />
-            </label>
-            <label className="flex flex-col gap-1 text-sm text-neutral-800 md:col-span-2">
-              Webhook Secret (opcional)
-              <input
-                type="text"
-                className="rounded-lg border border-neutral-300 px-3 py-2"
-                value={mercadoPagoWebhookSecret}
-                onChange={(e) => setMercadoPagoWebhookSecret(e.target.value)}
-              />
-            </label>
-          </div>
-          <div className="mt-4">
-            <button
-              type="button"
-              onClick={handleSavePaymentSettings}
-              disabled={savingPaymentSettings}
-              className="rounded-lg bg-neutral-900 px-4 py-2 text-sm font-medium text-white disabled:opacity-60"
-            >
-              {savingPaymentSettings ? 'Guardando...' : 'Guardar pagos'}
-            </button>
-          </div>
-        </section>
-      )}
 
       <ServicesSection
         visible={actsAsOwner && (section === 'all' || section === 'services')}

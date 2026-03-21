@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useState, useCallback, useRef } from 'react'
+import { useEffect, useMemo, useState, useCallback } from 'react'
 import { useParams, usePathname, useRouter } from 'next/navigation'
 import { api } from '@/lib/api'
 import {
@@ -61,16 +61,9 @@ export default function BusinessBookingPage() {
   const [submitLoading, setSubmitLoading] = useState(false)
   const [submitError, setSubmitError] = useState<string | null>(null)
   const [createdAppointment, setCreatedAppointment] = useState<CreatedAppointment | null>(null)
-  const [paymentIntentId, setPaymentIntentId] = useState<string | null>(null)
   const [paymentAmount, setPaymentAmount] = useState<number | null>(null)
   const [paymentLoading, setPaymentLoading] = useState(false)
   const [paymentError, setPaymentError] = useState<string | null>(null)
-  const [paymentProvider, setPaymentProvider] = useState<'MERCADOPAGO' | null>(null)
-  const [mercadoPagoPreferenceId, setMercadoPagoPreferenceId] = useState<string | null>(null)
-  const [mercadoPagoRedirectMode, setMercadoPagoRedirectMode] = useState<
-    'idle' | 'redirecting' | 'fallback'
-  >('idle')
-  const mpFallbackTimerRef = useRef<number | null>(null)
   const [themeMode, setThemeMode] = useState<ThemeMode>('DARK')
   const [isLoginOpen, setIsLoginOpen] = useState(false)
   const [user, setUser] = useState(() => (typeof window !== 'undefined' ? getAuthUser() : null))
@@ -78,15 +71,6 @@ export default function BusinessBookingPage() {
 
   useEffect(() => {
     setUser(getAuthUser())
-  }, [])
-
-  useEffect(() => {
-    return () => {
-      if (mpFallbackTimerRef.current != null) {
-        window.clearTimeout(mpFallbackTimerRef.current)
-        mpFallbackTimerRef.current = null
-      }
-    }
   }, [])
 
   const handleLogout = () => {
@@ -178,8 +162,8 @@ export default function BusinessBookingPage() {
     if (!business) return
 
     // If we already have an appointment and are showing the confirmation
-    // or payment screen, don't override the current step with older persisted state.
-    if (createdAppointment && (step === 'done' || step === 'payment')) return
+    // screen, don't override the current step with older persisted state.
+    if (createdAppointment && step === 'done') return
 
     const storageKey = `booking:${slug}`
     const raw = window.sessionStorage.getItem(storageKey)
@@ -440,7 +424,8 @@ export default function BusinessBookingPage() {
     }
   }, [selectedDate, selectedService, slug, business?.employees])
 
-  const createAppointment = (opts: { deferConfirmationUntilPayment: boolean; onSuccess: () => void }) => {
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault()
     if (!business || !selectedService || !selectedDate || !selectedSlot) return
 
     const email = clientEmail.trim()
@@ -461,11 +446,13 @@ export default function BusinessBookingPage() {
         clientEmail: email,
         clientPhone: clientPhone.trim(),
         employeeId: selectedEmployeeId,
-        deferConfirmationUntilPayment: opts.deferConfirmationUntilPayment,
       })
       .then((res) => {
         setCreatedAppointment(res.data)
-        opts.onSuccess()
+        // For now, always finalize the booking immediately after creating
+        // the appointment and show the confirmation screen. The payment
+        // step remains available separately when needed.
+        goToStep('done')
       })
       .catch((err) => {
         const status = err.response?.status
@@ -480,26 +467,6 @@ export default function BusinessBookingPage() {
       .finally(() => setSubmitLoading(false))
   }
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault()
-    const requiresPayment = !!business?.settings?.paymentRequired
-    createAppointment({
-      deferConfirmationUntilPayment: requiresPayment,
-      onSuccess: () => {
-        goToStep(requiresPayment ? 'payment' : 'done')
-      },
-    })
-  }
-
-  const handleSubmitAndPay = () => {
-    createAppointment({
-      deferConfirmationUntilPayment: true,
-      onSuccess: () => {
-        goToStep('payment')
-      },
-    })
-  }
-
   const handleCreateMercadoPagoIntent = () => {
     if (!createdAppointment || !selectedService || !selectedDate || !selectedSlot) return
     setPaymentLoading(true)
@@ -507,11 +474,7 @@ export default function BusinessBookingPage() {
     api
       .post<{ preferenceId: string; initPoint: string; amount: number; provider: string }>(
         '/payments/create-intent',
-        {
-          appointmentId: createdAppointment.id,
-          provider: 'MERCADOPAGO',
-          returnOrigin: typeof window !== 'undefined' ? window.location.origin : undefined,
-        }
+        { appointmentId: createdAppointment.id, provider: 'MERCADOPAGO' }
       )
       .then((res) => {
         const storage: Record<string, string> = {
@@ -522,37 +485,9 @@ export default function BusinessBookingPage() {
           endTime: createdAppointment.endTime,
           cancellationToken: createdAppointment.cancellationToken || '',
           businessSlug: slug,
-          primaryColor: primaryColor,
         }
         sessionStorage.setItem('mp_booking', JSON.stringify(storage))
-        setPaymentProvider('MERCADOPAGO')
-        setPaymentIntentId(res.data.preferenceId)
-        setPaymentAmount(res.data.amount)
-        setMercadoPagoPreferenceId(res.data.preferenceId)
-
-        // Prefer Mercado Pago redirect/checkout (hosted), so the user selects/uses
-        // their cards/medium inside MP (not on our page). If it fails to redirect,
-        // we fall back to the embedded Brick.
-        if (typeof window === 'undefined' || !res.data.initPoint) {
-          setMercadoPagoRedirectMode('fallback')
-          return
-        }
-
-        setMercadoPagoRedirectMode('redirecting')
-        if (mpFallbackTimerRef.current != null) {
-          window.clearTimeout(mpFallbackTimerRef.current)
-        }
-        mpFallbackTimerRef.current = window.setTimeout(() => {
-          // If we stayed on this page after a short delay, redirect likely didn't happen.
-          setMercadoPagoRedirectMode('fallback')
-        }, 2500)
-
-        try {
-          window.location.href = res.data.initPoint
-        } catch {
-          // If setting location throws for any reason, show embedded payment.
-          setMercadoPagoRedirectMode('fallback')
-        }
+        window.location.href = res.data.initPoint
       })
       .catch((err) => {
         const status = err.response?.status
@@ -563,46 +498,11 @@ export default function BusinessBookingPage() {
             ? 'No se pudo iniciar el pago. Por favor intentá de nuevo.'
             : (msg || 'No se pudo iniciar el pago')
         )
-        setMercadoPagoRedirectMode('idle')
       })
       .finally(() => setPaymentLoading(false))
   }
 
-  const handleCancelPendingAndBack = async () => {
-    if (createdAppointment?.id) {
-      try {
-        await api.post('/payments/cancel-pending', {
-          appointmentId: createdAppointment.id,
-        })
-      } catch {
-        // If cancellation fails, we still navigate back so user can continue.
-      }
-    }
-    setCreatedAppointment(null)
-    setMercadoPagoPreferenceId(null)
-    setPaymentProvider(null)
-    setPaymentIntentId(null)
-    setPaymentAmount(null)
-    setMercadoPagoRedirectMode('idle')
-    if (mpFallbackTimerRef.current != null) {
-      window.clearTimeout(mpFallbackTimerRef.current)
-      mpFallbackTimerRef.current = null
-    }
-    goToStep('date')
-  }
-
-  const handleForceMercadoPagoBrick = () => {
-    if (!mercadoPagoPreferenceId) return
-    setMercadoPagoRedirectMode('fallback')
-    if (mpFallbackTimerRef.current != null) {
-      window.clearTimeout(mpFallbackTimerRef.current)
-      mpFallbackTimerRef.current = null
-    }
-  }
-
   const primaryColor = business?.primaryColor || '#f5f5f5'
-  const showPaymentStep =
-    !!business?.settings?.paymentRequired || !!business?.settings?.paymentOptionalEnabled
   const { dateKey: todayKey, timeStr: currentTimeArgentina } = getNowInArgentina()
 
   // Unified calendar: unique slots across all employees, and which employees are available per slot (creation order).
@@ -686,7 +586,6 @@ export default function BusinessBookingPage() {
           onSelectService={setSelectedService}
           onContinue={() => goToStep('date')}
           onGoToServices={() => goToStep('service')}
-          showPaymentStep={showPaymentStep}
           primaryColor={primaryColor}
           isDarkTheme={isDarkTheme}
           onToggleTheme={() => setThemeMode((prev) => (prev === 'DARK' ? 'LIGHT' : 'DARK'))}
@@ -725,7 +624,6 @@ export default function BusinessBookingPage() {
           onContinue={() => goToStep('form')}
           onBack={handleBack}
           onGoToServices={() => goToStep('service')}
-          showPaymentStep={showPaymentStep}
           primaryColor={primaryColor}
           isDarkTheme={isDarkTheme}
           onToggleTheme={() => setThemeMode((prev) => (prev === 'DARK' ? 'LIGHT' : 'DARK'))}
@@ -752,7 +650,6 @@ export default function BusinessBookingPage() {
           onClientEmail={setClientEmail}
           onClientPhone={setClientPhone}
           onSubmit={handleSubmit}
-            onSubmitAndPay={handleSubmitAndPay}
           submitLoading={submitLoading}
           submitError={submitError}
           createdAppointment={createdAppointment}
@@ -761,8 +658,6 @@ export default function BusinessBookingPage() {
               ? () => goToStep('payment')
               : undefined
           }
-            paymentRequired={!!business.settings?.paymentRequired}
-            paymentOptionalEnabled={!!business.settings?.paymentOptionalEnabled}
           onBack={handleBack}
           onBackToCalendar={
             business.settings?.paymentRequired && createdAppointment
@@ -773,7 +668,6 @@ export default function BusinessBookingPage() {
               : undefined
           }
           onGoToServices={() => goToStep('service')}
-          showPaymentStep={showPaymentStep}
           primaryColor={primaryColor}
           isDarkTheme={isDarkTheme}
           onToggleTheme={() => setThemeMode((prev) => (prev === 'DARK' ? 'LIGHT' : 'DARK'))}
@@ -790,34 +684,16 @@ export default function BusinessBookingPage() {
         createdAppointment &&
         selectedService &&
         selectedDate &&
-        selectedSlot &&
-        business && (
+        selectedSlot && (
           <PaymentStep
-            businessName={business.name}
-            logo={business.logo}
             createdAppointment={createdAppointment}
             selectedDate={selectedDate}
             selectedSlot={selectedSlot}
             paymentAmount={paymentAmount}
             paymentError={paymentError}
-            mercadoPagoPreferenceId={mercadoPagoPreferenceId}
-            mercadoPagoPublicKey={business.settings?.mercadoPagoPublicKey ?? null}
-            mercadoPagoRedirectMode={mercadoPagoRedirectMode}
             paymentLoading={paymentLoading}
             onMercadoPagoIntent={handleCreateMercadoPagoIntent}
-            onPaymentError={setPaymentError}
-            onMercadoPagoBack={handleCancelPendingAndBack}
-            onForceMercadoPagoBrick={handleForceMercadoPagoBrick}
-            onBack={handleCancelPendingAndBack}
-            onGoToServices={() => goToStep('service')}
-            showPaymentStep={showPaymentStep}
-            primaryColor={primaryColor}
-            isDarkTheme={isDarkTheme}
-            onToggleTheme={() => setThemeMode((prev) => (prev === 'DARK' ? 'LIGHT' : 'DARK'))}
-            onOpenLogin={handleOpenLogin}
-            onOpenRegister={() => router.push('/register')}
-            user={user}
-            onLogout={handleLogout}
+            onBack={handleBack}
           />
         )}
 
