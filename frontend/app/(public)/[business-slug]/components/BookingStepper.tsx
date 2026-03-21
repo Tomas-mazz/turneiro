@@ -5,25 +5,16 @@ import type { Step } from '../types'
 type BookingStepperProps = {
   step: Step
   isDarkTheme?: boolean
-  showPaymentStep?: boolean
   onStepChange?: (next: Step) => void
 }
 
-const BASE_STEPS: { id: Step; label: string }[] = [
+const STEPS: { id: Step; label: string }[] = [
   { id: 'service', label: 'Servicio' },
   { id: 'date', label: 'Día y hora' },
   { id: 'form', label: 'Confirmar' },
 ]
 
-export function BookingStepper({
-  step,
-  isDarkTheme = true,
-  showPaymentStep = false,
-  onStepChange,
-}: BookingStepperProps) {
-  const STEPS: { id: Step; label: string }[] = showPaymentStep
-    ? [...BASE_STEPS, { id: 'payment', label: 'Pago' }]
-    : BASE_STEPS
+export function BookingStepper({ step, isDarkTheme = true, onStepChange }: BookingStepperProps) {
   const activeIndex = STEPS.findIndex((s) => s.id === step)
   if (activeIndex === -1) return null
 

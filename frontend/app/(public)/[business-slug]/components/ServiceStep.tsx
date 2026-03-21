@@ -20,7 +20,6 @@ type ServiceStepProps = {
   onSelectService: (s: ServiceOption | null) => void
   onContinue: () => void
   onGoToServices: () => void
-  showPaymentStep?: boolean
   primaryColor: string
   isDarkTheme?: boolean
   onToggleTheme?: () => void
@@ -36,7 +35,6 @@ export function ServiceStep({
   onSelectService,
   onContinue,
   onGoToServices,
-  showPaymentStep = false,
   primaryColor,
   isDarkTheme = true,
   onToggleTheme,
@@ -206,11 +204,7 @@ export function ServiceStep({
         }}
         onConfirm={handleAboutConfirm}
       />
-      <BookingStepper
-        step="service"
-        isDarkTheme={isDarkTheme}
-        showPaymentStep={showPaymentStep}
-      />
+      <BookingStepper step="service" isDarkTheme={isDarkTheme} />
       <div className="flex max-w-4xl flex-col gap-8 md:max-w-4xl md:flex-row md:gap-10 lg:max-w-6xl lg:gap-12">
         {/* Left: services list */}
         <div className="min-w-0 flex-1">

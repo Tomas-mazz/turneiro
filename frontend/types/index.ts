@@ -89,11 +89,8 @@ export interface AdminBusinessDetail {
   updatedAt: string
   settings: {
     paymentRequired: boolean
-    paymentOptionalEnabled?: boolean
     paymentType: string | null
     depositPercentage: number | null
-    mercadoPagoPublicKey?: string | null
-    mercadoPagoWebhookSecret?: string | null
     freeCancellationWindow: number | null
     cancellationHasCost: boolean
     lateCancellationFee: number | null
@@ -120,12 +117,8 @@ export type CreateBusinessBody = {
   theme?: 'DARK' | 'LIGHT'
   primaryColor?: string
   paymentRequired: boolean
-  paymentOptionalEnabled?: boolean
   paymentType?: 'PERCENTAGE' | 'FULL'
   depositPercentage?: number | null
-  mercadoPagoPublicKey?: string | null
-  mercadoPagoAccessToken?: string | null
-  mercadoPagoWebhookSecret?: string | null
   freeCancellationWindow?: number | null
   cancellationHasCost?: boolean
   lateCancellationFee?: number | null

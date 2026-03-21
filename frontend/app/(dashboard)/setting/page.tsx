@@ -100,13 +100,6 @@ export default function SettingPage() {
             href: '/setting/services',
           },
           {
-            id: 'payments',
-            title: 'Pagos',
-            description:
-              'Configurá si el pago es obligatorio, opcional o sólo confirmación, y cargá tus credenciales de Mercado Pago.',
-            href: '/setting/payments',
-          },
-          {
             id: 'hours',
             title: 'Horarios',
             description:
