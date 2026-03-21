@@ -1,8 +1,98 @@
+import crypto from 'crypto'
 import { MercadoPagoConfig, Preference, Payment } from 'mercadopago'
 
 const fallbackToken = process.env.MERCADOPAGO_ACCESS_TOKEN
 
 const clientsByToken = new Map<string, { preferenceClient: Preference; paymentClient: Payment }>()
+
+/**
+ * Public URL of the booking app (used for MP redirect back_urls).
+ * MERCADOPAGO_REDIRECT_BASE_URL overrides FRONTEND_URL (e.g. ngrok HTTPS for local testing).
+ */
+function getFrontendBaseUrl(): string {
+  const raw =
+    process.env.MERCADOPAGO_REDIRECT_BASE_URL?.trim() ||
+    process.env.FRONTEND_URL?.trim() ||
+    process.env.APP_URL?.trim() ||
+    'http://localhost:3000'
+  return raw.replace(/\/$/, '')
+}
+
+/** Base URL for IPN webhooks (must be reachable by Mercado Pago in production — use HTTPS). */
+function getWebhookNotificationBaseUrl(): string {
+  const raw =
+    process.env.MERCADOPAGO_NOTIFICATION_BASE_URL?.trim() ||
+    process.env.BACKEND_PUBLIC_URL?.trim() ||
+    process.env.BACKEND_URL?.trim() ||
+    'http://localhost:3001'
+  return raw.replace(/\/$/, '')
+}
+
+function sanitizeReturnOrigin(origin: string | null | undefined): string | null {
+  if (!origin || typeof origin !== 'string') return null
+  const t = origin.trim()
+  if (!t) return null
+  try {
+    return new URL(t).origin
+  } catch {
+    return null
+  }
+}
+
+/**
+ * Allow back_urls to match the browser tab that started checkout (same origin as sessionStorage).
+ * Without this, barberia.localhost vs localhost breaks mp_booking after redirect.
+ */
+function isTrustedReturnOrigin(origin: string): boolean {
+  let u: URL
+  try {
+    u = new URL(origin)
+  } catch {
+    return false
+  }
+  if (u.protocol !== 'http:' && u.protocol !== 'https:') return false
+
+  const extras = (process.env.ALLOWED_RETURN_ORIGINS ?? '')
+    .split(',')
+    .map((s) => s.trim())
+    .filter(Boolean)
+  for (const o of extras) {
+    try {
+      if (new URL(o).origin === u.origin) return true
+    } catch {
+      /* ignore */
+    }
+  }
+
+  const configured = [
+    process.env.FRONTEND_URL,
+    process.env.APP_URL,
+    process.env.MERCADOPAGO_REDIRECT_BASE_URL,
+  ].filter(Boolean) as string[]
+
+  for (const c of configured) {
+    try {
+      if (new URL(c).origin === u.origin) return true
+    } catch {
+      /* ignore */
+    }
+  }
+
+  if (process.env.NODE_ENV !== 'production') {
+    const h = u.hostname
+    if (h === 'localhost' || h === '127.0.0.1' || h.endsWith('.localhost')) return true
+  }
+
+  return false
+}
+
+function resolvePublicBaseForBackUrls(returnOrigin?: string | null): string {
+  const sanitized = sanitizeReturnOrigin(returnOrigin)
+  if (sanitized && isTrustedReturnOrigin(sanitized)) {
+    return sanitized.replace(/\/$/, '')
+  }
+  return getFrontendBaseUrl()
+}
 
 function getClients(accessToken?: string | null): { preferenceClient: Preference; paymentClient: Payment } {
   const token = accessToken?.trim() || fallbackToken
@@ -27,6 +117,12 @@ type RefundCapablePaymentClient = Payment & {
   refund(args: { id: number; body: MercadoPagoRefundBody }): Promise<MercadoPagoRefundResponse>
 }
 
+export type CreatePreferenceOptions = {
+  accessToken?: string | null
+  /** e.g. window.location.origin — must match tab where mp_booking was stored */
+  returnOrigin?: string | null
+}
+
 /**
  * Create a Mercado Pago Preference for appointment payment
  */
@@ -39,10 +135,17 @@ export async function createPreference(
     clientName: string
     clientPhone: string
   },
-  options?: { accessToken?: string | null }
+  options?: CreatePreferenceOptions
 ): Promise<{ preferenceId: string; initPoint: string }> {
   const { preferenceClient: pref } = getClients(options?.accessToken)
+  const publicBase = resolvePublicBaseForBackUrls(options?.returnOrigin)
+  const back_urls = {
+    success: `${publicBase}/booking/success?appointmentId=${metadata.appointmentId}`,
+    failure: `${publicBase}/booking/failure?appointmentId=${metadata.appointmentId}`,
+    pending: `${publicBase}/booking/pending?appointmentId=${metadata.appointmentId}`,
+  }
   try {
+    // MP requires HTTPS for auto_return; plain http (e.g. local dev) omits it — user uses "Volver al sitio".
     const preference = await pref.create({
       body: {
         items: [
@@ -55,12 +158,10 @@ export async function createPreference(
           },
         ],
         metadata,
-        back_urls: {
-          success: `${process.env.FRONTEND_URL}/booking/success?appointmentId=${metadata.appointmentId}`,
-          failure: `${process.env.FRONTEND_URL}/booking/failure?appointmentId=${metadata.appointmentId}`,
-          pending: `${process.env.FRONTEND_URL}/booking/pending?appointmentId=${metadata.appointmentId}`,
-        },
-        notification_url: `${process.env.BACKEND_URL || 'http://localhost:3001'}/api/webhooks/mercadopago`,
+        external_reference: metadata.appointmentId,
+        ...(publicBase.startsWith('https://') ? { auto_return: 'approved' as const } : {}),
+        back_urls,
+        notification_url: `${getWebhookNotificationBaseUrl()}/api/webhooks/mercadopago`,
       },
     })
 
@@ -109,21 +210,56 @@ export async function processRefund(
 }
 
 /**
- * Verify Mercado Pago webhook signature (IPN notification)
+ * Verify Mercado Pago webhook x-signature (HMAC SHA256).
+ * @see https://www.mercadopago.com.ar/developers/es/docs/your-integrations/notifications/webhooks
  */
+export function verifyMercadoPagoWebhookSignature(
+  xSignature: string | undefined,
+  xRequestId: string | undefined,
+  dataId: string,
+  secrets: string[]
+): boolean {
+  if (!xSignature?.trim() || !xRequestId?.trim() || !dataId.trim()) {
+    return false
+  }
+  const uniqueSecrets = Array.from(new Set(secrets.map((s) => s.trim()).filter(Boolean)))
+  if (uniqueSecrets.length === 0) return false
+
+  const parts = xSignature.split(',')
+  let ts: string | undefined
+  let v1: string | undefined
+  for (const part of parts) {
+    const idx = part.indexOf('=')
+    if (idx === -1) continue
+    const key = part.slice(0, idx).trim()
+    const value = part.slice(idx + 1).trim()
+    if (key === 'ts') ts = value
+    if (key === 'v1') v1 = value
+  }
+  if (!ts || !v1) return false
+
+  const normalizedId = /^[a-zA-Z0-9]+$/.test(dataId) ? dataId.toLowerCase() : dataId
+  const manifest = `id:${normalizedId};request-id:${xRequestId};ts:${ts};`
+
+  for (const secret of uniqueSecrets) {
+    const hmac = crypto.createHmac('sha256', secret)
+    hmac.update(manifest)
+    const digest = hmac.digest('hex')
+    if (digest === v1) return true
+  }
+  return false
+}
+
+/** @deprecated Use verifyMercadoPagoWebhookSignature with secrets from env + BusinessSettings */
 export async function verifyWebhookSignature(
   xSignature: string,
   xRequestId: string,
   dataId: string
 ): Promise<boolean> {
-  if (!xSignature || !xRequestId) {
-    return false
-  }
-
-  void dataId
-
-  // TODO: Implement full HMAC verification when Mercado Pago provides webhook secret
-  return true
+  const secrets = [process.env.MERCADOPAGO_WEBHOOK_SECRET].filter(
+    (s): s is string => !!s && s.trim().length > 0
+  )
+  return verifyMercadoPagoWebhookSignature(xSignature, xRequestId, dataId, secrets)
 }
 
 export async function getPayment(

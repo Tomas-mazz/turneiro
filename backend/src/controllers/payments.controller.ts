@@ -8,7 +8,12 @@ import { finalizeAppointmentAfterPaymentService } from '../services/appointments
  */
 export async function createPaymentIntent(req: Request, res: Response) {
   try {
-    const { appointmentId, provider } = req.body
+    const { appointmentId, provider, returnOrigin } = req.body as {
+      appointmentId?: string
+      provider?: string
+      /** Browser origin (e.g. https://foo.com) so MP back_urls match sessionStorage */
+      returnOrigin?: string | null
+    }
 
     if (!appointmentId || !provider) {
       return res.status(400).json({
@@ -94,7 +99,10 @@ export async function createPaymentIntent(req: Request, res: Response) {
         paymentAmount,
         `${appointment.serviceName} - ${appointment.business.name}`,
         metadata,
-        { accessToken: settings.mercadoPagoAccessToken }
+        {
+          accessToken: settings.mercadoPagoAccessToken,
+          returnOrigin: typeof returnOrigin === 'string' ? returnOrigin : null,
+        }
       )
 
     // Update appointment with payment info
@@ -122,9 +130,28 @@ export async function createPaymentIntent(req: Request, res: Response) {
 /**
  * Confirm payment completion (called after successful payment)
  */
+type MercadoPagoPaymentResource = {
+  status?: string
+  metadata?: { preference_id?: string | null } | null
+  external_reference?: string | null
+  preference_id?: string | null
+}
+
+function preferenceIdFromMercadoPagoPayment(payment: MercadoPagoPaymentResource): string | null {
+  const fromMeta = payment.metadata?.preference_id
+  if (fromMeta != null && String(fromMeta).trim() !== '') return String(fromMeta).trim()
+  const top = payment.preference_id
+  if (top != null && String(top).trim() !== '') return String(top).trim()
+  return null
+}
+
 export async function confirmPayment(req: Request, res: Response) {
   try {
-    const { appointmentId, paymentIntentId } = req.body
+    const { appointmentId, paymentIntentId, mercadoPagoPaymentId } = req.body as {
+      appointmentId?: string
+      paymentIntentId?: string
+      mercadoPagoPaymentId?: string | null
+    }
 
     if (!appointmentId || !paymentIntentId) {
       return res.status(400).json({
@@ -134,10 +161,20 @@ export async function confirmPayment(req: Request, res: Response) {
 
     const appointment = await prisma.appointment.findUnique({
       where: { id: appointmentId },
+      include: { business: { include: { settings: true } } },
     })
 
     if (!appointment) {
       return res.status(404).json({ error: 'Cita no encontrada' })
+    }
+
+    if (appointment.paymentStatus === 'PAID') {
+      return res.json({
+        success: true,
+        alreadyPaid: true,
+        providerStatus: 'approved',
+        appointment,
+      })
     }
 
     const aptPaymentIntentId = appointment.paymentIntentId
@@ -158,23 +195,42 @@ export async function confirmPayment(req: Request, res: Response) {
       return res.status(400).json({ error: 'Payment Intent ID no coincide' })
     }
 
+    const accessToken = appointment.business.settings?.mercadoPagoAccessToken
+
     let paymentVerified = false
     let paymentStatus: string | undefined
     if (aptPaymentProvider === 'MERCADOPAGO') {
-      if (/^\d+$/.test(String(paymentIntentId))) {
-        const withSettings = await prisma.appointment.findUnique({
-          where: { id: appointmentId },
-          include: { business: { include: { settings: true } } },
-        })
-        const accessToken = withSettings?.business.settings?.mercadoPagoAccessToken
-        const payment = await mercadopagoService.getPayment(String(paymentIntentId), {
+      const mpPaymentIdRaw =
+        mercadoPagoPaymentId != null && String(mercadoPagoPaymentId).trim() !== ''
+          ? String(mercadoPagoPaymentId).trim()
+          : null
+
+      // Direct payment id (numeric) stored as paymentIntentId (unusual for our flow)
+      if (/^\d+$/.test(String(paymentIntentId)) && !mpPaymentIdRaw) {
+        const payment = (await mercadopagoService.getPayment(String(paymentIntentId), {
           accessToken,
-        }) as { status?: string }
+        })) as MercadoPagoPaymentResource
         paymentStatus = payment.status
         paymentVerified = paymentStatus === 'approved'
+      } else if (mpPaymentIdRaw && /^\d+$/.test(mpPaymentIdRaw)) {
+        // Checkout Pro redirect: client sends Mercado Pago payment id from success URL (?payment_id=...)
+        const payment = (await mercadopagoService.getPayment(mpPaymentIdRaw, {
+          accessToken,
+        })) as MercadoPagoPaymentResource
+        paymentStatus = payment.status
+        const prefFromPayment = preferenceIdFromMercadoPagoPayment(payment)
+        const extRef = payment.external_reference
+        const matchesPreference =
+          prefFromPayment != null && String(prefFromPayment) === String(aptPaymentIntentId)
+        const matchesAppointment =
+          extRef != null && String(extRef) === String(appointmentId)
+        paymentVerified =
+          paymentStatus === 'approved' && (matchesPreference || matchesAppointment)
       } else {
-        // Preference-based redirect flow sends preference id, not payment id.
-        paymentVerified = true
+        return res.status(400).json({
+          error:
+            'Falta el ID de pago de Mercado Pago. Volvé desde la pantalla de pago o esperá unos minutos y revisá tu correo.',
+        })
       }
     }
 

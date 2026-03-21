@@ -507,7 +507,11 @@ export default function BusinessBookingPage() {
     api
       .post<{ preferenceId: string; initPoint: string; amount: number; provider: string }>(
         '/payments/create-intent',
-        { appointmentId: createdAppointment.id, provider: 'MERCADOPAGO' }
+        {
+          appointmentId: createdAppointment.id,
+          provider: 'MERCADOPAGO',
+          returnOrigin: typeof window !== 'undefined' ? window.location.origin : undefined,
+        }
       )
       .then((res) => {
         const storage: Record<string, string> = {
@@ -518,6 +522,7 @@ export default function BusinessBookingPage() {
           endTime: createdAppointment.endTime,
           cancellationToken: createdAppointment.cancellationToken || '',
           businessSlug: slug,
+          primaryColor: primaryColor,
         }
         sessionStorage.setItem('mp_booking', JSON.stringify(storage))
         setPaymentProvider('MERCADOPAGO')

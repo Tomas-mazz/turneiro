@@ -5,7 +5,12 @@ import { MercadoPagoBrick } from './MercadoPagoBrick'
 import { BookingLayout } from './BookingLayout'
 import { BookingStepper } from './BookingStepper'
 import { CalendarIcon } from '@/app/_assets/icons'
+import { MercadoPagoLogo } from './MercadoPagoLogo'
 import type { CreatedAppointment } from '../types'
+
+/** Mercado Pago brand primary (checkout buttons) */
+const MERCADOPAGO_BUTTON_BG = '#009EE3'
+const MERCADOPAGO_BUTTON_BG_HOVER = '#008ed6'
 
 type PaymentStepProps = {
   businessName: string
@@ -56,7 +61,7 @@ export function PaymentStep({
   onBack,
   onGoToServices,
   showPaymentStep = false,
-  primaryColor,
+  primaryColor: _primaryColor,
   isDarkTheme = true,
   onToggleTheme,
   onOpenLogin,
@@ -159,10 +164,26 @@ export function PaymentStep({
               type="button"
               onClick={onMercadoPagoIntent}
               disabled={paymentLoading}
-              className="w-full rounded-lg py-3 font-medium text-black transition-opacity hover:opacity-90 disabled:opacity-50"
-              style={{ backgroundColor: primaryColor }}
+              className="flex w-full items-center justify-center gap-2.5 rounded-lg px-4 py-3.5 text-[15px] font-semibold text-white shadow-md transition-colors hover:shadow-lg disabled:cursor-not-allowed disabled:opacity-60"
+              style={{
+                backgroundColor: MERCADOPAGO_BUTTON_BG,
+              }}
+              onMouseEnter={(e) => {
+                if (!paymentLoading) e.currentTarget.style.backgroundColor = MERCADOPAGO_BUTTON_BG_HOVER
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.backgroundColor = MERCADOPAGO_BUTTON_BG
+              }}
+              aria-label="Pagar con Mercado Pago"
             >
-              {paymentLoading ? 'Cargando...' : 'Pagar con Mercado Pago'}
+              {paymentLoading ? (
+                'Cargando...'
+              ) : (
+                <>
+                  <MercadoPagoLogo className="h-6 w-6 shrink-0 text-white" />
+                  <span>Pagar con Mercado Pago</span>
+                </>
+              )}
             </button>
             {onBack && (
               <button type="button" onClick={onBack} className={secondaryBtnClass}>
