@@ -4,6 +4,8 @@ import { useEffect, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { api } from '@/lib/api'
+import { BookingDone } from '@/app/(public)/[business-slug]/components/BookingDone'
+import type { CreatedAppointment } from '@/app/(public)/[business-slug]/types'
 
 const MP_BOOKING_KEY = 'mp_booking'
 
@@ -15,12 +17,29 @@ type StoredBooking = {
   endTime: string
   cancellationToken: string
   businessSlug: string
+  primaryColor?: string
+}
+
+function pickMercadoPagoPaymentId(searchParams: URLSearchParams): string | null {
+  const direct = searchParams.get('payment_id')
+  if (direct && /^\d+$/.test(direct.trim())) return direct.trim()
+  const ids = searchParams.get('payment_ids')
+  if (ids) {
+    const first = ids.split(',')[0]?.trim()
+    if (first && /^\d+$/.test(first)) return first
+  }
+  const collection = searchParams.get('collection_id')
+  if (collection && /^\d+$/.test(collection.trim())) return collection.trim()
+  return null
 }
 
 export function BookingSuccessClient() {
   const searchParams = useSearchParams()
   const appointmentId = searchParams.get('appointmentId')
+  const mercadoPagoPaymentIdFromUrl = pickMercadoPagoPaymentId(searchParams)
   const [booking, setBooking] = useState<StoredBooking | null>(null)
+  const [appointmentForDone, setAppointmentForDone] = useState<CreatedAppointment | null>(null)
+  const [primaryColor, setPrimaryColor] = useState('#f5f5f5')
   const [confirming, setConfirming] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
@@ -49,20 +68,32 @@ export function BookingSuccessClient() {
       setError('La reserva no coincide')
       return
     }
+
+    const color = data.primaryColor?.trim() || '#f5f5f5'
+    setPrimaryColor(color)
+
     api
       .post('/payments/confirm', {
         appointmentId: data.appointmentId,
         paymentIntentId: data.preferenceId,
+        mercadoPagoPaymentId: mercadoPagoPaymentIdFromUrl,
       })
       .then(() => {
         setBooking(data)
+        setAppointmentForDone({
+          id: data.appointmentId,
+          startTime: data.startTime,
+          endTime: data.endTime,
+          serviceName: data.serviceName,
+          cancellationToken: data.cancellationToken || null,
+        })
         sessionStorage.removeItem(MP_BOOKING_KEY)
       })
       .catch((err) => {
         setError(err.response?.data?.error || 'No se pudo confirmar el pago')
       })
       .finally(() => setConfirming(false))
-  }, [appointmentId])
+  }, [appointmentId, mercadoPagoPaymentIdFromUrl])
 
   if (confirming) {
     return (
@@ -88,35 +119,30 @@ export function BookingSuccessClient() {
 
   if (!booking) return null
 
+  if (!booking || !appointmentForDone) return null
+
   const cancelUrl =
     typeof window !== 'undefined'
       ? `${window.location.origin}/cancel?token=${booking.cancellationToken}`
       : '#'
 
   return (
-    <main className="min-h-screen bg-neutral-100 py-12 px-4">
-      <div className="max-w-md mx-auto bg-white rounded-xl shadow p-6 text-center">
-        <h2 className="text-xl font-semibold text-neutral-900 mb-2">Cita confirmada</h2>
-        <p className="text-neutral-600 mb-1">{booking.serviceName}</p>
-        <p className="text-neutral-600 text-sm">
-          {new Date(booking.startTime).toLocaleString('es')} –{' '}
-          {new Date(booking.endTime).toLocaleTimeString('es', {
-            hour: '2-digit',
-            minute: '2-digit',
-          })}
+    <main className="min-h-screen flex flex-col items-center justify-center bg-neutral-100 px-4 py-12">
+      <BookingDone appointment={appointmentForDone} primaryColor={primaryColor} />
+      {booking.cancellationToken && (
+        <p className="mt-6 max-w-md text-center text-sm text-neutral-500">
+          Para cancelar:{' '}
+          <a href={cancelUrl} className="text-blue-600 underline">
+            Cancelar cita
+          </a>
         </p>
-        {booking.cancellationToken && (
-          <p className="mt-4 text-sm text-neutral-500">
-            Para cancelar, usa este enlace:{' '}
-            <a href={cancelUrl} className="underline text-blue-600">
-              Cancelar cita
-            </a>
-          </p>
-        )}
-        <Link href="/" className="mt-6 inline-block text-blue-600 underline">
-          Volver al negocio
-        </Link>
-      </div>
+      )}
+      <Link
+        href={booking.businessSlug ? `/${booking.businessSlug}` : '/'}
+        className="mt-4 text-blue-600 underline"
+      >
+        Volver al negocio
+      </Link>
     </main>
   )
 }
