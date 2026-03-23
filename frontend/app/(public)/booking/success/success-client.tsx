@@ -20,6 +20,21 @@ type StoredBooking = {
   primaryColor?: string
 }
 
+type ConfirmBookingPayload = {
+  appointmentId: string
+  businessSlug: string
+  primaryColor: string
+  serviceName: string
+  startTime: string
+  endTime: string
+  cancellationToken: string | null
+}
+
+type ConfirmPaymentResponse = {
+  success?: boolean
+  booking?: ConfirmBookingPayload
+}
+
 function pickMercadoPagoPaymentId(searchParams: URLSearchParams): string | null {
   const direct = searchParams.get('payment_id')
   if (direct && /^\d+$/.test(direct.trim())) return direct.trim()
@@ -44,49 +59,104 @@ export function BookingSuccessClient() {
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
+    const applyBookingFromServer = (b: ConfirmBookingPayload) => {
+      const slug = b.businessSlug || ''
+      setBooking({
+        appointmentId: b.appointmentId,
+        preferenceId: '',
+        serviceName: b.serviceName,
+        startTime: b.startTime,
+        endTime: b.endTime,
+        cancellationToken: b.cancellationToken || '',
+        businessSlug: slug,
+        primaryColor: b.primaryColor,
+      })
+      setAppointmentForDone({
+        id: b.appointmentId,
+        startTime: b.startTime,
+        endTime: b.endTime,
+        serviceName: b.serviceName,
+        cancellationToken: b.cancellationToken,
+      })
+      setPrimaryColor(b.primaryColor?.trim() || '#f5f5f5')
+    }
+
     if (!appointmentId) {
       setConfirming(false)
       setError('Faltan datos de la reserva')
       return
     }
+
+    let stored: StoredBooking | null = null
     const raw = sessionStorage.getItem(MP_BOOKING_KEY)
-    if (!raw) {
-      setConfirming(false)
-      setError('No se encontró la información de la reserva')
-      return
+    if (raw) {
+      try {
+        const parsed = JSON.parse(raw) as StoredBooking
+        if (parsed.appointmentId !== appointmentId) {
+          setConfirming(false)
+          setError('La reserva no coincide')
+          return
+        }
+        stored = parsed
+      } catch {
+        setConfirming(false)
+        setError('Datos de reserva inválidos')
+        return
+      }
     }
-    let data: StoredBooking
-    try {
-      data = JSON.parse(raw) as StoredBooking
-    } catch {
-      setConfirming(false)
-      setError('Datos de reserva inválidos')
-      return
-    }
-    if (data.appointmentId !== appointmentId) {
-      setConfirming(false)
-      setError('La reserva no coincide')
+
+    // Sin sessionStorage (p. ej. www vs apex): confirmar con appointmentId + payment_id de la URL,
+    // o si el webhook ya marcó PAID el backend devuelve booking igual.
+    if (!stored && !mercadoPagoPaymentIdFromUrl) {
+      api
+        .post<ConfirmPaymentResponse>('/payments/confirm', {
+          appointmentId,
+          mercadoPagoPaymentId: mercadoPagoPaymentIdFromUrl,
+        })
+        .then((res) => {
+          const b = res.data.booking
+          if (b) {
+            applyBookingFromServer(b)
+            return
+          }
+          setError(
+            'No se pudo cargar el detalle de la reserva. Recargá la página o contactá al negocio.'
+          )
+        })
+        .catch((err) => {
+          setError(err.response?.data?.error || 'No se pudo confirmar el pago')
+        })
+        .finally(() => setConfirming(false))
       return
     }
 
-    const color = data.primaryColor?.trim() || '#f5f5f5'
+    const color = stored?.primaryColor?.trim() || '#f5f5f5'
     setPrimaryColor(color)
 
     api
-      .post('/payments/confirm', {
-        appointmentId: data.appointmentId,
-        paymentIntentId: data.preferenceId,
+      .post<ConfirmPaymentResponse>('/payments/confirm', {
+        appointmentId,
+        paymentIntentId: stored?.preferenceId,
         mercadoPagoPaymentId: mercadoPagoPaymentIdFromUrl,
       })
-      .then(() => {
-        setBooking(data)
-        setAppointmentForDone({
-          id: data.appointmentId,
-          startTime: data.startTime,
-          endTime: data.endTime,
-          serviceName: data.serviceName,
-          cancellationToken: data.cancellationToken || null,
-        })
+      .then((res) => {
+        const b = res.data.booking
+        if (stored) {
+          setBooking(stored)
+          setAppointmentForDone({
+            id: stored.appointmentId,
+            startTime: stored.startTime,
+            endTime: stored.endTime,
+            serviceName: stored.serviceName,
+            cancellationToken: stored.cancellationToken || null,
+          })
+        } else if (b) {
+          applyBookingFromServer(b)
+        } else {
+          setError(
+            'No se pudo cargar el detalle de la reserva. Recargá la página o contactá al negocio.'
+          )
+        }
         sessionStorage.removeItem(MP_BOOKING_KEY)
       })
       .catch((err) => {
