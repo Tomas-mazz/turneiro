@@ -17,7 +17,7 @@ import { panel } from '@/lib/panelTheme'
 type DashboardRole = 'OWNER' | 'STAFF' | 'ADMIN_HYBRID' | null
 
 type NavItem = {
-  id: 'home' | 'services' | 'hours' | 'block' | 'cancel' | 'profile' | 'images'
+  id: 'home' | 'services' | 'payments' | 'hours' | 'block' | 'cancel' | 'profile' | 'images'
   label: string
   href: string
 }
@@ -32,6 +32,7 @@ const OWNER_ITEMS: NavItem[] = [
   { id: 'home', label: 'Inicio', href: '/setting' },
   { id: 'profile', label: 'Mi perfil', href: '/setting/profile' },
   { id: 'services', label: 'Servicios', href: '/setting/services' },
+  { id: 'payments', label: 'Pagos', href: '/setting/payments' },
   { id: 'hours', label: 'Horarios', href: '/setting/hours' },
   { id: 'block', label: 'Bloquear días u horarios', href: '/setting/blocking' },
   { id: 'cancel', label: 'Cancelar turnos', href: '/setting/cancel' },

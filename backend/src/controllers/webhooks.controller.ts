@@ -1,6 +1,7 @@
 import { Request, Response } from 'express'
 import { prisma } from '../lib/prisma'
 import * as mercadopagoService from '../services/mercadopago.service'
+import { finalizeAppointmentAfterPaymentService } from '../services/appointments.service'
 
 type MercadoPagoPaymentLike = {
   metadata?: { preference_id?: string }
@@ -39,8 +40,34 @@ export async function mercadopagoWebhook(req: Request, res: Response) {
     if (type === 'payment') {
       const paymentId = data.id
 
-      // Get payment details from Mercado Pago
-      const payment = await mercadopagoService.getPayment(paymentId) as MercadoPagoPaymentLike
+      const tokenRows = await prisma.businessSettings.findMany({
+        where: { mercadoPagoAccessToken: { not: null } },
+        select: { mercadoPagoAccessToken: true },
+      })
+      const candidateTokens = Array.from(
+        new Set(
+          [
+            process.env.MERCADOPAGO_ACCESS_TOKEN ?? null,
+            ...tokenRows.map((r) => r.mercadoPagoAccessToken),
+          ].filter((t): t is string => !!t && t.trim().length > 0)
+        )
+      )
+
+      let payment: MercadoPagoPaymentLike | null = null
+      for (const token of candidateTokens) {
+        try {
+          payment = await mercadopagoService.getPayment(paymentId, {
+            accessToken: token,
+          }) as MercadoPagoPaymentLike
+          break
+        } catch {
+          // Continue trying with next token (multi-tenant credentials).
+        }
+      }
+      if (!payment) {
+        console.log(`No Mercado Pago credential could resolve payment ${paymentId}`)
+        return res.json({ received: true })
+      }
 
       // Find appointment by preference ID (stored in paymentIntentId)
       const preferenceId = payment.metadata?.preference_id || payment.external_reference
@@ -50,21 +77,39 @@ export async function mercadopagoWebhook(req: Request, res: Response) {
           paymentIntentId: preferenceId,
           paymentProvider: 'MERCADOPAGO',
         },
+        include: {
+          business: {
+            include: { settings: true },
+          },
+        },
       })
 
       if (!appointment) {
         console.log(`No appointment found for Mercado Pago payment ${paymentId}`)
         return res.json({ received: true })
       }
+      const appointmentHoldExpiresAt =
+        (appointment as unknown as { paymentHoldExpiresAt?: Date | null })
+          .paymentHoldExpiresAt ?? null
 
       // Update appointment based on payment status
       if (payment.status === 'approved') {
+        if (appointmentHoldExpiresAt && appointmentHoldExpiresAt.getTime() <= Date.now()) {
+          await prisma.appointment.update({
+            where: { id: appointment.id },
+            data: { status: 'CANCELLED' },
+          })
+          console.log(`⌛ Payment arrived after hold expiry for appointment ${appointment.id}`)
+          return res.json({ received: true, expired: true })
+        }
         await prisma.appointment.update({
           where: { id: appointment.id },
           data: {
             paymentStatus: 'PAID',
+            paymentHoldExpiresAt: null,
           },
         })
+        await finalizeAppointmentAfterPaymentService(appointment.id)
         console.log(`✅ Mercado Pago payment approved for appointment ${appointment.id}`)
       } else if (payment.status === 'rejected' || payment.status === 'cancelled') {
         console.log(`❌ Mercado Pago payment ${payment.status} for appointment ${appointment.id}`)
