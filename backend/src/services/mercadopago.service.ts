@@ -55,6 +55,8 @@ export async function createPreference(
           },
         ],
         metadata,
+        // Repeated on the Payment resource so webhooks can resolve the appointment without preference_id in metadata.
+        external_reference: metadata.appointmentId,
         back_urls: {
           success: `${process.env.FRONTEND_URL}/booking/success?appointmentId=${metadata.appointmentId}`,
           failure: `${process.env.FRONTEND_URL}/booking/failure?appointmentId=${metadata.appointmentId}`,

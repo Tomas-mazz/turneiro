@@ -4,10 +4,96 @@ import * as mercadopagoService from '../services/mercadopago.service'
 import { finalizeAppointmentAfterPaymentService } from '../services/appointments.service'
 
 type MercadoPagoPaymentLike = {
-  metadata?: { preference_id?: string }
-  external_reference?: string
   status?: string
   transaction_amount?: number
+  metadata?: Record<string, unknown>
+  external_reference?: string
+  externalReference?: string
+  preference_id?: string | number
+  preferenceId?: string | number
+}
+
+function metaString(meta: Record<string, unknown> | undefined, key: string): string | undefined {
+  if (!meta || typeof meta !== 'object') return undefined
+  const v = meta[key]
+  return v != null ? String(v) : undefined
+}
+
+/**
+ * Resolve DB appointment from Mercado Pago Payment API shape (metadata + external_reference vary by API version).
+ */
+async function findAppointmentForMercadoPagoWebhookPayment(
+  payment: MercadoPagoPaymentLike
+) {
+  const meta =
+    payment.metadata && typeof payment.metadata === 'object'
+      ? (payment.metadata as Record<string, unknown>)
+      : undefined
+
+  const preferenceFromMeta =
+    metaString(meta, 'preference_id') ?? metaString(meta, 'preferenceId')
+  const topPreference =
+    payment.preference_id != null
+      ? String(payment.preference_id)
+      : payment.preferenceId != null
+        ? String(payment.preferenceId)
+        : undefined
+  const preferenceKey = preferenceFromMeta ?? topPreference
+
+  const appointmentIdFromMeta =
+    metaString(meta, 'appointment_id') ?? metaString(meta, 'appointmentId')
+
+  const ext =
+    payment.external_reference != null
+      ? String(payment.external_reference)
+      : payment.externalReference != null
+        ? String(payment.externalReference)
+        : undefined
+
+  const include = {
+    business: {
+      include: { settings: true },
+    },
+  } as const
+
+  // 1) Stored MP preference id (Checkout Pro)
+  if (preferenceKey) {
+    const byPref = await prisma.appointment.findFirst({
+      where: {
+        paymentIntentId: preferenceKey,
+        paymentProvider: 'MERCADOPAGO',
+      },
+      include,
+    })
+    if (byPref) return byPref
+  }
+
+  // 2) external_reference / metadata sometimes equals preference id only in older flows
+  if (ext && ext !== appointmentIdFromMeta) {
+    const byExtAsPref = await prisma.appointment.findFirst({
+      where: {
+        paymentIntentId: ext,
+        paymentProvider: 'MERCADOPAGO',
+      },
+      include,
+    })
+    if (byExtAsPref) return byExtAsPref
+  }
+
+  // 3) Our preference sets external_reference = appointmentId; MP copies metadata.appointmentId on the payment
+  const appointmentId = appointmentIdFromMeta ?? ext
+  if (appointmentId) {
+    const byId = await prisma.appointment.findFirst({
+      where: {
+        id: appointmentId,
+        paymentProvider: 'MERCADOPAGO',
+      },
+      include,
+    })
+    if (byId) return byId
+  }
+
+  return null
 }
 
 /**
@@ -95,23 +181,12 @@ export async function mercadopagoWebhook(req: Request, res: Response) {
         return res.json({ received: true })
       }
 
-      // Find appointment by preference ID (stored in paymentIntentId)
-      const preferenceId = payment.metadata?.preference_id || payment.external_reference
-
-      const appointment = await prisma.appointment.findFirst({
-        where: {
-          paymentIntentId: preferenceId,
-          paymentProvider: 'MERCADOPAGO',
-        },
-        include: {
-          business: {
-            include: { settings: true },
-          },
-        },
-      })
+      const appointment = await findAppointmentForMercadoPagoWebhookPayment(payment)
 
       if (!appointment) {
-        console.log(`No appointment found for Mercado Pago payment ${paymentId}`)
+        console.log(
+          `No appointment found for Mercado Pago payment ${paymentId} (check metadata / external_reference / preference_id)`
+        )
         return res.json({ received: true })
       }
       const appointmentHoldExpiresAt =
