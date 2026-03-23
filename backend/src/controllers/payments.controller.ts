@@ -214,8 +214,9 @@ export async function confirmPayment(req: Request, res: Response) {
       return res.status(404).json({ error: 'Cita no encontrada' })
     }
 
-    // Idempotent: webhook or prior confirm already marked paid — still return UI payload.
+    // Already PAID (e.g. webhook): still run finalize so emails/calendar enqueue now if they never ran.
     if (appointment.paymentStatus === 'PAID') {
+      await finalizeAppointmentAfterPaymentService(appointment.id)
       return res.json({
         success: true,
         alreadyConfirmed: true,

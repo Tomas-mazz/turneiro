@@ -148,6 +148,8 @@ model Appointment {
   googleEventId        String? // Google Calendar Event ID for syncing
   syncedToUserId       String? // User whose Google Calendar the event was created in (for per-employee sync)
   ownerCalendarEventId String? // When synced to staff, copy on owner's calendar (for owner view with color); deleted on cancel
+  /// When post-payment QStash jobs were first enqueued (avoids duplicate emails if googleEventId is still null).
+  paymentConfirmationJobsEnqueuedAt DateTime?
   businessId           String
   employeeId           String?
   serviceId            String?
