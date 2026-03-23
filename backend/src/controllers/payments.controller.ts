@@ -3,6 +3,66 @@ import { prisma } from '../lib/prisma'
 import * as mercadopagoService from '../services/mercadopago.service'
 import { finalizeAppointmentAfterPaymentService } from '../services/appointments.service'
 
+type MercadoPagoPaymentLike = {
+  status?: string
+  metadata?: Record<string, unknown>
+  external_reference?: string
+  externalReference?: string
+  preference_id?: string | number
+  preferenceId?: string | number
+}
+
+type BookingSummaryPayload = {
+  appointmentId: string
+  businessSlug: string
+  primaryColor: string
+  serviceName: string
+  startTime: string
+  endTime: string
+  cancellationToken: string | null
+}
+
+function toBookingSummary(apt: {
+  id: string
+  serviceName: string
+  startTime: Date
+  endTime: Date
+  cancellationToken: string | null
+  business: { slug: string; primaryColor: string }
+}): BookingSummaryPayload {
+  return {
+    appointmentId: apt.id,
+    businessSlug: apt.business.slug,
+    primaryColor: apt.business.primaryColor,
+    serviceName: apt.serviceName,
+    startTime: apt.startTime.toISOString(),
+    endTime: apt.endTime.toISOString(),
+    cancellationToken: apt.cancellationToken,
+  }
+}
+
+/** Ensure an approved MP payment is for this appointment (preference / metadata / external_reference). */
+function mercadoPagoPaymentBelongsToAppointment(
+  payment: MercadoPagoPaymentLike,
+  appointmentId: string,
+  storedPreferenceId: string | null
+): boolean {
+  const meta = payment.metadata
+  const m = (key: string): string | undefined => {
+    if (!meta || typeof meta !== 'object') return undefined
+    const v = meta[key]
+    return v != null ? String(v) : undefined
+  }
+  if (m('appointment_id') === appointmentId || m('appointmentId') === appointmentId) return true
+  const prefMeta = m('preference_id') ?? m('preferenceId')
+  if (storedPreferenceId && prefMeta && prefMeta === String(storedPreferenceId)) return true
+  const topPref = payment.preference_id ?? payment.preferenceId
+  if (storedPreferenceId && topPref != null && String(topPref) === String(storedPreferenceId)) return true
+  const ext = payment.external_reference ?? payment.externalReference
+  if (ext != null && String(ext) === appointmentId) return true
+  return false
+}
+
 /**
  * Create payment preference (Mercado Pago)
  */
@@ -124,24 +184,59 @@ export async function createPaymentIntent(req: Request, res: Response) {
  */
 export async function confirmPayment(req: Request, res: Response) {
   try {
-    const { appointmentId, paymentIntentId } = req.body
+    const { appointmentId, paymentIntentId: bodyPaymentIntentId, mercadoPagoPaymentId: rawMpPaymentId } =
+      req.body ?? {}
 
-    if (!appointmentId || !paymentIntentId) {
+    const clientSentPreferenceId =
+      bodyPaymentIntentId != null && String(bodyPaymentIntentId).trim() !== ''
+
+    if (!appointmentId) {
       return res.status(400).json({
-        error: 'appointmentId y paymentIntentId son requeridos',
+        error: 'appointmentId es requerido',
       })
     }
 
+    const mercadoPagoPaymentId =
+      rawMpPaymentId != null && String(rawMpPaymentId).trim() !== ''
+        ? String(rawMpPaymentId).trim()
+        : undefined
+
     const appointment = await prisma.appointment.findUnique({
       where: { id: appointmentId },
+      include: {
+        business: {
+          select: { slug: true, primaryColor: true },
+        },
+      },
     })
 
     if (!appointment) {
       return res.status(404).json({ error: 'Cita no encontrada' })
     }
 
+    // Idempotent: webhook or prior confirm already marked paid — still return UI payload.
+    if (appointment.paymentStatus === 'PAID') {
+      return res.json({
+        success: true,
+        alreadyConfirmed: true,
+        booking: toBookingSummary(appointment),
+        providerStatus: 'approved',
+      })
+    }
+
     const aptPaymentIntentId = appointment.paymentIntentId
     const aptPaymentProvider = appointment.paymentProvider
+    const resolvedPaymentIntentId =
+      bodyPaymentIntentId != null && String(bodyPaymentIntentId).trim() !== ''
+        ? String(bodyPaymentIntentId).trim()
+        : aptPaymentIntentId
+
+    if (!resolvedPaymentIntentId) {
+      return res.status(400).json({
+        error: 'La cita no tiene una preferencia de pago asociada',
+      })
+    }
+
     if (
       appointment.paymentStatus === 'PENDING' &&
       appointment.paymentHoldExpiresAt &&
@@ -154,27 +249,45 @@ export async function confirmPayment(req: Request, res: Response) {
       return res.status(410).json({ error: 'La reserva de pago expiró. Debes reservar nuevamente.' })
     }
 
-    if (aptPaymentIntentId !== paymentIntentId) {
+    if (aptPaymentIntentId && aptPaymentIntentId !== resolvedPaymentIntentId) {
       return res.status(400).json({ error: 'Payment Intent ID no coincide' })
     }
 
+    const withSettings = await prisma.appointment.findUnique({
+      where: { id: appointmentId },
+      include: { business: { include: { settings: true } } },
+    })
+    const accessToken = withSettings?.business.settings?.mercadoPagoAccessToken
+
     let paymentVerified = false
     let paymentStatus: string | undefined
+
     if (aptPaymentProvider === 'MERCADOPAGO') {
-      if (/^\d+$/.test(String(paymentIntentId))) {
-        const withSettings = await prisma.appointment.findUnique({
-          where: { id: appointmentId },
-          include: { business: { include: { settings: true } } },
-        })
-        const accessToken = withSettings?.business.settings?.mercadoPagoAccessToken
-        const payment = await mercadopagoService.getPayment(String(paymentIntentId), {
+      if (mercadoPagoPaymentId && /^\d+$/.test(mercadoPagoPaymentId)) {
+        const payment = (await mercadopagoService.getPayment(mercadoPagoPaymentId, {
           accessToken,
-        }) as { status?: string }
+        })) as MercadoPagoPaymentLike
+        paymentStatus = payment.status
+        paymentVerified =
+          paymentStatus === 'approved' &&
+          mercadoPagoPaymentBelongsToAppointment(payment, appointmentId, aptPaymentIntentId)
+        if (paymentStatus === 'approved' && !paymentVerified) {
+          return res.status(400).json({ error: 'El pago no corresponde a esta reserva' })
+        }
+      } else if (/^\d+$/.test(String(resolvedPaymentIntentId))) {
+        const payment = (await mercadopagoService.getPayment(String(resolvedPaymentIntentId), {
+          accessToken,
+        })) as MercadoPagoPaymentLike
         paymentStatus = payment.status
         paymentVerified = paymentStatus === 'approved'
-      } else {
-        // Preference-based redirect flow sends preference id, not payment id.
+      } else if (clientSentPreferenceId && aptPaymentIntentId === resolvedPaymentIntentId) {
+        // Misma pestaña / sessionStorage: el cliente reenvía el preferenceId que guardó al ir a MP.
         paymentVerified = true
+      } else {
+        return res.status(400).json({
+          error:
+            'No pudimos confirmar el pago automáticamente. Si ya pagaste, esperá unos segundos y recargá la página, o volvé a abrir el enlace desde el mismo sitio donde hiciste la reserva (mismo dominio con/sin www).',
+        })
       }
     }
 
@@ -182,12 +295,16 @@ export async function confirmPayment(req: Request, res: Response) {
       return res.status(400).json({ error: 'Pago no verificado' })
     }
 
-    // Update appointment status
     const updated = await prisma.appointment.update({
       where: { id: appointmentId },
       data: {
         paymentStatus: 'PAID',
         paymentHoldExpiresAt: null,
+      },
+      include: {
+        business: {
+          select: { slug: true, primaryColor: true },
+        },
       },
     })
     await finalizeAppointmentAfterPaymentService(updated.id)
@@ -196,6 +313,7 @@ export async function confirmPayment(req: Request, res: Response) {
       success: true,
       providerStatus: paymentStatus ?? null,
       appointment: updated,
+      booking: toBookingSummary(updated),
     })
   } catch (error) {
     console.error('confirmPayment error:', error)
