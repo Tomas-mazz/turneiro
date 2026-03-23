@@ -584,8 +584,10 @@ export async function finalizeAppointmentAfterPaymentService(
 
   if (!appointment) return
   if (appointment.paymentStatus !== 'PAID') return
-  // If already synced once, we assume side-effects already executed.
+  // Legacy: calendar created implies the post-payment batch already ran.
   if (appointment.googleEventId) return
+  // Avoid re-enqueueing on every /payments/confirm refresh when Calendar is slow or unused.
+  if (appointment.paymentConfirmationJobsEnqueuedAt) return
 
   const preloadedOwner = await prisma.user.findFirst({
     where: { businessId: appointment.businessId, role: 'OWNER' },
@@ -599,11 +601,29 @@ export async function finalizeAppointmentAfterPaymentService(
   })
 
   if (isQueueEnabled()) {
-    enqueueAppointmentJobs(appointment.id, appointment.businessId, preloadedOwner).catch(err => {
-      console.error('Failed to enqueue appointment jobs after payment:', err)
-    })
+    const enqueued = await enqueueAppointmentJobs(
+      appointment.id,
+      appointment.businessId,
+      preloadedOwner
+    )
+    if (enqueued) {
+      await prisma.appointment.update({
+        where: { id: appointmentId },
+        data: { paymentConfirmationJobsEnqueuedAt: new Date() },
+      })
+    } else {
+      console.error(
+        'enqueueAppointmentJobs failed after payment for appointment',
+        appointmentId
+      )
+    }
     return
   }
+
+  await prisma.appointment.update({
+    where: { id: appointmentId },
+    data: { paymentConfirmationJobsEnqueuedAt: new Date() },
+  })
 
   syncToGoogleCalendarForLoadedAppointment(appointment, appointment.businessId, preloadedOwner).catch(err => {
     console.error('Failed to sync to Google Calendar after payment:', err)

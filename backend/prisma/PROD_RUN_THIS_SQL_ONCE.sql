@@ -13,3 +13,6 @@ ALTER TABLE "BusinessSettings" ADD COLUMN IF NOT EXISTS "paymentOptionalEnabled"
 ALTER TABLE "BusinessSettings" ADD COLUMN IF NOT EXISTS "mercadoPagoPublicKey" TEXT;
 ALTER TABLE "BusinessSettings" ADD COLUMN IF NOT EXISTS "mercadoPagoAccessToken" TEXT;
 ALTER TABLE "BusinessSettings" ADD COLUMN IF NOT EXISTS "mercadoPagoWebhookSecret" TEXT;
+
+-- Post-payment QStash / side-effects idempotency (optional; also in migrate)
+ALTER TABLE "Appointment" ADD COLUMN IF NOT EXISTS "paymentConfirmationJobsEnqueuedAt" TIMESTAMP(3);
