@@ -167,19 +167,25 @@ export function BookingSuccessClient() {
 
   if (confirming) {
     return (
-      <main className="min-h-screen flex items-center justify-center bg-neutral-100">
-        <p className="text-neutral-600">Confirmando pago...</p>
+      <main
+        className="min-h-screen flex items-center justify-center text-neutral-300"
+        style={{ backgroundColor: 'hsl(0, 0%, 9%)' }}
+      >
+        <p>Confirmando pago...</p>
       </main>
     )
   }
 
   if (error) {
     return (
-      <main className="min-h-screen bg-neutral-100 py-12 px-4 flex items-center justify-center">
-        <div className="max-w-md mx-auto bg-white rounded-xl shadow p-6 text-center">
-          <h2 className="text-xl font-semibold text-neutral-900 mb-2">Error al confirmar el pago</h2>
-          <p className="text-neutral-600 mb-4">{error}</p>
-          <Link href="/" className="text-blue-600 underline">
+      <main
+        className="min-h-screen py-12 px-4 flex items-center justify-center"
+        style={{ backgroundColor: 'hsl(0, 0%, 9%)' }}
+      >
+        <div className="max-w-md mx-auto rounded-xl border border-neutral-700/80 bg-neutral-800/90 p-6 text-center shadow-lg">
+          <h2 className="text-xl font-semibold text-white mb-2">Error al confirmar el pago</h2>
+          <p className="text-neutral-300 mb-4">{error}</p>
+          <Link href="/" className="text-blue-400 underline hover:text-blue-300">
             Volver al inicio
           </Link>
         </div>
@@ -197,19 +203,22 @@ export function BookingSuccessClient() {
       : '#'
 
   return (
-    <main className="min-h-screen flex flex-col items-center justify-center bg-neutral-100 px-4 py-12">
+    <main
+      className="min-h-screen flex flex-col items-center justify-center px-4 py-12"
+      style={{ backgroundColor: 'hsl(0, 0%, 9%)' }}
+    >
       <BookingDone appointment={appointmentForDone} primaryColor={primaryColor} />
       {booking.cancellationToken && (
-        <p className="mt-6 max-w-md text-center text-sm text-neutral-500">
+        <p className="mt-6 max-w-md text-center text-sm text-neutral-400">
           Para cancelar:{' '}
-          <a href={cancelUrl} className="text-blue-600 underline">
+          <a href={cancelUrl} className="text-blue-400 underline hover:text-blue-300">
             Cancelar cita
           </a>
         </p>
       )}
       <Link
         href={booking.businessSlug ? `/${booking.businessSlug}` : '/'}
-        className="mt-4 text-blue-600 underline"
+        className="mt-4 text-blue-400 underline hover:text-blue-300"
       >
         Volver al negocio
       </Link>

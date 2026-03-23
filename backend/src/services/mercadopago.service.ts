@@ -109,20 +109,21 @@ export async function processRefund(
 }
 
 /**
- * Verify Mercado Pago webhook signature (IPN notification)
+ * Verify Mercado Pago webhook signature (IPN notification).
+ * Notificaciones antiguas / sin cabeceras nuevas no traen x-signature; las aceptamos y logueamos
+ * (la verificación HMAC real sigue pendiente — igual que cuando las cabeceras estaban presentes).
  */
 export async function verifyWebhookSignature(
-  xSignature: string,
-  xRequestId: string,
-  dataId: string
+  xSignature: string | undefined,
+  xRequestId: string | undefined,
+  dataId: string | undefined
 ): Promise<boolean> {
-  if (!xSignature || !xRequestId) {
-    return false
-  }
-
   void dataId
-
-  // TODO: Implement full HMAC verification when Mercado Pago provides webhook secret
+  if (!xSignature || !xRequestId) {
+    console.warn(
+      'Mercado Pago webhook: sin x-signature o x-request-id; se procesa igual (HMAC no implementado aún).'
+    )
+  }
   return true
 }
 
