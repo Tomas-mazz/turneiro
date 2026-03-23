@@ -19,7 +19,19 @@ export async function mercadopagoWebhook(req: Request, res: Response) {
     return res.status(501).json({ error: 'Webhook de Mercado Pago no implementado' })
   }
   try {
-    const { type, data } = req.body
+    const body =
+      req.body != null && typeof req.body === 'object' ? (req.body as Record<string, unknown>) : {}
+    const typeRaw = body.type as string | undefined
+    const topic = typeof req.query.topic === 'string' ? req.query.topic : undefined
+    const dataObj = (body.data as { id?: string | number } | undefined) ?? {}
+    const dataIdFromQuery =
+      typeof req.query.id === 'string'
+        ? req.query.id
+        : Array.isArray(req.query.id)
+          ? req.query.id[0]
+          : undefined
+    const paymentIdForVerify =
+      dataObj.id != null ? String(dataObj.id) : dataIdFromQuery != null ? String(dataIdFromQuery) : undefined
 
     // Get headers for signature verification
     const xSignature = req.headers['x-signature'] as string
@@ -29,16 +41,30 @@ export async function mercadopagoWebhook(req: Request, res: Response) {
     const isValid = await mercadopagoService.verifyWebhookSignature(
       xSignature,
       xRequestId,
-      data?.id
+      paymentIdForVerify
     )
 
     if (!isValid) {
       return res.status(401).json({ error: 'Invalid signature' })
     }
 
-    // Handle different notification types
-    if (type === 'payment') {
-      const paymentId = data.id
+    // JSON: type "payment". Legacy query IPN: topic "payment" with id = payment id.
+    const isPaymentTopic =
+      typeRaw === 'payment' ||
+      (typeof typeRaw === 'string' && typeRaw.startsWith('payment.')) ||
+      topic === 'payment'
+
+    // Handle payment notifications (skip merchant_order etc. until handled explicitly)
+    if (isPaymentTopic) {
+      const paymentId = paymentIdForVerify
+      if (!paymentId) {
+        console.warn('Mercado Pago webhook: notificación de pago sin id', {
+          topic,
+          type: typeRaw,
+          bodyKeys: Object.keys(body),
+        })
+        return res.json({ received: true, ignored: 'missing_payment_id' })
+      }
 
       const tokenRows = await prisma.businessSettings.findMany({
         where: { mercadoPagoAccessToken: { not: null } },

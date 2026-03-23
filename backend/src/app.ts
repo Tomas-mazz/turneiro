@@ -48,11 +48,12 @@ app.use(
   }),
 )
 
-import webhooksRoutes from './routes/webhooks'
-app.use('/api/webhooks', webhooksRoutes)
-
+// Body parsers must run before /api/webhooks — otherwise req.body stays undefined for Mercado Pago POSTs.
 app.use(express.json())
 app.use(express.urlencoded({ extended: true }))
+
+import webhooksRoutes from './routes/webhooks'
+app.use('/api/webhooks', webhooksRoutes)
 
 // Health check (Vercel and load balancers often hit /api/health)
 app.get('/health', (req, res) => {
