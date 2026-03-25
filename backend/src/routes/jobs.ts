@@ -7,6 +7,7 @@ import {
   sendAppointmentReminderEmailUsingLoadedAppointment,
 } from '../services/email.service'
 import * as googleCalendarService from '../services/google-calendar.service'
+import { buildPaymentSummaryLines } from '../lib/paymentSummary'
 import type { AppointmentJobPayload, DeleteCalendarEventPayload } from '../services/queue.service'
 
 const router = Router()
@@ -152,6 +153,8 @@ interface LoadedAppointment {
   clientName: string
   clientPhone: string
   price: number
+  paymentStatus: string
+  paymentAmount: number | null
   status: string
   startTime: Date
   endTime: Date
@@ -218,8 +221,22 @@ async function syncAppointmentToGoogleCalendar(
   const summaryOwnerOwn = `${appointment.serviceName} - ${appointment.clientName} (con dueño)`
   const summaryOwnerCopyStaff = `${appointment.serviceName} - ${appointment.clientName} (con ${appointment.employee?.name ?? 'empleado'})`
 
+  const paymentSummary = buildPaymentSummaryLines({
+    paymentStatus: appointment.paymentStatus,
+    price: appointment.price,
+    paymentAmount: appointment.paymentAmount ?? null,
+  })
+
   const eventPayload = {
-    description: `Cliente: ${appointment.clientName}\nTeléfono: ${appointment.clientPhone}\nPrecio: $${appointment.price}\nEstado: ${appointment.status}`,
+    description: [
+      `Cliente: ${appointment.clientName}`,
+      `Teléfono: ${appointment.clientPhone}`,
+      `Precio: $${appointment.price}`,
+      `Estado: ${appointment.status}`,
+      '',
+      paymentSummary.title,
+      ...paymentSummary.lines,
+    ].join('\n'),
     startTime: appointment.startTime,
     endTime: appointment.endTime,
     location: appointment.business.name,

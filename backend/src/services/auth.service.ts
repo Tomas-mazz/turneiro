@@ -122,7 +122,6 @@ export async function googleOAuthService(data: {
     }),
   })
   if (!tokenRes.ok) {
-    const errText = await tokenRes.text()
     throw new AuthError('Error al conectar con Google. Intentá de nuevo.')
   }
   const tokens = (await tokenRes.json()) as { access_token: string }

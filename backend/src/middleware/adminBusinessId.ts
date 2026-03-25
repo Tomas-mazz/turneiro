@@ -19,6 +19,6 @@ export function requireAdminBusinessId(
     res.status(400).json({ error: 'ID de negocio obligatorio' })
     return
   }
-  ;(req as AdminBusinessIdRequest).businessId = businessId
+  (req as AdminBusinessIdRequest).businessId = businessId
   next()
 }

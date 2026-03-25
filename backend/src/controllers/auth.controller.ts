@@ -119,7 +119,6 @@ export async function getGoogle(
 export async function getGoogleCallback(
   req: Request,
   res: Response,
-  next: NextFunction
 ): Promise<void> {
   try {
     const code = typeof req.query.code === 'string' ? req.query.code : ''

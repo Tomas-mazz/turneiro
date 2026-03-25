@@ -7,15 +7,14 @@ import type { CreateAppointmentInput } from '../lib/schemas'
 import * as mercadopagoService from './mercadopago.service'
 import * as googleCalendarService from './google-calendar.service'
 import {
-  sendAppointmentConfirmationEmail,
   sendAppointmentConfirmationEmailUsingLoadedAppointment,
-  sendEmployeeAppointmentNotification,
   sendEmployeeAppointmentNotificationUsingLoadedAppointment,
   sendAppointmentReminderEmailUsingLoadedAppointment,
   sendCancellationEmailToClient,
   sendCancellationEmailToEmployee,
   PreloadedOwner,
 } from './email.service'
+import { buildPaymentSummaryLines } from '../lib/paymentSummary'
 import { enqueueAppointmentJobs, enqueueDeleteCalendarEvent, isQueueEnabled } from './queue.service'
 import { fromZonedTime } from 'date-fns-tz'
 
@@ -59,16 +58,35 @@ export class CancellationNotAllowedError extends Error {
  * NOTE: Accepts optional preloaded owner to avoid extra DB queries in hot paths.
  */
 async function syncToGoogleCalendarForLoadedAppointment(
-  appointment: any,
+  appointment: unknown,
   businessId: string,
   preloadedOwner?: PreloadedOwnerWithCalendar | null
 ): Promise<void> {
   try {
+    const apt = appointment as {
+      id: string
+      employeeId: string | null
+      serviceName: string
+      clientName: string
+      clientPhone: string
+      price: number
+      paymentStatus: string
+      paymentAmount: number | null
+      status: string
+      startTime: Date
+      endTime: Date
+      business: { name: string }
+      employee?: {
+        isOwner: boolean
+        name?: string | null
+        user?: { id: string; googleRefreshToken: string | null; googleCalendarId: string | null } | null
+      } | null
+    }
     let targetUser: { id: string; googleRefreshToken: string | null; googleCalendarId: string | null } | null = null
-    const isStaffEmployee = appointment.employeeId && appointment.employee && !appointment.employee.isOwner
+    const isStaffEmployee = apt.employeeId && apt.employee && !apt.employee.isOwner
 
-    if (isStaffEmployee && appointment.employee?.user) {
-      const staffUser = appointment.employee.user
+    if (isStaffEmployee && apt.employee?.user) {
+      const staffUser = apt.employee.user
       if (staffUser.googleRefreshToken && staffUser.googleCalendarId) {
         targetUser = {
           id: staffUser.id,
@@ -106,15 +124,29 @@ async function syncToGoogleCalendarForLoadedAppointment(
       return
     }
 
-    const summaryForStaff = `${appointment.serviceName} - ${appointment.clientName}`
-    const summaryOwnerOwn = `${appointment.serviceName} - ${appointment.clientName} (con dueño)`
-    const summaryOwnerCopyStaff = `${appointment.serviceName} - ${appointment.clientName} (con ${appointment.employee!.name})`
+    const summaryForStaff = `${apt.serviceName} - ${apt.clientName}`
+    const summaryOwnerOwn = `${apt.serviceName} - ${apt.clientName} (con dueño)`
+    const summaryOwnerCopyStaff = `${apt.serviceName} - ${apt.clientName} (con ${apt.employee!.name})`
+
+    const paymentSummary = buildPaymentSummaryLines({
+      paymentStatus: apt.paymentStatus,
+      price: apt.price,
+      paymentAmount: apt.paymentAmount ?? null,
+    })
 
     const eventPayload = {
-      description: `Cliente: ${appointment.clientName}\nTeléfono: ${appointment.clientPhone}\nPrecio: $${appointment.price}\nEstado: ${appointment.status}`,
-      startTime: appointment.startTime,
-      endTime: appointment.endTime,
-      location: appointment.business.name,
+      description: [
+        `Cliente: ${apt.clientName}`,
+        `Teléfono: ${apt.clientPhone}`,
+        `Precio: $${apt.price}`,
+        `Estado: ${apt.status}`,
+        '',
+        paymentSummary.title,
+        ...paymentSummary.lines,
+      ].join('\n'),
+      startTime: apt.startTime,
+      endTime: apt.endTime,
+      location: apt.business.name,
     }
 
     const eventId = await googleCalendarService.createCalendarEvent(
@@ -158,7 +190,7 @@ async function syncToGoogleCalendarForLoadedAppointment(
     }
 
     await prisma.appointment.update({
-      where: { id: appointment.id },
+      where: { id: apt.id },
       data: {
         googleEventId: eventId,
         syncedToUserId: targetUser.id,
@@ -166,7 +198,7 @@ async function syncToGoogleCalendarForLoadedAppointment(
       },
     })
 
-    console.log(`✅ Appointment ${appointment.id} synced to Google Calendar (user ${targetUser.id})`)
+    console.log(`✅ Appointment ${apt.id} synced to Google Calendar (user ${targetUser.id})`)
   } catch (error) {
     console.error('Error syncing to Google Calendar:', error)
   }
@@ -176,43 +208,29 @@ async function syncToGoogleCalendarForLoadedAppointment(
  * Thin wrapper: fetch appointment by ID and delegate to the core helper.
  * Kept for backwards compatibility in case other callers need it.
  */
-async function syncToGoogleCalendar(
-  appointmentId: string,
-  businessId: string
-): Promise<void> {
-  try {
-    const appointment = await prisma.appointment.findUnique({
-      where: { id: appointmentId },
-      include: {
-        business: true,
-        employee: { include: { user: true } },
-      },
-    })
-
-    if (!appointment) return
-
-    await syncToGoogleCalendarForLoadedAppointment(appointment, businessId)
-  } catch (error) {
-    console.error('Error syncing to Google Calendar:', error)
-  }
-}
 
 /**
  * Helper: Delete event from the Google Calendar it was synced to (syncedToUserId or owner).
  */
 async function deleteFromGoogleCalendarForLoadedAppointment(
-  appointment: any,
+  appointment: unknown,
   businessId: string
 ): Promise<void> {
   try {
-    const googleEventId = appointment?.googleEventId
+    const apt = appointment as {
+      googleEventId?: string | null
+      syncedToUserId?: string | null
+      syncedToUser?: { googleRefreshToken?: string | null; googleCalendarId?: string | null } | null
+      ownerCalendarEventId?: string | null
+    }
+    const googleEventId = apt?.googleEventId
     let refreshToken: string | null = null
     let calendarId: string | null = null
 
     if (googleEventId) {
-      if (appointment?.syncedToUserId && appointment.syncedToUser?.googleRefreshToken && appointment.syncedToUser?.googleCalendarId) {
-        refreshToken = appointment.syncedToUser.googleRefreshToken
-        calendarId = appointment.syncedToUser.googleCalendarId
+      if (apt?.syncedToUserId && apt.syncedToUser?.googleRefreshToken && apt.syncedToUser?.googleCalendarId) {
+        refreshToken = apt.syncedToUser.googleRefreshToken
+        calendarId = apt.syncedToUser.googleCalendarId
       }
       if (!refreshToken || !calendarId) {
         const owner = await prisma.user.findFirst({
@@ -231,7 +249,7 @@ async function deleteFromGoogleCalendarForLoadedAppointment(
       }
     }
 
-    const ownerEventId = appointment?.ownerCalendarEventId
+    const ownerEventId = apt?.ownerCalendarEventId
     if (ownerEventId) {
       const owner = await prisma.user.findFirst({
         where: { businessId, role: 'OWNER' },
@@ -259,23 +277,6 @@ async function deleteFromGoogleCalendarForLoadedAppointment(
  * Thin wrapper: fetch appointment by ID and delegate to the core helper.
  * Kept for backwards compatibility in case other callers need it.
  */
-async function deleteFromGoogleCalendar(
-  appointmentId: string,
-  businessId: string
-): Promise<void> {
-  try {
-    const appointment = await prisma.appointment.findUnique({
-      where: { id: appointmentId },
-      include: { syncedToUser: true },
-    })
-
-    if (!appointment) return
-
-    await deleteFromGoogleCalendarForLoadedAppointment(appointment, businessId)
-  } catch (error) {
-    console.error('Error deleting from Google Calendar:', error)
-  }
-}
 
 /**
  * After a STAFF user connects Google Calendar, re-sync all their UPCOMING appointments
@@ -369,7 +370,22 @@ export async function resyncStaffUpcomingAppointmentsToOwnCalendar(
         const summaryForStaff = `${appointment.serviceName} - ${appointment.clientName}`
         const summaryForOwner = `${appointment.serviceName} - ${appointment.clientName} (con ${appointment.employee?.name ?? 'dueño'})`
         const eventPayload = {
-          description: `Cliente: ${appointment.clientName}\nTeléfono: ${appointment.clientPhone}\nPrecio: $${appointment.price}\nEstado: ${appointment.status}`,
+          description: (() => {
+            const paymentSummary = buildPaymentSummaryLines({
+              paymentStatus: appointment.paymentStatus,
+              price: appointment.price,
+              paymentAmount: appointment.paymentAmount ?? null,
+            })
+            return [
+              `Cliente: ${appointment.clientName}`,
+              `Teléfono: ${appointment.clientPhone}`,
+              `Precio: $${appointment.price}`,
+              `Estado: ${appointment.status}`,
+              '',
+              paymentSummary.title,
+              ...paymentSummary.lines,
+            ].join('\n')
+          })(),
           startTime: appointment.startTime,
           endTime: appointment.endTime,
           location: appointment.business.name,

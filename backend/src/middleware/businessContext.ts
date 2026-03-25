@@ -68,6 +68,6 @@ export async function requireBusinessContext(
     staffEmployeeId = undefined
   }
 
-  ;(req as BusinessContextRequest).businessContext = { businessId, staffEmployeeId }
+  (req as BusinessContextRequest).businessContext = { businessId, staffEmployeeId }
   next()
 }
