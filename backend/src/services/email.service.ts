@@ -1,6 +1,7 @@
 import nodemailer from 'nodemailer'
 import type { Transporter } from 'nodemailer'
 import { prisma } from '../lib/prisma'
+import { buildPaymentSummaryLines } from '../lib/paymentSummary'
 
 type AppointmentPaymentMode = 'UNPAID' | 'DEPOSIT' | 'FULL'
 
@@ -47,9 +48,9 @@ async function sendMailWithRetry(
     try {
       await transport.sendMail(mailOptions)
       return
-    } catch (err: any) {
-      lastError = err
-      console.warn(`Email send attempt ${attempt} failed:`, err.message)
+    } catch (err: unknown) {
+      lastError = err instanceof Error ? err : new Error(String(err))
+      console.warn(`Email send attempt ${attempt} failed:`, lastError.message)
       if (attempt < maxRetries) {
         const backoffMs = 1000 * Math.pow(2, attempt - 1)
         await new Promise((r) => setTimeout(r, backoffMs))
@@ -311,8 +312,7 @@ function buildAppointmentEmailHtml(args: {
 `
 }
 
-async function sendAppointmentConfirmationEmailForAppointment(appointment: any): Promise<void> {
-  // We accept `any` here to allow both Prisma-loaded and preloaded appointments.
+async function sendAppointmentConfirmationEmailForAppointment(appointment: unknown): Promise<void> {
   const apt = appointment as {
     id: string
     clientEmail: string | null
@@ -360,7 +360,7 @@ async function sendAppointmentConfirmationEmailForAppointment(appointment: any):
     paymentAmount: apt.paymentAmount ?? null,
   })
 
-  const fromName = appointment.business.name
+  const fromName = apt.business.name
   const fromEmail = process.env.EMAIL_FROM || process.env.SMTP_USER || ''
   const subject = `Confirmación de tu turno - ${apt.business.name}`
 
@@ -403,7 +403,7 @@ export async function sendAppointmentConfirmationEmail(appointmentId: string): P
  * to send the confirmation email without hitting the database again.
  */
 export async function sendAppointmentConfirmationEmailUsingLoadedAppointment(
-  appointment: any
+  appointment: unknown
 ): Promise<void> {
   if (!appointment) return
   await sendAppointmentConfirmationEmailForAppointment(appointment)
@@ -508,8 +508,7 @@ function buildAppointmentReminderHtml(args: AppointmentReminderArgs): string {
 `
 }
 
-async function sendAppointmentReminderEmailForAppointment(appointment: any): Promise<void> {
-  // We accept `any` here to allow both Prisma-loaded and preloaded appointments.
+async function sendAppointmentReminderEmailForAppointment(appointment: unknown): Promise<void> {
   const apt = appointment as {
     id: string
     clientEmail: string | null
@@ -609,7 +608,7 @@ export async function sendAppointmentReminderEmail(appointmentId: string): Promi
  * to send the reminder email without hitting the database again.
  */
 export async function sendAppointmentReminderEmailUsingLoadedAppointment(
-  appointment: any
+  appointment: unknown
 ): Promise<void> {
   if (!appointment) return
   await sendAppointmentReminderEmailForAppointment(appointment)
@@ -631,6 +630,8 @@ function buildEmployeeNotificationHtml(args: {
   serviceName: string
   dateLabel: string
   timeLabel: string
+  paymentTitle: string
+  paymentLines: string[]
   googleCalendarDayUrl: string
 }): string {
   const {
@@ -641,8 +642,14 @@ function buildEmployeeNotificationHtml(args: {
     serviceName,
     dateLabel,
     timeLabel,
+    paymentTitle,
+    paymentLines,
     googleCalendarDayUrl,
   } = args
+
+  const paymentLinesHtml = paymentLines
+    .map((line) => `<p style="margin:2px 0; font-size:13px; color:#e5e7eb;">${line}</p>`)
+    .join('')
 
   return `
 <!DOCTYPE html>
@@ -704,6 +711,23 @@ function buildEmployeeNotificationHtml(args: {
               </td>
             </tr>
             <tr>
+              <td style="padding-top:12px;">
+                <table role="presentation" width="100%" cellPadding="0" cellSpacing="0" style="background-color:#020617; border-radius:14px; border:1px solid #1e293b; padding:16px;">
+                  <tr>
+                    <td>
+                      <p style="margin:0 0 8px 0; font-size:11px; font-weight:600; letter-spacing:0.08em; text-transform:uppercase; color:#64748b;">
+                        Estado del pago
+                      </p>
+                      <p style="margin:0 0 6px 0; font-size:13px; font-weight:700; color:#e5e7eb;">
+                        ${paymentTitle}
+                      </p>
+                      ${paymentLinesHtml}
+                    </td>
+                  </tr>
+                </table>
+              </td>
+            </tr>
+            <tr>
               <td style="padding-top:18px;">
                 <table role="presentation" width="100%" cellPadding="0" cellSpacing="0">
                   <tr>
@@ -746,7 +770,7 @@ export interface PreloadedOwner {
  * - If there is no employee or no email, falls back to the preloaded owner or fetches from DB.
  */
 async function sendEmployeeAppointmentNotificationForAppointment(
-  appointment: any,
+  appointment: unknown,
   preloadedOwner?: PreloadedOwner | null
 ): Promise<void> {
   const apt = appointment as {
@@ -755,6 +779,9 @@ async function sendEmployeeAppointmentNotificationForAppointment(
     clientName: string
     clientPhone: string
     serviceName: string
+    price: number
+    paymentStatus: string
+    paymentAmount: number | null
     startTime: Date
     endTime: Date
     business: { name: string }
@@ -804,6 +831,12 @@ async function sendEmployeeAppointmentNotificationForAppointment(
   const day = String(apt.startTime.getDate()).padStart(2, '0')
   const googleCalendarDayUrl = `https://calendar.google.com/calendar/r/day/${year}/${month}/${day}`
 
+  const paymentSummary = buildPaymentSummaryLines({
+    paymentStatus: apt.paymentStatus,
+    price: apt.price,
+    paymentAmount: apt.paymentAmount ?? null,
+  })
+
   const html = buildEmployeeNotificationHtml({
     businessName: apt.business.name,
     employeeName: targetName,
@@ -812,6 +845,8 @@ async function sendEmployeeAppointmentNotificationForAppointment(
     serviceName: apt.serviceName,
     dateLabel,
     timeLabel,
+    paymentTitle: paymentSummary.title,
+    paymentLines: paymentSummary.lines,
     googleCalendarDayUrl,
   })
 
@@ -864,7 +899,7 @@ export async function sendEmployeeAppointmentNotification(
  * Accepts optional preloaded owner to avoid extra DB query when employee has no email.
  */
 export async function sendEmployeeAppointmentNotificationUsingLoadedAppointment(
-  appointment: any,
+  appointment: unknown,
   preloadedOwner?: PreloadedOwner | null
 ): Promise<void> {
   if (!appointment) return
