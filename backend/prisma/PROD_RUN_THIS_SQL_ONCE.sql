@@ -16,3 +16,6 @@ ALTER TABLE "BusinessSettings" ADD COLUMN IF NOT EXISTS "mercadoPagoWebhookSecre
 
 -- Post-payment QStash / side-effects idempotency (optional; also in migrate)
 ALTER TABLE "Appointment" ADD COLUMN IF NOT EXISTS "paymentConfirmationJobsEnqueuedAt" TIMESTAMP(3);
+
+-- Client reminder (fixed: 2 hours before appointment)
+ALTER TABLE "Appointment" ADD COLUMN IF NOT EXISTS "reminderSentAt" TIMESTAMP(3);

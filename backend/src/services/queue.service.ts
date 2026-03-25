@@ -40,10 +40,12 @@ export interface DeleteCalendarEventPayload {
 }
 
 type JobType = 'send-confirmation-email' | 'send-employee-notification' | 'sync-google-calendar' | 'delete-google-calendar-event'
+  | 'send-client-reminder'
 
 export async function enqueueJob(
   jobType: JobType,
-  payload: AppointmentJobPayload | DeleteCalendarEventPayload
+  payload: AppointmentJobPayload | DeleteCalendarEventPayload,
+  delaySeconds: number = 0
 ): Promise<boolean> {
   const client = getClient()
   
@@ -58,7 +60,7 @@ export async function enqueueJob(
       url: jobUrl,
       body: payload,
       retries: 3,
-      delay: 0,
+      delay: delaySeconds,
     })
     console.log(`✅ Job enqueued: ${jobType} for appointment ${payload.appointmentId}`)
     return true
@@ -71,7 +73,8 @@ export async function enqueueJob(
 export async function enqueueAppointmentJobs(
   appointmentId: string,
   businessId: string,
-  preloadedOwner?: AppointmentJobPayload['preloadedOwner']
+  preloadedOwner?: AppointmentJobPayload['preloadedOwner'],
+  appointmentStartTime?: Date
 ): Promise<boolean> {
   const client = getClient()
   
@@ -85,11 +88,22 @@ export async function enqueueAppointmentJobs(
     preloadedOwner,
   }
 
+  // Reminder: 2 hours before appointment start.
+  // Note: the final send is still guarded by status + startTime in the job handler.
+  const REMINDER_OFFSET_MS = 2 * 60 * 60 * 1000
+  const delaySeconds = appointmentStartTime
+    ? Math.max(
+        0,
+        Math.floor((appointmentStartTime.getTime() - Date.now() - REMINDER_OFFSET_MS) / 1000)
+      )
+    : 0
+
   try {
     await Promise.all([
       enqueueJob('send-confirmation-email', payload),
       enqueueJob('send-employee-notification', payload),
       enqueueJob('sync-google-calendar', payload),
+      enqueueJob('send-client-reminder', payload, delaySeconds),
     ])
     return true
   } catch (err) {

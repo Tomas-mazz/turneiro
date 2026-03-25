@@ -409,6 +409,212 @@ export async function sendAppointmentConfirmationEmailUsingLoadedAppointment(
   await sendAppointmentConfirmationEmailForAppointment(appointment)
 }
 
+type AppointmentReminderArgs = {
+  businessName: string
+  businessAddress?: string | null
+  appointmentServiceName: string
+  employeeName?: string | null
+  clientName: string
+  dateLabel: string
+  timeLabel: string
+}
+
+function buildAppointmentReminderHtml(args: AppointmentReminderArgs): string {
+  const { businessName, businessAddress, appointmentServiceName, employeeName, clientName, dateLabel, timeLabel } =
+    args
+
+  const employeeLine = employeeName
+    ? `<p style="margin:2px 0; font-size: 13px; color:#4b5563;">Profesional: <strong>${employeeName}</strong></p>`
+    : ''
+
+  const addressLine = businessAddress
+    ? `<p style="margin:2px 0; font-size: 13px; color:#4b5563;">Dirección: <strong>${businessAddress}</strong></p>`
+    : ''
+
+  // Minimal content on purpose: only turn details + a short reminder message.
+  return `
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charSet="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Recordatorio de turno - ${businessName}</title>
+  </head>
+  <body style="margin:0; padding:0; background-color:#f3f4f6; font-family:system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">
+    <table role="presentation" width="100%" cellPadding="0" cellSpacing="0" style="background-color:#f3f4f6; padding:24px 12px;">
+      <tr>
+        <td align="center">
+          <table role="presentation" width="100%" cellPadding="0" cellSpacing="0" style="max-width:640px; background-color:#f9fafb; border-radius:16px; padding:24px 20px; border:1px solid #e5e7eb;">
+            <tr>
+              <td style="padding-bottom:16px; border-bottom:1px solid #e5e7eb;">
+                <p style="margin:0 0 4px 0; font-size:12px; letter-spacing:0.08em; text-transform:uppercase; color:#9ca3af;">
+                  Recordatorio de tu turno
+                </p>
+                <h1 style="margin:0; font-size:20px; color:#111827;">${businessName}</h1>
+              </td>
+            </tr>
+
+            <tr>
+              <td style="padding-top:16px; padding-bottom:12px;">
+                <p style="margin:0 0 4px 0; font-size:14px; color:#111827;">
+                  Hola ${clientName},
+                </p>
+                <p style="margin:0; font-size:13px; color:#4b5563;">
+                  Te recordamos que tenés un turno reservado.
+                </p>
+              </td>
+            </tr>
+
+            <tr>
+              <td>
+                <table role="presentation" width="100%" cellPadding="0" cellSpacing="0" style="background-color:#ffffff; border-radius:14px; border:1px solid #e5e7eb; padding:16px 16px 14px 16px;">
+                  <tr>
+                    <td>
+                      <p style="margin:0 0 8px 0; font-size:11px; font-weight:600; letter-spacing:0.08em; text-transform:uppercase; color:#9ca3af;">
+                        Detalles del turno
+                      </p>
+                      <p style="margin:0 0 4px 0; font-size:14px; font-weight:600; color:#111827;">
+                        ${appointmentServiceName}
+                      </p>
+                      <p style="margin:0 0 2px 0; font-size:13px; color:#4b5563;">
+                        ${dateLabel}
+                      </p>
+                      <p style="margin:0 0 8px 0; font-size:13px; color:#4b5563;">
+                        ${timeLabel}
+                      </p>
+                      ${employeeLine}
+                      ${addressLine}
+                    </td>
+                  </tr>
+                </table>
+              </td>
+            </tr>
+
+            <tr>
+              <td style="padding-top:16px; border-top:1px solid #e5e7eb;">
+                <p style="margin:0; font-size:11px; color:#9ca3af;">
+                  Este correo fue enviado por ${businessName}. Si necesitás reprogramar o cancelar,
+                  hacelo desde tu cuenta.
+                </p>
+              </td>
+            </tr>
+
+          </table>
+        </td>
+      </tr>
+    </table>
+  </body>
+</html>
+`
+}
+
+async function sendAppointmentReminderEmailForAppointment(appointment: any): Promise<void> {
+  // We accept `any` here to allow both Prisma-loaded and preloaded appointments.
+  const apt = appointment as {
+    id: string
+    clientEmail: string | null
+    clientName: string
+    startTime: Date
+    endTime: Date
+    status: string
+    reminderSentAt?: Date | null
+    serviceName: string
+    business: { name: string; address?: string | null }
+    employee?: { name?: string | null } | null
+  }
+
+  if (!apt.clientEmail) {
+    console.warn('sendAppointmentReminderEmail: appointment has no clientEmail', apt.id)
+    return
+  }
+
+  const now = new Date()
+
+  if (apt.status !== 'UPCOMING') return
+  if (apt.reminderSentAt) return
+  // Don't send reminders for already-started (or in-the-past) appointments.
+  if (apt.startTime.getTime() <= now.getTime()) return
+
+  const { dateLabel, timeLabel } = formatDateTimeRange(apt.startTime, apt.endTime)
+
+  const html = buildAppointmentReminderHtml({
+    businessName: apt.business.name,
+    businessAddress: apt.business.address,
+    appointmentServiceName: apt.serviceName,
+    employeeName: apt.employee?.name ?? null,
+    clientName: apt.clientName,
+    dateLabel,
+    timeLabel,
+  })
+
+  const fromName = apt.business.name
+  const fromEmail = process.env.EMAIL_FROM || process.env.SMTP_USER || ''
+  const subject = `Recordatorio de tu turno - ${apt.business.name}`
+
+  try {
+    // Claim sending atomically so only one job instance sends the reminder.
+    // (Avoids TypeScript/Prisma typing issues with conditional updates.)
+    const claimedRows = await prisma.$executeRaw`
+      UPDATE "Appointment"
+      SET "reminderSentAt" = NOW()
+      WHERE "id" = ${apt.id} AND "reminderSentAt" IS NULL
+    `
+
+    if (claimedRows === 0) {
+      // Already sent / already claimed by another job.
+      return
+    }
+
+    await sendMailWithRetry({
+      from: `"${fromName}" <${fromEmail}>`,
+      to: apt.clientEmail,
+      subject,
+      html,
+    })
+
+    console.log('✅ Reminder email sent for appointment', apt.id)
+  } catch (err) {
+    // If sending fails, release the claim so retries can send again.
+    await prisma.$executeRaw`
+      UPDATE "Appointment"
+      SET "reminderSentAt" = NULL
+      WHERE "id" = ${apt.id}
+    `
+    console.error('Failed to send appointment reminder email for appointment', apt.id, err)
+  }
+}
+
+/**
+ * Public API: load appointment from DB and send reminder email to client.
+ */
+export async function sendAppointmentReminderEmail(appointmentId: string): Promise<void> {
+  const appointment = await prisma.appointment.findUnique({
+    where: { id: appointmentId },
+    include: {
+      business: true,
+      employee: true,
+    },
+  })
+
+  if (!appointment) {
+    console.warn('sendAppointmentReminderEmail: appointment not found', appointmentId)
+    return
+  }
+
+  await sendAppointmentReminderEmailForAppointment(appointment)
+}
+
+/**
+ * Optimized API: use an already-loaded appointment (including business & employee)
+ * to send the reminder email without hitting the database again.
+ */
+export async function sendAppointmentReminderEmailUsingLoadedAppointment(
+  appointment: any
+): Promise<void> {
+  if (!appointment) return
+  await sendAppointmentReminderEmailForAppointment(appointment)
+}
+
 /**
  * Build a simple notification email for the assigned employee.
  * This is separate from the client confirmation and focuses on:

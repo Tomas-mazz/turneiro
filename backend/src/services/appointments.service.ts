@@ -11,6 +11,7 @@ import {
   sendAppointmentConfirmationEmailUsingLoadedAppointment,
   sendEmployeeAppointmentNotification,
   sendEmployeeAppointmentNotificationUsingLoadedAppointment,
+  sendAppointmentReminderEmailUsingLoadedAppointment,
   sendCancellationEmailToClient,
   sendCancellationEmailToEmployee,
   PreloadedOwner,
@@ -539,7 +540,7 @@ export async function createAppointmentService(data: CreateAppointmentInput) {
   // (emails + Google Calendar) until payment is confirmed.
   if (!shouldDeferConfirmationUntilPayment) {
     if (isQueueEnabled()) {
-      enqueueAppointmentJobs(appointment.id, business.id, preloadedOwner).catch(err => {
+      enqueueAppointmentJobs(appointment.id, business.id, preloadedOwner, appointment.startTime).catch(err => {
         console.error('Failed to enqueue appointment jobs:', err)
       })
     } else {
@@ -553,6 +554,16 @@ export async function createAppointmentService(data: CreateAppointmentInput) {
       sendEmployeeAppointmentNotificationUsingLoadedAppointment(appointment, preloadedOwner).catch(err => {
         console.error('Failed to send employee notification email:', err)
       })
+
+      // Best-effort reminder when queue is not enabled:
+      // send immediately only if the reminder window is already reached.
+      const REMINDER_OFFSET_MS = 2 * 60 * 60 * 1000
+      const msUntilStart = appointment.startTime.getTime() - Date.now()
+      if (msUntilStart > 0 && msUntilStart <= REMINDER_OFFSET_MS) {
+        sendAppointmentReminderEmailUsingLoadedAppointment(appointment).catch(err => {
+          console.error('Failed to send reminder email (fallback):', err)
+        })
+      }
     }
   }
 
@@ -604,7 +615,8 @@ export async function finalizeAppointmentAfterPaymentService(
     const enqueued = await enqueueAppointmentJobs(
       appointment.id,
       appointment.businessId,
-      preloadedOwner
+      preloadedOwner,
+      appointment.startTime
     )
     if (enqueued) {
       await prisma.appointment.update({
