@@ -4,6 +4,7 @@ import { prisma } from '../lib/prisma'
 import {
   sendAppointmentConfirmationEmailUsingLoadedAppointment,
   sendEmployeeAppointmentNotificationUsingLoadedAppointment,
+  sendAppointmentReminderEmailUsingLoadedAppointment,
 } from '../services/email.service'
 import * as googleCalendarService from '../services/google-calendar.service'
 import type { AppointmentJobPayload, DeleteCalendarEventPayload } from '../services/queue.service'
@@ -94,6 +95,29 @@ router.post('/send-employee-notification', async (req: Request, res: Response) =
     return res.status(200).json({ success: true })
   } catch (err) {
     console.error('Job send-employee-notification failed:', err)
+    return res.status(500).json({ error: 'Job failed' })
+  }
+})
+
+router.post('/send-client-reminder', async (req: Request, res: Response) => {
+  const isValid = await verifyQStashSignature(req)
+  if (!isValid) {
+    return res.status(401).json({ error: 'Invalid signature' })
+  }
+
+  const payload = req.body as AppointmentJobPayload
+
+  try {
+    const appointment = await loadAppointmentWithRelations(payload.appointmentId)
+    if (!appointment) {
+      console.warn('Job: appointment not found', payload.appointmentId)
+      return res.status(200).json({ success: false, reason: 'appointment_not_found' })
+    }
+
+    await sendAppointmentReminderEmailUsingLoadedAppointment(appointment)
+    return res.status(200).json({ success: true })
+  } catch (err) {
+    console.error('Job send-client-reminder failed:', err)
     return res.status(500).json({ error: 'Job failed' })
   }
 })
