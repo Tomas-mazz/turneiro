@@ -53,12 +53,15 @@ export default function Home() {
       </div>
 
       <footer className="mt-16 flex flex-wrap items-center justify-center gap-4 text-sm text-gray-500">
-        <Link href="/privacy" className="underline underline-offset-4 hover:text-gray-800">
-          Política de privacidad
+        <Link
+          href="https://turneiro.com/privacy"
+          className="underline underline-offset-4 hover:text-gray-800"
+        >
+          Privacy Policy (Política de privacidad)
         </Link>
         <span aria-hidden>·</span>
-        <Link href="/terms" className="underline underline-offset-4 hover:text-gray-800">
-          Términos del servicio
+        <Link href="https://turneiro.com/terms" className="underline underline-offset-4 hover:text-gray-800">
+          Terms of Service (Términos del servicio)
         </Link>
       </footer>
     </main>
