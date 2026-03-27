@@ -45,6 +45,7 @@ export interface AdminAppointmentListItem extends AppointmentListItem {
   businessName: string
   cancellationReason: string | null
   refundAmount: number | null
+  createdAt: string
 }
 
 export interface BlockedSlotListItem {

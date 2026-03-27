@@ -34,6 +34,25 @@ function formatDateTime(value: string) {
   }).format(date)
 }
 
+function formatReservedDateTime(value: string) {
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return '—'
+  const now = new Date()
+  const isToday =
+    date.getDate() === now.getDate() &&
+    date.getMonth() === now.getMonth() &&
+    date.getFullYear() === now.getFullYear()
+  const datePart = new Intl.DateTimeFormat('es-AR', {
+    day: '2-digit',
+    month: '2-digit',
+  }).format(date)
+  const timePart = new Intl.DateTimeFormat('es-AR', {
+    hour: '2-digit',
+    minute: '2-digit',
+  }).format(date)
+  return `${isToday ? 'Hoy ' : ''}${datePart} - ${timePart}`
+}
+
 function formatPrice(value: number) {
   return new Intl.NumberFormat('es-AR', {
     style: 'currency',
@@ -338,7 +357,7 @@ export default function AdminAppointmentsPage() {
               <thead>
                 <tr className="bg-neutral-50">
                   <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-neutral-600 sm:px-6">
-                    Fecha y hora
+                    Reserva
                   </th>
                   <th className="hidden px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-neutral-600 lg:table-cell lg:px-6">
                     Negocio
@@ -364,8 +383,13 @@ export default function AdminAppointmentsPage() {
                 {appointments.map((apt) => (
                   <tr key={apt.id} className="hover:bg-neutral-50/50">
                     <td className="whitespace-nowrap px-4 py-3 text-sm text-neutral-800 sm:px-6">
-                      <div className="flex flex-col">
-                        <span>{formatDateTime(apt.startTime)}</span>
+                      <div className="flex flex-col gap-0.5">
+                        <span className="text-xs text-neutral-500">
+                          Reservado: {formatReservedDateTime(apt.createdAt)}
+                        </span>
+                        <span className="font-medium">
+                          Para: {formatDateTime(apt.startTime)}
+                        </span>
                         <span className="text-xs text-neutral-500">
                           {apt.clientPhone}
                         </span>
