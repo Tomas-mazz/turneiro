@@ -841,6 +841,7 @@ export interface AdminAppointmentListItem extends AppointmentListItem {
   businessName: string
   cancellationReason: string | null
   refundAmount: number | null
+  createdAt: Date
 }
 
 export async function getAppointmentsForAdminService(params: {
@@ -877,6 +878,7 @@ export async function getAppointmentsForAdminService(params: {
       id: true,
       startTime: true,
       endTime: true,
+      createdAt: true,
       serviceName: true,
       price: true,
       clientName: true,
@@ -898,6 +900,7 @@ export async function getAppointmentsForAdminService(params: {
     id: a.id,
     startTime: a.startTime,
     endTime: a.endTime,
+    createdAt: a.createdAt,
     serviceName: a.serviceName,
     price: a.price,
     clientName: a.clientName,
