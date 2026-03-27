@@ -224,6 +224,20 @@ export async function getSubServicesForServiceAdmin(
   return subServices
 }
 
+export async function getSubServicesForBusiness(
+  serviceId: string,
+  businessId: string
+): Promise<SubServiceListItem[]> {
+  const parent = await prisma.service.findFirst({
+    where: { id: serviceId, businessId },
+    select: { id: true },
+  })
+  if (!parent) {
+    throw new ServiceNotFoundError('Servicio no encontrado o no pertenece a tu negocio')
+  }
+  return getSubServicesForServiceAdmin(serviceId)
+}
+
 export async function createSubServiceForAdmin(
   serviceId: string,
   data: CreateSubServiceAdminInput
@@ -262,6 +276,21 @@ export async function createSubServiceForAdmin(
   return sub
 }
 
+export async function createSubServiceForBusiness(
+  serviceId: string,
+  businessId: string,
+  data: CreateSubServiceAdminInput
+): Promise<SubServiceListItem> {
+  const parent = await prisma.service.findFirst({
+    where: { id: serviceId, businessId },
+    select: { id: true },
+  })
+  if (!parent) {
+    throw new ServiceNotFoundError('Servicio padre no encontrado o no pertenece a tu negocio')
+  }
+  return createSubServiceForAdmin(serviceId, data)
+}
+
 export async function updateSubServiceForAdmin(
   subServiceId: string,
   data: UpdateSubServiceAdminInput
@@ -297,12 +326,43 @@ export async function updateSubServiceForAdmin(
   return updated
 }
 
+export async function updateSubServiceForBusiness(
+  subServiceId: string,
+  businessId: string,
+  data: UpdateSubServiceAdminInput
+): Promise<SubServiceListItem> {
+  const existing = await prisma.subService.findFirst({
+    where: { id: subServiceId, service: { businessId } },
+    select: { id: true },
+  })
+  if (!existing) {
+    throw new SubServiceNotFoundError('Subservicio no encontrado o no pertenece a tu negocio')
+  }
+  return updateSubServiceForAdmin(subServiceId, data)
+}
+
 export async function deleteSubServiceForAdmin(subServiceId: string): Promise<void> {
   const existing = await prisma.subService.findUnique({
     where: { id: subServiceId },
   })
   if (!existing) {
     throw new SubServiceNotFoundError('Subservicio no encontrado')
+  }
+  await prisma.subService.delete({
+    where: { id: subServiceId },
+  })
+}
+
+export async function deleteSubServiceForBusiness(
+  subServiceId: string,
+  businessId: string
+): Promise<void> {
+  const existing = await prisma.subService.findFirst({
+    where: { id: subServiceId, service: { businessId } },
+    select: { id: true },
+  })
+  if (!existing) {
+    throw new SubServiceNotFoundError('Subservicio no encontrado o no pertenece a tu negocio')
   }
   await prisma.subService.delete({
     where: { id: subServiceId },

@@ -85,6 +85,39 @@ export async function deleteService(id: string): Promise<void> {
   await api.delete(`/services/${id}`)
 }
 
+export async function getSubServices(
+  serviceId: string
+): Promise<SubServiceAdminItem[]> {
+  const { data } = await api.get<SubServiceAdminItem[]>(`/services/${serviceId}/subservices`)
+  return data
+}
+
+export async function createSubService(
+  serviceId: string,
+  body: CreateSubServiceAdminBody
+): Promise<SubServiceAdminItem> {
+  const { data } = await api.post<SubServiceAdminItem>(
+    `/services/${serviceId}/subservices`,
+    body
+  )
+  return data
+}
+
+export async function updateSubService(
+  subServiceId: string,
+  body: UpdateSubServiceAdminBody
+): Promise<SubServiceAdminItem> {
+  const { data } = await api.patch<SubServiceAdminItem>(
+    `/services/subservices/${subServiceId}`,
+    body
+  )
+  return data
+}
+
+export async function deleteSubService(subServiceId: string): Promise<void> {
+  await api.delete(`/services/subservices/${subServiceId}`)
+}
+
 export async function getAppointments(): Promise<AppointmentListItem[]> {
   const { data } = await api.get<AppointmentListItem[]>('/appointments')
   return data

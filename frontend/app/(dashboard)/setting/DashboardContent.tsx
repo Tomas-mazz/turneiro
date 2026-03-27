@@ -13,10 +13,10 @@ import {
   createService,
   deleteService,
   uploadAdminFile,
-  getAdminSubServices,
-  createAdminSubService,
-  updateAdminSubService,
-  deleteAdminSubService,
+  getSubServices,
+  createSubService,
+  updateSubService,
+  deleteSubService,
   getAppointmentsByPhone,
   cancelAppointmentByOwner,
   getGoogleCalendarAuthUrl,
@@ -157,7 +157,7 @@ export function DashboardContent({ section = 'all' }: { section?: DashboardSecti
         await Promise.all(
           svc.map(async (s) => {
             try {
-              const subs = await getAdminSubServices(s.id)
+              const subs = await getSubServices(s.id)
               entries[s.id] = subs
             } catch {
               entries[s.id] = []
@@ -376,7 +376,7 @@ export function DashboardContent({ section = 'all' }: { section?: DashboardSecti
     if (!current.name.trim() || !current.price || !current.duration) return
     setCreatingService(true)
     try {
-      const created = await createAdminSubService(serviceId, {
+      const created = await createSubService(serviceId, {
         name: current.name.trim(),
         price: Number(current.price),
         duration: Math.min(120, Math.max(15, Number(current.duration))),
@@ -403,7 +403,7 @@ export function DashboardContent({ section = 'all' }: { section?: DashboardSecti
   const handleDeleteSubService = async (subServiceId: string, serviceId: string) => {
     if (!window.confirm('¿Eliminar este subservicio?')) return
     try {
-      await deleteAdminSubService(subServiceId)
+      await deleteSubService(subServiceId)
       setSubServicesByService((prev) => ({
         ...prev,
         [serviceId]: (prev[serviceId] ?? []).filter((s) => s.id !== subServiceId),
@@ -658,7 +658,7 @@ export function DashboardContent({ section = 'all' }: { section?: DashboardSecti
           const modal = subServiceImagesModal
           if (!modal) return
           try {
-            const updated = await updateAdminSubService(modal.subServiceId, { images })
+            const updated = await updateSubService(modal.subServiceId, { images })
             setSubServicesByService((prev) => ({
               ...prev,
               [modal.serviceId]: (prev[modal.serviceId] ?? []).map((x) =>
@@ -714,7 +714,7 @@ export function DashboardContent({ section = 'all' }: { section?: DashboardSecti
                   const v = changes.description.trim()
                   body.description = v ? v : null
                 }
-                const updated = await updateAdminSubService(sub.id, body)
+                const updated = await updateSubService(sub.id, body)
                 setSubServicesByService((prev) => ({
                   ...prev,
                   [serviceId]: (prev[serviceId] ?? []).map((x) => (x.id === sub.id ? updated : x)),
