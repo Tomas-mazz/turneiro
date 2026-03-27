@@ -287,7 +287,7 @@ Already implemented in dashboard header:
 
 1. **Refresh Tokens**: Stored securely in database, never exposed to client
 2. **OAuth State**: Uses user ID to prevent CSRF attacks
-3. **Scopes**: Only requests calendar read/write, not full account access
+3. **Scopes**: Uses the minimum required scopes (`calendar.events` + `calendar.calendarlist.readonly`), not full calendar access
 4. **Token Refresh**: googleapis handles automatic token refresh
 5. **Prompt Consent**: Forces consent screen to ensure refresh token is granted
 

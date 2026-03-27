@@ -27,8 +27,8 @@ export function getAuthUrl(userId: string, returnUrl?: string): string {
   const oauth2Client = createOAuth2Client()
   
   const scopes = [
-    'https://www.googleapis.com/auth/calendar',
     'https://www.googleapis.com/auth/calendar.events',
+    'https://www.googleapis.com/auth/calendar.calendarlist.readonly',
   ]
 
   const state = JSON.stringify({
