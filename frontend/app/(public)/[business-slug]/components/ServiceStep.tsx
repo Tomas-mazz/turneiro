@@ -613,9 +613,9 @@ export function ServiceStep({
                 <span className="text-xl leading-none">×</span>
               </button>
             </div>
-            <div className="mb-5 flex items-center justify-between py-2">
-              <span className={`text-lg ${cartTextColor}`}>{selectedService.name}</span>
-              <span className={`text-lg font-semibold ${cartTextColor}`}>
+            <div className="mb-5 flex items-start justify-between gap-3 py-2">
+              <span className={`min-w-0 flex-1 text-lg ${cartTextColor}`}>{selectedService.name}</span>
+              <span className={`shrink-0 whitespace-nowrap text-lg font-semibold ${cartTextColor}`}>
                 $ {selectedService.price.toFixed(0)}
               </span>
             </div>
