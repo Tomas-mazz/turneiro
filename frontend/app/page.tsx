@@ -31,6 +31,10 @@ export default function Home() {
       <p className="mt-4 max-w-xl text-center text-lg text-gray-600">
         Plataforma de turnos para negocios y clientes: administrá tu agenda y reservá citas online.
       </p>
+      <p className="mt-3 max-w-2xl text-center text-sm leading-relaxed text-gray-500">
+        Turneiro puede usar Google Sign-In para iniciar sesión y Google Calendar para sincronizar
+        turnos y ayudar a los negocios a gestionar su agenda.
+      </p>
 
       <div className="mt-12 grid w-full max-w-3xl gap-6 sm:grid-cols-3">
         {sections.map((s) => (
