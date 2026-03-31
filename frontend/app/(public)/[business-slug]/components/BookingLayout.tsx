@@ -1,6 +1,7 @@
 'use client'
 
 import { BookingHeader } from './BookingHeader'
+import { LegalFooter } from './LegalFooter'
 import type { AuthUser } from '@/lib/auth'
 
 type BookingLayoutProps = {
@@ -50,6 +51,7 @@ export function BookingLayout({
       <div className="mx-auto w-full max-w-4xl px-4 py-8 md:px-6 md:py-10 lg:max-w-6xl lg:px-8">
         {children}
       </div>
+      <LegalFooter isDarkTheme={isDarkTheme} />
     </section>
   )
 }

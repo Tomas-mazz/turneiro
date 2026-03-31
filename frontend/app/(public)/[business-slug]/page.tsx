@@ -18,11 +18,13 @@ import {
   BookingDone,
   ClientFormStep,
   DateStep,
+  BookingLayout,
   LoginModal,
   PaymentStep,
   ServiceStep,
 } from './components'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
+import { LegalFooter } from './components/LegalFooter'
 
 type ThemeMode = 'DARK' | 'LIGHT'
 
@@ -666,15 +668,20 @@ export default function BusinessBookingPage() {
       }
     >
       {step === 'hero' && (
-        <BookingHero
-          name={business.name}
-          coverPhoto={business.coverPhoto}
-          coverVideo={business.coverVideo ?? null}
-          coverPhotoMobile={business.coverPhotoMobile ?? null}
-          coverVideoMobile={business.coverVideoMobile ?? null}
-          primaryColor={primaryColor}
-          onReservar={() => goToStep('service')}
-        />
+        <div className="flex min-h-screen flex-col bg-neutral-100">
+          <div className="flex-1 overflow-hidden">
+            <BookingHero
+              name={business.name}
+              coverPhoto={business.coverPhoto}
+              coverVideo={business.coverVideo ?? null}
+              coverPhotoMobile={business.coverPhotoMobile ?? null}
+              coverVideoMobile={business.coverVideoMobile ?? null}
+              primaryColor={primaryColor}
+              onReservar={() => goToStep('service')}
+            />
+          </div>
+          <LegalFooter className="bg-neutral-100" />
+        </div>
       )}
 
       {step === 'service' && (
@@ -820,9 +827,22 @@ export default function BusinessBookingPage() {
         )}
 
       {step === 'done' && createdAppointment && (
-        <div className="min-h-screen flex items-center justify-center px-4 py-12">
-          <BookingDone appointment={createdAppointment} primaryColor={primaryColor} />
-        </div>
+        <BookingLayout
+          businessName={business.name}
+          logo={business.logo}
+          isDarkTheme={isDarkTheme}
+          onGoToServices={() => goToStep('service')}
+          onOpenLogin={handleOpenLogin}
+          onOpenRegister={() => {
+            router.push('/register')
+          }}
+          user={user}
+          onLogout={handleLogout}
+        >
+          <div className="flex min-h-[calc(100vh-12rem)] items-center justify-center px-4 py-12">
+            <BookingDone appointment={createdAppointment} primaryColor={primaryColor} />
+          </div>
+        </BookingLayout>
       )}
 
       <LoginModal
