@@ -34,7 +34,7 @@ export function BookingLayout({
 
   return (
     <section
-      className={`relative min-h-screen w-full max-w-full overflow-x-hidden transition-colors duration-300 ease-out ${textColor}`}
+      className={`relative flex min-h-screen w-full max-w-full flex-col overflow-x-hidden transition-colors duration-300 ease-out ${textColor}`}
       style={{ backgroundColor: bgColor }}
     >
       <BookingHeader
@@ -48,10 +48,10 @@ export function BookingLayout({
         user={user}
         onLogout={onLogout}
       />
-      <div className="mx-auto w-full max-w-4xl px-4 py-8 md:px-6 md:py-10 lg:max-w-6xl lg:px-8">
+      <div className="mx-auto flex w-full max-w-4xl flex-1 flex-col px-4 py-8 md:px-6 md:py-10 lg:max-w-6xl lg:px-8">
         {children}
       </div>
-      <LegalFooter isDarkTheme={isDarkTheme} />
+      <LegalFooter isDarkTheme={isDarkTheme} className="mt-auto" />
     </section>
   )
 }
