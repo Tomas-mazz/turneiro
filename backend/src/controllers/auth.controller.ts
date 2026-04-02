@@ -131,7 +131,34 @@ export async function getGoogleCallback(
       return
     }
     const result = await googleOAuthService({ code, redirectUri, state })
-    res.redirect(`${frontendUrl}/auth/callback?token=${encodeURIComponent(result.token)}`)
+    const safeSlug = state.trim().toLowerCase()
+    const isValidSlug = /^[a-z0-9-]+$/.test(safeSlug)
+    const callbackBase = (() => {
+      if (!isValidSlug) return frontendUrl.replace(/\/$/, '')
+      try {
+        const base = new URL(frontendUrl)
+        const host = base.hostname.toLowerCase()
+
+        // Dev: http://localhost:3000 -> http://{slug}.localhost:3000
+        if (host === 'localhost' || host === '127.0.0.1') {
+          base.hostname = `${safeSlug}.localhost`
+          return base.toString().replace(/\/$/, '')
+        }
+
+        // Prod: https://turneiro.com or https://www.turneiro.com -> https://{slug}.turneiro.com
+        if (host === 'turneiro.com' || host === 'www.turneiro.com') {
+          base.hostname = `${safeSlug}.turneiro.com`
+          return base.toString().replace(/\/$/, '')
+        }
+
+        // Fallback: keep configured frontend host
+        return frontendUrl.replace(/\/$/, '')
+      } catch {
+        return frontendUrl.replace(/\/$/, '')
+      }
+    })()
+
+    res.redirect(`${callbackBase}/auth/callback?token=${encodeURIComponent(result.token)}`)
   } catch (err) {
     const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000'
     const message = err instanceof AuthError ? encodeURIComponent(err.message) : 'auth_error'
