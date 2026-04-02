@@ -107,6 +107,13 @@ export default function SettingPage() {
             href: '/setting/payments',
           },
           {
+            id: 'appearance',
+            title: 'Fuentes y Colores',
+            description:
+              'Elegí la fuente que se usa en la página pública de tu negocio.',
+            href: '/setting/appearance',
+          },
+          {
             id: 'hours',
             title: 'Horarios',
             description:

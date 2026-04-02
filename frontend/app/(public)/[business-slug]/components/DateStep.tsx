@@ -24,6 +24,7 @@ function getVisibleDates(windowStart: Date): Date[] {
 type DateStepProps = {
   businessName: string
   logo?: string | null
+  fontFamily?: string | null
   selectedService: ServiceOption
   employees: Employee[]
   calendarMonth: Date
@@ -61,6 +62,7 @@ type DateStepProps = {
 export function DateStep({
   businessName,
   logo,
+  fontFamily = 'ROBOTO',
   selectedService,
   employees,
   calendarMonth,
@@ -160,6 +162,7 @@ export function DateStep({
       businessName={businessName}
       logo={logo}
       isDarkTheme={isDarkTheme}
+      fontFamily={fontFamily}
       onToggleTheme={onToggleTheme}
       onGoToServices={onGoToServices}
       onOpenLogin={onOpenLogin}

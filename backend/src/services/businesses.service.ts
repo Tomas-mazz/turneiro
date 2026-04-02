@@ -67,6 +67,7 @@ export async function getBusinessBySlugService(slug: string) {
       },
       settings: {
         select: {
+          fontFamily: true,
           paymentRequired: true,
           paymentOptionalEnabled: true,
           paymentType: true,
@@ -719,6 +720,7 @@ export async function updateBusinessImagesService(
 }
 
 export type BusinessSettings = {
+  fontFamily: string
   paymentRequired: boolean
   paymentOptionalEnabled: boolean
   paymentType: 'PERCENTAGE' | 'FULL' | null
@@ -741,6 +743,7 @@ export async function getBusinessSettingsService(
   const settings = await prisma.businessSettings.findUnique({
     where: { businessId },
     select: {
+      fontFamily: true,
       paymentRequired: true,
       paymentOptionalEnabled: true,
       paymentType: true,
@@ -752,6 +755,7 @@ export async function getBusinessSettingsService(
     },
   })
   return {
+    fontFamily: settings?.fontFamily ?? 'ROBOTO',
     paymentRequired: settings?.paymentRequired ?? false,
     paymentOptionalEnabled: settings?.paymentOptionalEnabled ?? false,
     paymentType:
@@ -771,12 +775,17 @@ export async function updateBusinessSettingsService(
   const existing = await prisma.businessSettings.findUnique({
     where: { businessId },
     select: {
+      fontFamily: true,
       paymentRequired: true,
       paymentOptionalEnabled: true,
       paymentType: true,
       depositPercentage: true,
     },
   })
+  const fontFamily =
+    (input as { fontFamily?: string | null }).fontFamily ??
+    existing?.fontFamily ??
+    'ROBOTO'
   const paymentRequired = input.paymentRequired ?? existing?.paymentRequired ?? false
   const paymentOptionalEnabled =
     input.paymentOptionalEnabled ?? existing?.paymentOptionalEnabled ?? false
@@ -799,6 +808,7 @@ export async function updateBusinessSettingsService(
     create: {
       businessId,
       // keep other settings defaults
+      fontFamily: fontFamily || 'ROBOTO',
       paymentRequired,
       paymentOptionalEnabled,
       paymentType: normalizedPaymentType,
@@ -810,6 +820,9 @@ export async function updateBusinessSettingsService(
       showServiceConfirmModal: input.showServiceConfirmModal ?? false,
     },
     update: {
+      ...((input as { fontFamily?: string | null }).fontFamily !== undefined && {
+        fontFamily: (input as { fontFamily?: string | null }).fontFamily || 'ROBOTO',
+      }),
       ...(input.paymentRequired !== undefined && {
         paymentRequired: input.paymentRequired,
       }),
@@ -832,6 +845,7 @@ export async function updateBusinessSettingsService(
       }),
     },
     select: {
+      fontFamily: true,
       paymentRequired: true,
       paymentOptionalEnabled: true,
       paymentType: true,
@@ -843,6 +857,7 @@ export async function updateBusinessSettingsService(
     },
   })
   return {
+    fontFamily: updated.fontFamily ?? 'ROBOTO',
     paymentRequired: updated.paymentRequired,
     paymentOptionalEnabled: updated.paymentOptionalEnabled,
     paymentType: (updated.paymentType as 'PERCENTAGE' | 'FULL' | null | undefined) ?? null,

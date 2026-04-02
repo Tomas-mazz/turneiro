@@ -184,6 +184,7 @@ export function ServiceStep({
       businessName={business.name}
       logo={business.logo}
       isDarkTheme={isDarkTheme}
+      fontFamily={business.settings?.fontFamily ?? 'ROBOTO'}
       onToggleTheme={onToggleTheme}
       onGoToServices={onGoToServices}
       onOpenLogin={onOpenLogin}

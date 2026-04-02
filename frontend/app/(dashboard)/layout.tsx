@@ -17,7 +17,16 @@ import { panel } from '@/lib/panelTheme'
 type DashboardRole = 'OWNER' | 'STAFF' | 'ADMIN_HYBRID' | null
 
 type NavItem = {
-  id: 'home' | 'services' | 'payments' | 'hours' | 'block' | 'cancel' | 'profile' | 'images'
+  id:
+    | 'home'
+    | 'services'
+    | 'payments'
+    | 'hours'
+    | 'block'
+    | 'cancel'
+    | 'profile'
+    | 'images'
+    | 'appearance'
   label: string
   href: string
 }
@@ -33,6 +42,7 @@ const OWNER_ITEMS: NavItem[] = [
   { id: 'profile', label: 'Mi perfil', href: '/setting/profile' },
   { id: 'services', label: 'Servicios', href: '/setting/services' },
   { id: 'payments', label: 'Pagos', href: '/setting/payments' },
+  { id: 'appearance', label: 'Fuentes y Colores', href: '/setting/appearance' },
   { id: 'hours', label: 'Horarios', href: '/setting/hours' },
   { id: 'block', label: 'Bloquear días u horarios', href: '/setting/blocking' },
   { id: 'cancel', label: 'Cancelar turnos', href: '/setting/cancel' },
@@ -59,6 +69,8 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
   const [businessSlug, setBusinessSlug] = useState<string | null>(null)
   const [businessLogo, setBusinessLogo] = useState<string | null>(null)
   const [isMoreOpen, setIsMoreOpen] = useState(false)
+  const [isAdminSectionOpen, setIsAdminSectionOpen] = useState(true)
+  const [isShopSectionOpen, setIsShopSectionOpen] = useState(true)
   const pathname = usePathname()
   const router = useRouter()
   const isAdminHybrid = role === 'ADMIN_HYBRID'
@@ -126,6 +138,15 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
     router.push('/admin')
   }
 
+  useEffect(() => {
+    if (!isAdminHybrid) return
+    // Keep the relevant section open when navigating.
+    const isInAdminArea = (pathname ?? '').startsWith('/admin')
+    const isInShopArea = (pathname ?? '').startsWith('/setting')
+    if (isInAdminArea) setIsAdminSectionOpen(true)
+    if (isInShopArea) setIsShopSectionOpen(true)
+  }, [isAdminHybrid, pathname])
+
   const handleAdminNavClick =
     (item: AdminNavItem) =>
     (event: React.MouseEvent<HTMLButtonElement | HTMLAnchorElement>) => {
@@ -137,7 +158,7 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
   return (
     <div className={`flex h-screen ${panel.contentBg}`}>
       <aside
-        className={`hidden w-72 shrink-0 flex-col ${panel.sidebarBg} text-white md:flex md:overflow-y-auto`}
+        className={`hidden w-72 shrink-0 flex-col ${panel.sidebarBg} text-white md:flex`}
       >
         <div className="flex min-h-0 flex-1 flex-col gap-4 px-4 py-5">
           {isAdminHybrid && (
@@ -148,23 +169,34 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
                 </p>
                 <p className="mt-1 text-xs text-white/90">Panel global</p>
               </div>
-              <nav className="space-y-1 text-sm">
-                {ADMIN_ITEMS.map((item) => {
-                  const isActive = isAdminItemActive(item)
-                  return (
-                    <button
-                      key={item.id}
-                      type="button"
-                      onClick={handleAdminNavClick(item)}
-                      className={`flex w-full items-center rounded-lg px-3 py-2 text-left transition-colors ${
-                        isActive ? panel.navActive : panel.navInactive
-                      }`}
-                    >
-                      <span className="text-sm font-medium">{item.label}</span>
-                    </button>
-                  )
-                })}
-              </nav>
+              <button
+                type="button"
+                onClick={() => setIsAdminSectionOpen((prev) => !prev)}
+                className={`flex w-full items-center justify-between rounded-lg px-3 py-2 text-left text-sm font-medium transition-colors ${panel.navInactive}`}
+                aria-expanded={isAdminSectionOpen}
+              >
+                <span>Admin</span>
+                <span className="text-xs">{isAdminSectionOpen ? '▲' : '▼'}</span>
+              </button>
+              {isAdminSectionOpen && (
+                <nav className="space-y-1 text-sm">
+                  {ADMIN_ITEMS.map((item) => {
+                    const isActive = isAdminItemActive(item)
+                    return (
+                      <button
+                        key={item.id}
+                        type="button"
+                        onClick={handleAdminNavClick(item)}
+                        className={`flex w-full items-center rounded-lg px-3 py-2 text-left transition-colors ${
+                          isActive ? panel.navActive : panel.navInactive
+                        }`}
+                      >
+                        <span className="text-sm font-medium">{item.label}</span>
+                      </button>
+                    )
+                  })}
+                </nav>
+              )}
               <button
                 type="button"
                 onClick={handleAdminOnlyClick}
@@ -185,30 +217,45 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
               {businessName ?? 'Configuración'}
             </p>
           </div>
-          <nav className="space-y-1 text-sm">
-            {items.map((item) => {
-              const isActive =
-                item.id === 'home'
-                  ? effectivePath === '/setting' || effectivePath === '/setting/'
-                  : effectivePath.startsWith(item.href)
-              return (
-                <button
-                  key={item.id}
-                  type="button"
-                  onClick={handleNavClick(item)}
-                  className={`flex w-full items-center rounded-lg text-left transition-colors ${
-                    isActive ? panel.navActive : panel.navInactive
-                  } ${
-                    item.id === 'block' && (role === 'OWNER' || role === 'ADMIN_HYBRID')
-                      ? 'ml-4 px-2 py-1.5 text-xs'
-                      : 'px-3 py-2 text-sm'
-                  }`}
-                >
-                  <span className="font-medium">{item.label}</span>
-                </button>
-              )
-            })}
-          </nav>
+          {isAdminHybrid && (
+            <button
+              type="button"
+              onClick={() => setIsShopSectionOpen((prev) => !prev)}
+              className={`flex w-full items-center justify-between rounded-lg px-3 py-2 text-left text-sm font-medium transition-colors ${panel.navInactive}`}
+              aria-expanded={isShopSectionOpen}
+            >
+              <span>Tienda</span>
+              <span className="text-xs">{isShopSectionOpen ? '▲' : '▼'}</span>
+            </button>
+          )}
+          {(!isAdminHybrid || isShopSectionOpen) && (
+            <div className="min-h-0 flex-1 overflow-y-auto pr-1 thin-scrollbar">
+              <nav className="space-y-1 text-sm">
+                {items.map((item) => {
+                  const isActive =
+                    item.id === 'home'
+                      ? effectivePath === '/setting' || effectivePath === '/setting/'
+                      : effectivePath.startsWith(item.href)
+                  return (
+                    <button
+                      key={item.id}
+                      type="button"
+                      onClick={handleNavClick(item)}
+                      className={`flex w-full items-center rounded-lg text-left transition-colors ${
+                        isActive ? panel.navActive : panel.navInactive
+                      } ${
+                        item.id === 'block' && (role === 'OWNER' || role === 'ADMIN_HYBRID')
+                          ? 'ml-4 px-2 py-1.5 text-xs'
+                          : 'px-3 py-2 text-sm'
+                      }`}
+                    >
+                      <span className="font-medium">{item.label}</span>
+                    </button>
+                  )
+                })}
+              </nav>
+            </div>
+          )}
         </div>
         <div className={`shrink-0 border-t ${panel.navBorder} px-4 py-4`}>
           {businessSlug && (

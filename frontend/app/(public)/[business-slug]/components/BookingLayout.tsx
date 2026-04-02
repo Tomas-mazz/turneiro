@@ -8,6 +8,7 @@ type BookingLayoutProps = {
   businessName: string
   logo?: string | null
   isDarkTheme?: boolean
+  fontFamily?: string | null
   onToggleTheme?: () => void
   onGoToServices: () => void
   onOpenLogin?: () => void
@@ -17,10 +18,20 @@ type BookingLayoutProps = {
   children: React.ReactNode
 }
 
+const FONT_CSS_VAR_BY_KEY: Record<string, string> = {
+  ROBOTO: 'var(--font-roboto)',
+  MONTSERRAT: 'var(--font-montserrat)',
+  INTER: 'var(--font-inter)',
+  POPPINS: 'var(--font-poppins)',
+  NUNITO: 'var(--font-nunito)',
+  PLAYFAIR: 'var(--font-playfair)',
+}
+
 export function BookingLayout({
   businessName,
   logo,
   isDarkTheme = true,
+  fontFamily = 'ROBOTO',
   onToggleTheme,
   onGoToServices,
   onOpenLogin,
@@ -31,11 +42,12 @@ export function BookingLayout({
 }: BookingLayoutProps) {
   const bgColor = isDarkTheme ? 'hsl(0, 0%, 9%)' : 'rgb(255, 255, 255)'
   const textColor = isDarkTheme ? 'text-white' : 'text-neutral-900'
+  const fontVar = FONT_CSS_VAR_BY_KEY[String(fontFamily || 'ROBOTO').toUpperCase()] ?? FONT_CSS_VAR_BY_KEY.ROBOTO
 
   return (
     <section
-      className={`relative flex min-h-screen w-full max-w-full flex-col overflow-x-hidden transition-colors duration-300 ease-out ${textColor}`}
-      style={{ backgroundColor: bgColor }}
+      className={`business-font relative flex min-h-screen w-full max-w-full flex-col overflow-x-hidden transition-colors duration-300 ease-out ${textColor}`}
+      style={{ backgroundColor: bgColor, ['--font-business' as any]: fontVar }}
     >
       <BookingHeader
         businessName={businessName}

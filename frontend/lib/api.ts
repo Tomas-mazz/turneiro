@@ -511,6 +511,7 @@ export async function updateBusinessImages(body: {
 }
 
 export type BusinessSettings = {
+  fontFamily: string
   paymentRequired: boolean
   paymentOptionalEnabled: boolean
   paymentType: 'PERCENTAGE' | 'FULL' | null
