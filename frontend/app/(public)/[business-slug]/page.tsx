@@ -98,6 +98,17 @@ export default function BusinessBookingPage() {
   }
 
   const isDarkTheme = themeMode === 'DARK'
+  const businessFontFamily = business?.settings?.fontFamily ?? 'ROBOTO'
+
+  const bookingFontVar =
+    ({
+      ROBOTO: 'var(--font-roboto)',
+      MONTSERRAT: 'var(--font-montserrat)',
+      INTER: 'var(--font-inter)',
+      POPPINS: 'var(--font-poppins)',
+      NUNITO: 'var(--font-nunito)',
+      PLAYFAIR: 'var(--font-playfair)',
+    } as Record<string, string>)[String(businessFontFamily).toUpperCase()] ?? 'var(--font-roboto)'
 
   const getDisplayPath = useCallback(() => {
     if (typeof window !== 'undefined') return window.location.pathname
@@ -668,7 +679,10 @@ export default function BusinessBookingPage() {
       }
     >
       {step === 'hero' && (
-        <div className="flex min-h-screen flex-col bg-neutral-100">
+        <div
+          className="business-font flex min-h-screen flex-col bg-neutral-100"
+          style={{ ['--font-business' as any]: bookingFontVar }}
+        >
           <div className="flex-1 overflow-hidden">
             <BookingHero
               name={business.name}
@@ -708,6 +722,7 @@ export default function BusinessBookingPage() {
         <DateStep
           businessName={business.name}
           logo={business.logo}
+          fontFamily={businessFontFamily}
           selectedService={selectedService}
           employees={business.employees ?? []}
           calendarMonth={calendarMonth}
@@ -747,6 +762,7 @@ export default function BusinessBookingPage() {
         <ClientFormStep
           businessName={business.name}
           logo={business.logo}
+          fontFamily={businessFontFamily}
           selectedService={selectedService}
           selectedDate={selectedDate}
           selectedSlot={selectedSlot}
@@ -800,6 +816,7 @@ export default function BusinessBookingPage() {
           <PaymentStep
             businessName={business.name}
             logo={business.logo}
+            fontFamily={businessFontFamily}
             createdAppointment={createdAppointment}
             selectedDate={selectedDate}
             selectedSlot={selectedSlot}
@@ -831,6 +848,7 @@ export default function BusinessBookingPage() {
           businessName={business.name}
           logo={business.logo}
           isDarkTheme={isDarkTheme}
+          fontFamily={businessFontFamily}
           onGoToServices={() => goToStep('service')}
           onOpenLogin={handleOpenLogin}
           onOpenRegister={() => {

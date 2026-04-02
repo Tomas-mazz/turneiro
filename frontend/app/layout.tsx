@@ -1,5 +1,5 @@
 import type { Metadata } from 'next'
-import { Roboto, Montserrat } from 'next/font/google'
+import { Roboto, Montserrat, Inter, Poppins, Nunito, Playfair_Display } from 'next/font/google'
 import './globals.css'
 
 const roboto = Roboto({
@@ -13,6 +13,34 @@ const montserrat = Montserrat({
   weight: ['400', '500', '600', '700'],
   subsets: ['latin'],
   variable: '--font-montserrat',
+  display: 'swap',
+})
+
+const inter = Inter({
+  weight: ['300', '400', '500', '600', '700'],
+  subsets: ['latin'],
+  variable: '--font-inter',
+  display: 'swap',
+})
+
+const poppins = Poppins({
+  weight: ['300', '400', '500', '600', '700'],
+  subsets: ['latin'],
+  variable: '--font-poppins',
+  display: 'swap',
+})
+
+const nunito = Nunito({
+  weight: ['300', '400', '500', '600', '700'],
+  subsets: ['latin'],
+  variable: '--font-nunito',
+  display: 'swap',
+})
+
+const playfair = Playfair_Display({
+  weight: ['400', '500', '600', '700'],
+  subsets: ['latin'],
+  variable: '--font-playfair',
   display: 'swap',
 })
 
@@ -33,7 +61,10 @@ export default function RootLayout({
   children: React.ReactNode
 }) {
   return (
-    <html lang="en" className={`${roboto.variable} ${montserrat.variable}`}>
+    <html
+      lang="en"
+      className={`${roboto.variable} ${montserrat.variable} ${inter.variable} ${poppins.variable} ${nunito.variable} ${playfair.variable}`}
+    >
       <body className="font-sans">{children}</body>
     </html>
   )

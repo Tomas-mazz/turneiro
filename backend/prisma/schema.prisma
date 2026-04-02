@@ -220,6 +220,9 @@ model BlockedSlot {
 // BusinessSettings model - business configuration
 model BusinessSettings {
   id                               String   @id @default(cuid())
+  /// Font family applied to the public booking pages for this business.
+  /// Stored as an enum-like string on purpose (keeps migrations simple).
+  fontFamily                        String   @default("ROBOTO") // ROBOTO, MONTSERRAT, INTER, POPPINS, NUNITO, PLAYFAIR, ROBOTO_SLAB
   paymentRequired                  Boolean  @default(false)
   paymentOptionalEnabled           Boolean  @default(false)
   paymentType                      String? // PERCENTAGE or FULL

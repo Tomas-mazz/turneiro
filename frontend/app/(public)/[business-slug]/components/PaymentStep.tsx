@@ -15,6 +15,7 @@ const MERCADOPAGO_BUTTON_BG_HOVER = '#008ed6'
 type PaymentStepProps = {
   businessName: string
   logo?: string | null
+  fontFamily?: string | null
   createdAppointment: CreatedAppointment
   selectedDate: string
   selectedSlot: string
@@ -45,6 +46,7 @@ type PaymentStepProps = {
 export function PaymentStep({
   businessName,
   logo,
+  fontFamily = 'ROBOTO',
   createdAppointment,
   selectedDate,
   selectedSlot,
@@ -92,6 +94,7 @@ export function PaymentStep({
       businessName={businessName}
       logo={logo}
       isDarkTheme={isDarkTheme}
+      fontFamily={fontFamily}
       onToggleTheme={onToggleTheme}
       onGoToServices={onGoToServices}
       onOpenLogin={onOpenLogin}

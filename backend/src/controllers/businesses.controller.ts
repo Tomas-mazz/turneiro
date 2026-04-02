@@ -138,6 +138,7 @@ export async function updateBusinessSettings(req: AuthRequest, res: Response, ne
     if (!ctx) return
     const { businessId } = ctx
     const {
+      fontFamily,
       showServiceConfirmModal,
       paymentRequired,
       paymentOptionalEnabled,
@@ -148,6 +149,7 @@ export async function updateBusinessSettings(req: AuthRequest, res: Response, ne
       mercadoPagoWebhookSecret,
     } = req.body ?? {}
     const updated = await updateBusinessSettingsService(businessId, {
+      ...(fontFamily !== undefined && { fontFamily }),
       ...(paymentRequired !== undefined && { paymentRequired: !!paymentRequired }),
       ...(paymentOptionalEnabled !== undefined && {
         paymentOptionalEnabled: !!paymentOptionalEnabled,

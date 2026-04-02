@@ -41,6 +41,7 @@ export type Business = {
   workingHours: { dayOfWeek: number; startTime: string; endTime: string; isClosed: boolean }[]
   employees: Employee[]
   settings: {
+    fontFamily?: string
     paymentRequired: boolean
     paymentOptionalEnabled?: boolean
     paymentType: string | null

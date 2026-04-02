@@ -50,6 +50,16 @@ const GOOGLE_CALENDAR_URL = 'https://calendar.google.com'
 
 type DashboardSection = 'all' | 'services' | 'payments' | 'blocking' | 'hours' | 'cancel'
 type PaymentMode = 'REQUIRED' | 'OPTIONAL' | 'CONFIRM_ONLY'
+type FontFamilyKey = 'ROBOTO' | 'MONTSERRAT' | 'INTER' | 'POPPINS' | 'NUNITO' | 'PLAYFAIR'
+
+const FONT_OPTIONS: { key: FontFamilyKey; label: string; cssVar: string; sample: string }[] = [
+  { key: 'ROBOTO', label: 'Roboto', cssVar: 'var(--font-roboto)', sample: 'Aa Bb Cc' },
+  { key: 'MONTSERRAT', label: 'Montserrat', cssVar: 'var(--font-montserrat)', sample: 'Aa Bb Cc' },
+  { key: 'INTER', label: 'Inter', cssVar: 'var(--font-inter)', sample: 'Aa Bb Cc' },
+  { key: 'POPPINS', label: 'Poppins', cssVar: 'var(--font-poppins)', sample: 'Aa Bb Cc' },
+  { key: 'NUNITO', label: 'Nunito', cssVar: 'var(--font-nunito)', sample: 'Aa Bb Cc' },
+  { key: 'PLAYFAIR', label: 'Playfair', cssVar: 'var(--font-playfair)', sample: 'Aa Bb Cc' },
+]
 
 export function DashboardContent({ section = 'all' }: { section?: DashboardSection }) {
   const [businessTitle, setBusinessTitle] = useState<string | null>(null)
@@ -127,6 +137,9 @@ export function DashboardContent({ section = 'all' }: { section?: DashboardSecti
   const [savingWorkingHours, setSavingWorkingHours] = useState(false)
   const [workingHoursError, setWorkingHoursError] = useState<string | null>(null)
   const [workingHoursJustSaved, setWorkingHoursJustSaved] = useState(false)
+  const [fontFamily, setFontFamily] = useState<FontFamilyKey>('ROBOTO')
+  const [savingFont, setSavingFont] = useState(false)
+  const [fontJustSaved, setFontJustSaved] = useState(false)
 
   useEffect(() => {
     setUserRole(getAuthUser()?.role ?? null)
@@ -175,6 +188,12 @@ export function DashboardContent({ section = 'all' }: { section?: DashboardSecti
     getBusinessSettings()
       .then((s) => {
         setShowServiceConfirmModal(!!s.showServiceConfirmModal)
+        const nextFont = String((s as any).fontFamily ?? 'ROBOTO').toUpperCase()
+        if (FONT_OPTIONS.some((x) => x.key === nextFont)) {
+          setFontFamily(nextFont as FontFamilyKey)
+        } else {
+          setFontFamily('ROBOTO')
+        }
         setPaymentRequired(!!s.paymentRequired)
         setPaymentOptionalEnabled(!!s.paymentOptionalEnabled)
         const mode: PaymentMode = s.paymentRequired
@@ -195,11 +214,18 @@ export function DashboardContent({ section = 'all' }: { section?: DashboardSecti
       })
       .catch(() => {
         setShowServiceConfirmModal(false)
+        setFontFamily('ROBOTO')
         setPaymentMode('CONFIRM_ONLY')
         setPaymentRequired(false)
         setPaymentOptionalEnabled(false)
       })
   }, [actsAsOwner])
+
+  useEffect(() => {
+    if (!fontJustSaved) return
+    const t = setTimeout(() => setFontJustSaved(false), 2500)
+    return () => clearTimeout(t)
+  }, [fontJustSaved])
 
   useEffect(() => {
     if (!actsAsOwner) return
@@ -538,6 +564,26 @@ export function DashboardContent({ section = 'all' }: { section?: DashboardSecti
     }
   }
 
+  const handleSaveFont = async () => {
+    setSavingFont(true)
+    setFontJustSaved(false)
+    try {
+      const updated = await updateBusinessSettings({ fontFamily })
+      const next = String((updated as any).fontFamily ?? fontFamily).toUpperCase()
+      if (FONT_OPTIONS.some((x) => x.key === next)) {
+        setFontFamily(next as FontFamilyKey)
+      }
+      setFontJustSaved(true)
+    } catch (err) {
+      setError(
+        (err as { response?: { data?: { error?: string } } })?.response?.data?.error ||
+          'Error al guardar la fuente'
+      )
+    } finally {
+      setSavingFont(false)
+    }
+  }
+
   if (!businessTitle) {
     return (
       <main className="flex min-h-[40vh] items-center justify-center p-8">
@@ -839,6 +885,76 @@ export function DashboardContent({ section = 'all' }: { section?: DashboardSecti
             >
               {savingPaymentSettings ? 'Guardando...' : 'Guardar pagos'}
             </button>
+          </div>
+        </section>
+      )}
+
+      {actsAsOwner && section === 'all' && (
+        <section className="mb-8 rounded-xl border border-neutral-200 bg-white p-4 shadow-sm sm:p-6">
+          <div className="mb-4">
+            <h2 className="text-lg font-semibold text-neutral-900">Fuentes y Colores</h2>
+            <p className="mt-1 text-sm text-neutral-600">
+              Elegí la fuente que se usa en la página pública de tu negocio.
+            </p>
+          </div>
+
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            {FONT_OPTIONS.map((opt) => {
+              const selected = fontFamily === opt.key
+              return (
+                <button
+                  key={opt.key}
+                  type="button"
+                  onClick={() => setFontFamily(opt.key)}
+                  className={`rounded-xl border p-4 text-left transition ${
+                    selected
+                      ? 'border-neutral-900 bg-neutral-50 shadow-sm'
+                      : 'border-neutral-200 bg-white hover:border-neutral-400'
+                  }`}
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <div className="text-sm font-semibold text-neutral-900">{opt.label}</div>
+                      <div
+                        className="mt-2 text-xl text-neutral-900"
+                        style={{ fontFamily: opt.cssVar }}
+                        aria-label={`Preview ${opt.label}`}
+                      >
+                        {opt.sample}
+                      </div>
+                      <div
+                        className="mt-1 text-sm text-neutral-700"
+                        style={{ fontFamily: opt.cssVar }}
+                      >
+                        El veloz murciélago hindú
+                      </div>
+                    </div>
+                    <div
+                      className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full border ${
+                        selected ? 'border-neutral-900 bg-neutral-900 text-white' : 'border-neutral-300 bg-white'
+                      }`}
+                      aria-hidden
+                    >
+                      {selected ? '✓' : ''}
+                    </div>
+                  </div>
+                </button>
+              )
+            })}
+          </div>
+
+          <div className="mt-4 flex flex-wrap items-center gap-3">
+            <button
+              type="button"
+              onClick={handleSaveFont}
+              disabled={savingFont}
+              className="rounded-lg bg-neutral-900 px-4 py-2 text-sm font-medium text-white disabled:opacity-60"
+            >
+              {savingFont ? 'Guardando...' : 'Guardar fuente'}
+            </button>
+            {fontJustSaved && (
+              <span className="text-sm font-medium text-green-700">Guardado</span>
+            )}
           </div>
         </section>
       )}
