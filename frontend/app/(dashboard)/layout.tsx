@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
+import { Menu } from 'lucide-react'
 import {
   isAuthenticated,
   getAuthUser,
@@ -13,64 +14,21 @@ import { getMyBusiness } from '@/lib/api'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
 import { BusinessLogoProvider } from '@/lib/businessLogoContext'
 import { panel } from '@/lib/panelTheme'
+import {
+  AppSidebar,
+  MobileSidebarDrawer,
+  resolveAdminPlatformMenu,
+  resolveShopMenu,
+} from '@/components/sidebar'
 
 type DashboardRole = 'OWNER' | 'STAFF' | 'ADMIN_HYBRID' | null
-
-type NavItem = {
-  id:
-    | 'home'
-    | 'services'
-    | 'payments'
-    | 'hours'
-    | 'block'
-    | 'cancel'
-    | 'profile'
-    | 'images'
-    | 'appearance'
-  label: string
-  href: string
-}
-
-type AdminNavItem = {
-  id: 'home' | 'businesses' | 'appointments' | 'newBusiness'
-  label: string
-  href: string
-}
-
-const OWNER_ITEMS: NavItem[] = [
-  { id: 'home', label: 'Inicio', href: '/setting' },
-  { id: 'profile', label: 'Mi perfil', href: '/setting/profile' },
-  { id: 'services', label: 'Servicios', href: '/setting/services' },
-  { id: 'payments', label: 'Pagos', href: '/setting/payments' },
-  { id: 'appearance', label: 'Fuentes y Colores', href: '/setting/appearance' },
-  { id: 'hours', label: 'Horarios', href: '/setting/hours' },
-  { id: 'block', label: 'Bloquear días u horarios', href: '/setting/blocking' },
-  { id: 'cancel', label: 'Cancelar turnos', href: '/setting/cancel' },
-  { id: 'images', label: 'Imágenes', href: '/setting/images' },
-]
-
-const STAFF_ITEMS: NavItem[] = [
-  { id: 'home', label: 'Inicio', href: '/setting' },
-  { id: 'profile', label: 'Mi perfil', href: '/setting/profile' },
-  { id: 'block', label: 'Bloquear días u horarios', href: '/setting/blocking' },
-  { id: 'cancel', label: 'Cancelar turnos', href: '/setting/cancel' },
-]
-
-const ADMIN_ITEMS: AdminNavItem[] = [
-  { id: 'home', label: 'Inicio', href: '/admin' },
-  { id: 'businesses', label: 'Negocios', href: '/admin/businesses' },
-  { id: 'appointments', label: 'Citas', href: '/admin/appointments' },
-  { id: 'newBusiness', label: 'Crear negocio', href: '/admin/businesses/new' },
-]
 
 function DashboardShell({ children }: { children: React.ReactNode }) {
   const [role, setRole] = useState<DashboardRole>(null)
   const [businessName, setBusinessName] = useState<string | null>(null)
   const [businessSlug, setBusinessSlug] = useState<string | null>(null)
   const [businessLogo, setBusinessLogo] = useState<string | null>(null)
-  const [isMoreOpen, setIsMoreOpen] = useState(false)
-  const [isAdminSectionOpen, setIsAdminSectionOpen] = useState(true)
-  const [isShopSectionOpen, setIsShopSectionOpen] = useState(true)
+  const [mobileOpen, setMobileOpen] = useState(false)
   const pathname = usePathname()
   const router = useRouter()
   const isAdminHybrid = role === 'ADMIN_HYBRID'
@@ -101,36 +59,11 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
       })
   }, [])
 
-  const items = role === 'STAFF' ? STAFF_ITEMS : OWNER_ITEMS
-
   const effectivePath = pathname || '/setting'
 
-  const handleNavClick =
-    (item: NavItem) =>
-    (event: React.MouseEvent<HTMLButtonElement | HTMLAnchorElement>) => {
-      event.preventDefault()
-      setIsMoreOpen(false)
-      if (item.href !== pathname) {
-        window.scrollTo({ top: 0, behavior: 'smooth' })
-        router.push(item.href)
-      }
-    }
-
-  const isAdminItemActive = (item: AdminNavItem) => {
-    if (item.id === 'home') {
-      return effectivePath === '/admin' || effectivePath === '/admin/'
-    }
-    if (item.id === 'businesses') {
-      return (
-        effectivePath.startsWith('/admin/businesses') &&
-        !effectivePath.startsWith('/admin/businesses/new')
-      )
-    }
-    if (item.id === 'newBusiness') {
-      return effectivePath.startsWith('/admin/businesses/new')
-    }
-    return effectivePath.startsWith(item.href)
-  }
+  const shopRole = isAdminHybrid ? 'ADMIN' : role === 'STAFF' ? 'STAFF' : 'OWNER'
+  const shopMenu = resolveShopMenu(shopRole)
+  const adminMenu = resolveAdminPlatformMenu()
 
   /** Same host so localStorage session stays valid (not shared across subdomains). */
   const handleAdminOnlyClick = () => {
@@ -138,138 +71,67 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
     router.push('/admin')
   }
 
-  useEffect(() => {
-    if (!isAdminHybrid) return
-    // Keep the relevant section open when navigating.
-    const isInAdminArea = (pathname ?? '').startsWith('/admin')
-    const isInShopArea = (pathname ?? '').startsWith('/setting')
-    if (isInAdminArea) setIsAdminSectionOpen(true)
-    if (isInShopArea) setIsShopSectionOpen(true)
-  }, [isAdminHybrid, pathname])
-
-  const handleAdminNavClick =
-    (item: AdminNavItem) =>
-    (event: React.MouseEvent<HTMLButtonElement | HTMLAnchorElement>) => {
-      event.preventDefault()
-      setIsMoreOpen(false)
-      router.push(item.href)
-    }
-
   return (
     <div className={`flex h-screen ${panel.contentBg}`}>
-      <aside
-        className={`hidden w-72 shrink-0 flex-col ${panel.sidebarBg} text-white md:flex`}
-      >
+      <aside className={`hidden shrink-0 flex-col ${panel.sidebarBg} text-white md:flex`}>
         <div className="flex min-h-0 flex-1 flex-col gap-4 px-4 py-5">
           {isAdminHybrid && (
             <>
-              <div className={`border-b ${panel.navBorder} pb-3`}>
-                <p className={`text-xs font-medium uppercase tracking-wide ${panel.labelMuted}`}>
-                  Turneiro (admin)
-                </p>
-                <p className="mt-1 text-xs text-white/90">Panel global</p>
-              </div>
-              <button
-                type="button"
-                onClick={() => setIsAdminSectionOpen((prev) => !prev)}
-                className={`flex w-full items-center justify-between rounded-lg px-3 py-2 text-left text-sm font-medium transition-colors ${panel.navInactive}`}
-                aria-expanded={isAdminSectionOpen}
-              >
-                <span>Admin</span>
-                <span className="text-xs">{isAdminSectionOpen ? '▲' : '▼'}</span>
-              </button>
-              {isAdminSectionOpen && (
-                <nav className="space-y-1 text-sm">
-                  {ADMIN_ITEMS.map((item) => {
-                    const isActive = isAdminItemActive(item)
-                    return (
-                      <button
-                        key={item.id}
-                        type="button"
-                        onClick={handleAdminNavClick(item)}
-                        className={`flex w-full items-center rounded-lg px-3 py-2 text-left transition-colors ${
-                          isActive ? panel.navActive : panel.navInactive
-                        }`}
-                      >
-                        <span className="text-sm font-medium">{item.label}</span>
-                      </button>
-                    )
-                  })}
-                </nav>
-              )}
-              <button
-                type="button"
-                onClick={handleAdminOnlyClick}
-                className={panel.outlineBtn}
-              >
-                Ir solo a admin (sin tienda)
-              </button>
+              <AppSidebar
+                menu={adminMenu}
+                pathname={effectivePath}
+                onNavigate={(href) => router.push(href)}
+                storageKey="turneiro-sidebar-admin-open"
+                railStorageKey="turneiro-sidebar-admin-rail"
+                disableRailCollapse
+                header={
+                  <div className={`border-b ${panel.navBorder} pb-3`}>
+                    <p className={`text-xs font-medium uppercase tracking-wide ${panel.labelMuted}`}>
+                      Turneiro (admin)
+                    </p>
+                    <p className="mt-1 text-xs text-white/90">Panel global</p>
+                  </div>
+                }
+                footer={
+                  <button type="button" onClick={handleAdminOnlyClick} className={panel.outlineBtn}>
+                    Ir solo a admin (sin tienda)
+                  </button>
+                }
+              />
               <div className={`my-2 border-t ${panel.navBorder}`} role="separator" />
             </>
           )}
-          <div
-            className={`border-b ${panel.navBorder} ${isAdminHybrid ? 'pb-3' : 'pb-4'}`}
-          >
-            <p className={`text-xs font-medium uppercase tracking-wide ${panel.labelMuted}`}>
-              {isAdminHybrid ? 'Vista de la tienda' : 'Tu negocio'}
-            </p>
-            <p className="mt-1 text-sm font-semibold text-white line-clamp-2">
-              {businessName ?? 'Configuración'}
-            </p>
-          </div>
-          {isAdminHybrid && (
-            <button
-              type="button"
-              onClick={() => setIsShopSectionOpen((prev) => !prev)}
-              className={`flex w-full items-center justify-between rounded-lg px-3 py-2 text-left text-sm font-medium transition-colors ${panel.navInactive}`}
-              aria-expanded={isShopSectionOpen}
-            >
-              <span>Tienda</span>
-              <span className="text-xs">{isShopSectionOpen ? '▲' : '▼'}</span>
-            </button>
-          )}
-          {(!isAdminHybrid || isShopSectionOpen) && (
-            <div className="min-h-0 flex-1 overflow-y-auto pr-1 thin-scrollbar">
-              <nav className="space-y-1 text-sm">
-                {items.map((item) => {
-                  const isActive =
-                    item.id === 'home'
-                      ? effectivePath === '/setting' || effectivePath === '/setting/'
-                      : effectivePath.startsWith(item.href)
-                  return (
-                    <button
-                      key={item.id}
-                      type="button"
-                      onClick={handleNavClick(item)}
-                      className={`flex w-full items-center rounded-lg text-left transition-colors ${
-                        isActive ? panel.navActive : panel.navInactive
-                      } ${
-                        item.id === 'block' && (role === 'OWNER' || role === 'ADMIN_HYBRID')
-                          ? 'ml-4 px-2 py-1.5 text-xs'
-                          : 'px-3 py-2 text-sm'
-                      }`}
-                    >
-                      <span className="font-medium">{item.label}</span>
-                    </button>
-                  )
-                })}
-              </nav>
-            </div>
-          )}
-        </div>
-        <div className={`shrink-0 border-t ${panel.navBorder} px-4 py-4`}>
-          {businessSlug && (
-            <Link
-              href="/"
-              onClick={(event) => {
-                event.stopPropagation()
-              }}
-              className={`inline-flex items-center gap-1.5 text-sm font-medium ${panel.footerLink}`}
-            >
-              <span aria-hidden>←</span>
-              Volver a la página principal
-            </Link>
-          )}
+
+          <AppSidebar
+            menu={shopMenu}
+            pathname={effectivePath}
+            onNavigate={(href) => router.push(href)}
+            storageKey="turneiro-sidebar-shop-open"
+            railStorageKey="turneiro-sidebar-shop-rail"
+            disableRailCollapse={isAdminHybrid}
+            header={
+              <div className={`border-b ${panel.navBorder} pb-4`}>
+                <p className={`text-xs font-medium uppercase tracking-wide ${panel.labelMuted}`}>
+                  {isAdminHybrid ? 'Vista de la tienda' : 'Tu negocio'}
+                </p>
+                <p className="mt-1 text-sm font-semibold text-white line-clamp-2">
+                  {businessName ?? 'Configuración'}
+                </p>
+              </div>
+            }
+            footer={
+              businessSlug ? (
+                <Link
+                  href="/"
+                  onClick={(event) => event.stopPropagation()}
+                  className={`inline-flex items-center gap-1.5 text-sm font-medium ${panel.footerLink}`}
+                >
+                  <span aria-hidden>←</span>
+                  Volver a la página principal
+                </Link>
+              ) : null
+            }
+          />
         </div>
       </aside>
 
@@ -283,132 +145,97 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
         <nav
           className={`fixed inset-x-0 bottom-0 z-20 px-3 pt-3 pb-[calc(env(safe-area-inset-bottom)+0.75rem)] backdrop-blur md:hidden ${panel.mobileBar}`}
         >
-          <div className="mx-auto flex max-w-md items-center justify-between gap-1">
-            {items.slice(0, 2).map((item) => {
-              const isActive =
-                item.id === 'home'
-                  ? effectivePath === '/setting' || effectivePath === '/setting/'
-                  : effectivePath.startsWith(item.href)
-              return (
-                <button
-                  key={item.id}
-                  type="button"
-                  onClick={handleNavClick(item)}
-                  className={`flex flex-1 items-center justify-center rounded-md px-3 py-2 text-xs font-medium text-white transition-colors ${
-                    isActive ? 'bg-white/10 font-semibold' : 'hover:bg-white/5'
-                  }`}
-                >
-                  <span className="truncate">
-                    {item.id === 'block' ? 'Bloquear' : item.label}
-                  </span>
-                </button>
-              )
-            })}
-
+          <div className="mx-auto flex max-w-md items-center justify-between gap-2">
             <button
               type="button"
-              onClick={() => setIsMoreOpen((prev) => !prev)}
-              className={`flex flex-1 items-center justify-center gap-1 rounded-md px-3 py-2 text-xs font-medium text-white transition-colors ${
-                isMoreOpen ? 'bg-white/10 opacity-100' : 'opacity-95 hover:bg-white/5'
-              }`}
+              onClick={() => setMobileOpen(true)}
+              className="flex flex-1 items-center justify-center gap-2 rounded-md px-3 py-2 text-xs font-medium text-white transition-colors hover:bg-white/5"
             >
-              <span className="truncate">Más</span>
-              <span className="text-[0.65rem]">
-                {isMoreOpen ? '▲' : '▼'}
-              </span>
+              <Menu className="h-4 w-4" aria-hidden />
+              <span className="truncate">Menú</span>
             </button>
+            <Link
+              href="/"
+              className="flex flex-1 items-center justify-center rounded-md px-3 py-2 text-xs font-medium text-white transition-colors hover:bg-white/5"
+            >
+              Inicio
+            </Link>
           </div>
         </nav>
 
-        {isMoreOpen && (
-          <div className="fixed inset-0 z-30 md:hidden">
-            <button
-              type="button"
-              onClick={() => setIsMoreOpen(false)}
-              className="absolute inset-0 bg-black/40"
-              aria-label="Cerrar menú"
-            />
-            <div className="absolute inset-x-0 bottom-0 px-3 pb-[calc(env(safe-area-inset-bottom)+0.75rem)]">
-              <div className={`mx-auto max-w-md overflow-hidden ${panel.sheet}`}>
-                <div className="flex items-center justify-between gap-3 px-4 py-3">
-                  <div className="text-xs font-semibold uppercase tracking-wide text-white/90">
-                    Más opciones
+        <MobileSidebarDrawer
+          open={mobileOpen}
+          onClose={() => setMobileOpen(false)}
+          title="Navegación"
+        >
+          <div className="space-y-4">
+            {isAdminHybrid && (
+              <AppSidebar
+                menu={adminMenu}
+                pathname={effectivePath}
+                onNavigate={(href) => {
+                  setMobileOpen(false)
+                  router.push(href)
+                }}
+                forceExpanded
+                disableRailCollapse
+                header={
+                  <div className={`border-b ${panel.navBorder} pb-3`}>
+                    <p className={`text-xs font-medium uppercase tracking-wide ${panel.labelMuted}`}>
+                      Turneiro (admin)
+                    </p>
+                    <p className="mt-1 text-xs text-white/90">Panel global</p>
                   </div>
+                }
+                footer={
                   <button
                     type="button"
-                    onClick={() => setIsMoreOpen(false)}
-                    className="rounded-md px-2 py-1 text-xs font-medium text-white/85 hover:bg-white/10"
+                    onClick={() => {
+                      setMobileOpen(false)
+                      handleAdminOnlyClick()
+                    }}
+                    className={panel.outlineBtn}
                   >
-                    Cerrar
+                    Ir solo a admin (sin tienda)
                   </button>
+                }
+              />
+            )}
+
+            <AppSidebar
+              menu={shopMenu}
+              pathname={effectivePath}
+              onNavigate={(href) => {
+                setMobileOpen(false)
+                router.push(href)
+              }}
+              forceExpanded
+              disableRailCollapse
+              header={
+                <div className={`border-b ${panel.navBorder} pb-4`}>
+                  <p className={`text-xs font-medium uppercase tracking-wide ${panel.labelMuted}`}>
+                    {isAdminHybrid ? 'Vista de la tienda' : 'Tu negocio'}
+                  </p>
+                  <p className="mt-1 text-sm font-semibold text-white line-clamp-2">
+                    {businessName ?? 'Configuración'}
+                  </p>
                 </div>
-                <div className={`border-t ${panel.navBorder} max-h-[70vh] overflow-y-auto`}>
-                  {isAdminHybrid && (
-                    <>
-                      <div
-                        className={`px-4 py-1.5 text-[0.65rem] font-semibold uppercase ${panel.sheetSection}`}
-                      >
-                        Admin
-                      </div>
-                      {ADMIN_ITEMS.map((item) => (
-                        <button
-                          key={item.id}
-                          type="button"
-                          onClick={handleAdminNavClick(item)}
-                          className={`flex w-full items-center justify-between px-4 py-3 text-left text-sm ${panel.sheetRowHover}`}
-                        >
-                          <span>{item.label}</span>
-                        </button>
-                      ))}
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setIsMoreOpen(false)
-                          handleAdminOnlyClick()
-                        }}
-                        className={`flex w-full border-t ${panel.navBorder} px-4 py-3 text-left text-sm ${panel.sheetRowHover}`}
-                      >
-                        Ir solo a admin
-                      </button>
-                      <div
-                        className={`px-4 py-1.5 text-[0.65rem] font-semibold uppercase ${panel.sheetSection}`}
-                      >
-                        Tienda
-                      </div>
-                    </>
-                  )}
-                  {items.map((item) => {
-                    const isActive =
-                      item.id === 'home'
-                        ? effectivePath === '/setting' || effectivePath === '/setting/'
-                        : effectivePath.startsWith(item.href)
-                    return (
-                      <button
-                        key={item.id}
-                        type="button"
-                        onClick={handleNavClick(item)}
-                        className={`flex w-full items-center justify-between px-4 py-3 text-left text-sm ${
-                          isActive ? panel.sheetRowActive : panel.sheetRowHover
-                        }`}
-                      >
-                        <span>{item.label}</span>
-                      </button>
-                    )
-                  })}
-                  {businessSlug && (
-                    <Link
-                      href="/"
-                      onClick={() => setIsMoreOpen(false)}
-                      className={`flex w-full items-center justify-between border-t ${panel.navBorder} px-4 py-3 text-left text-sm ${panel.sheetRowHover}`}
-                    >
-                      <span>Ir a la página principal</span>
-                    </Link>
-                  )}
-                </div>
-              </div>
-            </div>
+              }
+              footer={
+                businessSlug ? (
+                  <Link
+                    href="/"
+                    onClick={() => setMobileOpen(false)}
+                    className={`inline-flex items-center gap-1.5 text-sm font-medium ${panel.footerLink}`}
+                  >
+                    <span aria-hidden>←</span>
+                    Volver a la página principal
+                  </Link>
+                ) : null
+              }
+            />
           </div>
-        )}
+        </MobileSidebarDrawer>
       </div>
     </div>
   )
