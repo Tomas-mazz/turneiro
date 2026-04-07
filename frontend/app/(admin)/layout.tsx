@@ -61,14 +61,13 @@ function AdminShell({ children }: { children: React.ReactNode }) {
 
   return (
     <div className={`flex h-screen ${panel.contentBg}`}>
-      <aside className={`hidden shrink-0 flex-col ${panel.sidebarBg} text-white md:flex md:overflow-y-auto`}>
+      <aside className={`hidden w-72 shrink-0 flex-col ${panel.sidebarBg} text-white md:flex md:overflow-y-auto`}>
         <div className="flex min-h-0 flex-1 flex-col gap-4 px-4 py-5">
           <AppSidebar
             menu={adminMenu}
             pathname={effectivePath}
             onNavigate={(href) => router.push(href)}
             storageKey="turneiro-admin-sidebar-open"
-            railStorageKey="turneiro-admin-sidebar-rail"
             header={
               <div className={`border-b ${panel.navBorder} pb-4`}>
                 <p className={`text-xs font-medium uppercase tracking-wide ${panel.labelMuted}`}>
@@ -98,8 +97,6 @@ function AdminShell({ children }: { children: React.ReactNode }) {
                 pathname={effectivePath}
                 onNavigate={(href) => router.push(href)}
                 storageKey="turneiro-admin-shop-sidebar-open"
-                railStorageKey="turneiro-admin-shop-sidebar-rail"
-                disableRailCollapse
                 header={
                   <div className={`border-b ${panel.navBorder} pb-3`}>
                     <p className={`text-xs font-medium uppercase tracking-wide ${panel.labelMuted}`}>
@@ -197,7 +194,6 @@ function AdminShell({ children }: { children: React.ReactNode }) {
                   router.push(href)
                 }}
                 forceExpanded
-                disableRailCollapse
                 header={
                   <div className={`border-b ${panel.navBorder} pb-3`}>
                     <p className={`text-xs font-medium uppercase tracking-wide ${panel.labelMuted}`}>
