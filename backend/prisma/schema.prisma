@@ -228,6 +228,10 @@ model BusinessSettings {
   /// Font family applied to the public booking pages for this business.
   /// Stored as an enum-like string on purpose (keeps migrations simple).
   fontFamily                       String   @default("ROBOTO") // ROBOTO, MONTSERRAT, INTER, POPPINS, NUNITO, PLAYFAIR, ROBOTO_SLAB
+  /// Public booking page background (dark theme). Null = built-in default (#171717).
+  publicPageBackgroundDark         String?
+  /// Public booking page background (light theme). Null = built-in default (#FFFFFF).
+  publicPageBackgroundLight        String?
   paymentRequired                  Boolean  @default(false)
   paymentOptionalEnabled           Boolean  @default(false)
   paymentType                      String? // PERCENTAGE or FULL

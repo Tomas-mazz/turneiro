@@ -624,6 +624,8 @@ export type BusinessSettings = {
   hasMercadoPagoAccessToken: boolean
   mercadoPagoWebhookSecret: string | null
   showServiceConfirmModal: boolean
+  publicPageBackgroundDark: string | null
+  publicPageBackgroundLight: string | null
 }
 
 export async function getBusinessSettings(): Promise<BusinessSettings> {

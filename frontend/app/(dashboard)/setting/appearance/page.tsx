@@ -3,6 +3,11 @@
 import { useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import { getBusinessSettings, updateBusinessSettings } from '@/lib/api'
+import {
+  DEFAULT_PUBLIC_PAGE_BG_DARK,
+  DEFAULT_PUBLIC_PAGE_BG_LIGHT,
+} from '@/lib/publicPageBackground'
+import { PublicPageBackgroundSection } from '../components/PublicPageBackgroundSection'
 
 type FontFamilyKey = 'ROBOTO' | 'MONTSERRAT' | 'INTER' | 'POPPINS' | 'NUNITO' | 'PLAYFAIR'
 
@@ -17,6 +22,8 @@ const FONT_OPTIONS: { key: FontFamilyKey; label: string; cssVar: string }[] = [
 
 export default function AppearancePage() {
   const [fontFamily, setFontFamily] = useState<FontFamilyKey>('ROBOTO')
+  const [bgDarkHex, setBgDarkHex] = useState(DEFAULT_PUBLIC_PAGE_BG_DARK)
+  const [bgLightHex, setBgLightHex] = useState(DEFAULT_PUBLIC_PAGE_BG_LIGHT)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [justSaved, setJustSaved] = useState(false)
@@ -32,6 +39,8 @@ export default function AppearancePage() {
         } else {
           setFontFamily('ROBOTO')
         }
+        setBgDarkHex(s.publicPageBackgroundDark ?? DEFAULT_PUBLIC_PAGE_BG_DARK)
+        setBgLightHex(s.publicPageBackgroundLight ?? DEFAULT_PUBLIC_PAGE_BG_LIGHT)
         setError(null)
       })
       .catch(() => {
@@ -52,9 +61,15 @@ export default function AppearancePage() {
     setSaving(true)
     setJustSaved(false)
     try {
-      const updated = await updateBusinessSettings({ fontFamily })
+      const updated = await updateBusinessSettings({
+        fontFamily,
+        publicPageBackgroundDark: bgDarkHex === DEFAULT_PUBLIC_PAGE_BG_DARK ? null : bgDarkHex,
+        publicPageBackgroundLight: bgLightHex === DEFAULT_PUBLIC_PAGE_BG_LIGHT ? null : bgLightHex,
+      })
       const next = String((updated as any).fontFamily ?? fontFamily).toUpperCase()
       if (FONT_OPTIONS.some((x) => x.key === next)) setFontFamily(next as FontFamilyKey)
+      setBgDarkHex(updated.publicPageBackgroundDark ?? DEFAULT_PUBLIC_PAGE_BG_DARK)
+      setBgLightHex(updated.publicPageBackgroundLight ?? DEFAULT_PUBLIC_PAGE_BG_LIGHT)
       setJustSaved(true)
       setError(null)
     } catch (err: any) {
@@ -71,7 +86,7 @@ export default function AppearancePage() {
           <div>
             <h1 className="text-xl font-bold text-neutral-900 sm:text-2xl">Fuentes y Colores</h1>
             <p className="mt-1 text-sm text-neutral-600">
-              Elegí la fuente que se usa en la página pública de tu negocio.
+              Fuente y colores de fondo de la página pública de reserva de tu negocio.
             </p>
           </div>
           <Link
@@ -138,7 +153,18 @@ export default function AppearancePage() {
               })}
             </div>
 
-            <div className="mt-4 flex flex-wrap items-center gap-3">
+            <PublicPageBackgroundSection
+              darkHex={bgDarkHex}
+              lightHex={bgLightHex}
+              onDarkChange={setBgDarkHex}
+              onLightChange={setBgLightHex}
+              onResetToDefaults={() => {
+                setBgDarkHex(DEFAULT_PUBLIC_PAGE_BG_DARK)
+                setBgLightHex(DEFAULT_PUBLIC_PAGE_BG_LIGHT)
+              }}
+            />
+
+            <div className="mt-6 flex flex-wrap items-center gap-3">
               <button
                 type="button"
                 onClick={handleSave}
@@ -155,4 +181,3 @@ export default function AppearancePage() {
     </main>
   )
 }
-

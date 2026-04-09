@@ -75,6 +75,8 @@ export async function getBusinessBySlugService(slug: string) {
           depositPercentage: true,
           mercadoPagoPublicKey: true,
           showServiceConfirmModal: true,
+          publicPageBackgroundDark: true,
+          publicPageBackgroundLight: true,
         },
       },
       employees: {
@@ -738,6 +740,10 @@ export type BusinessSettings = {
   hasMercadoPagoAccessToken: boolean
   mercadoPagoWebhookSecret: string | null
   showServiceConfirmModal: boolean
+  /** Null = use built-in default for public booking page (dark theme). */
+  publicPageBackgroundDark: string | null
+  /** Null = use built-in default for public booking page (light theme). */
+  publicPageBackgroundLight: string | null
 }
 
 export type UpdateBusinessSettingsInput = Partial<
@@ -761,6 +767,8 @@ export async function getBusinessSettingsService(
       mercadoPagoAccessToken: true,
       mercadoPagoWebhookSecret: true,
       showServiceConfirmModal: true,
+      publicPageBackgroundDark: true,
+      publicPageBackgroundLight: true,
     },
   })
   return {
@@ -774,6 +782,8 @@ export async function getBusinessSettingsService(
     hasMercadoPagoAccessToken: !!settings?.mercadoPagoAccessToken,
     mercadoPagoWebhookSecret: settings?.mercadoPagoWebhookSecret ?? null,
     showServiceConfirmModal: settings?.showServiceConfirmModal ?? false,
+    publicPageBackgroundDark: settings?.publicPageBackgroundDark ?? null,
+    publicPageBackgroundLight: settings?.publicPageBackgroundLight ?? null,
   }
 }
 
@@ -812,6 +822,9 @@ export async function updateBusinessSettingsService(
   const normalizedDepositPercentage =
     paymentRequired && normalizedPaymentType === 'PERCENTAGE' ? depositPercentage : null
 
+  const inputBgDark = (input as { publicPageBackgroundDark?: string | null }).publicPageBackgroundDark
+  const inputBgLight = (input as { publicPageBackgroundLight?: string | null }).publicPageBackgroundLight
+
   const updated = await prisma.businessSettings.upsert({
     where: { businessId },
     create: {
@@ -827,6 +840,8 @@ export async function updateBusinessSettingsService(
       mercadoPagoWebhookSecret: input.mercadoPagoWebhookSecret ?? null,
       requireRegistrationBeforePayment: true,
       showServiceConfirmModal: input.showServiceConfirmModal ?? false,
+      publicPageBackgroundDark: inputBgDark !== undefined ? inputBgDark : null,
+      publicPageBackgroundLight: inputBgLight !== undefined ? inputBgLight : null,
     },
     update: {
       ...((input as { fontFamily?: string | null }).fontFamily !== undefined && {
@@ -852,6 +867,12 @@ export async function updateBusinessSettingsService(
       ...(input.showServiceConfirmModal !== undefined && {
         showServiceConfirmModal: input.showServiceConfirmModal,
       }),
+      ...(inputBgDark !== undefined && {
+        publicPageBackgroundDark: inputBgDark,
+      }),
+      ...(inputBgLight !== undefined && {
+        publicPageBackgroundLight: inputBgLight,
+      }),
     },
     select: {
       fontFamily: true,
@@ -863,6 +884,8 @@ export async function updateBusinessSettingsService(
       mercadoPagoAccessToken: true,
       mercadoPagoWebhookSecret: true,
       showServiceConfirmModal: true,
+      publicPageBackgroundDark: true,
+      publicPageBackgroundLight: true,
     },
   })
   return {
@@ -875,5 +898,7 @@ export async function updateBusinessSettingsService(
     hasMercadoPagoAccessToken: !!updated.mercadoPagoAccessToken,
     mercadoPagoWebhookSecret: updated.mercadoPagoWebhookSecret ?? null,
     showServiceConfirmModal: updated.showServiceConfirmModal,
+    publicPageBackgroundDark: updated.publicPageBackgroundDark ?? null,
+    publicPageBackgroundLight: updated.publicPageBackgroundLight ?? null,
   }
 }

@@ -25,6 +25,7 @@ import {
 } from './components'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
 import { LegalFooter } from './components/LegalFooter'
+import { resolvePublicPageBackground } from '@/lib/publicPageBackground'
 
 type ThemeMode = 'DARK' | 'LIGHT'
 
@@ -99,6 +100,20 @@ export default function BusinessBookingPage() {
 
   const isDarkTheme = themeMode === 'DARK'
   const businessFontFamily = business?.settings?.fontFamily ?? 'ROBOTO'
+
+  const pageBackgroundColor = useMemo(
+    () =>
+      resolvePublicPageBackground(
+        isDarkTheme,
+        business?.settings?.publicPageBackgroundDark ?? null,
+        business?.settings?.publicPageBackgroundLight ?? null
+      ),
+    [
+      isDarkTheme,
+      business?.settings?.publicPageBackgroundDark,
+      business?.settings?.publicPageBackgroundLight,
+    ]
+  )
 
   const bookingFontVar =
     ({
@@ -333,7 +348,7 @@ export default function BusinessBookingPage() {
     const prevBody = document.body.style.backgroundColor
     const prevHtmlTransition = document.documentElement.style.transition
     const prevBodyTransition = document.body.style.transition
-    const bg = isDarkTheme ? 'hsl(0, 0%, 9%)' : 'rgb(244, 244, 245)'
+    const bg = pageBackgroundColor
     document.documentElement.style.transition = 'background-color 240ms ease-out'
     document.body.style.transition = 'background-color 240ms ease-out'
     document.documentElement.style.backgroundColor = bg
@@ -344,7 +359,7 @@ export default function BusinessBookingPage() {
       document.documentElement.style.transition = prevHtmlTransition
       document.body.style.transition = prevBodyTransition
     }
-  }, [step, isDarkTheme])
+  }, [step, pageBackgroundColor])
 
   // If we land on a deep step (form/payment) without the required state
   // (e.g. corrupted state or direct navigation), reset to a safe starting step
@@ -674,7 +689,7 @@ export default function BusinessBookingPage() {
       }
       style={
         step === 'service' || step === 'date' || step === 'done'
-          ? { backgroundColor: isDarkTheme ? 'hsl(0, 0%, 9%)' : 'rgb(244, 244, 245)' }
+          ? { backgroundColor: pageBackgroundColor }
           : undefined
       }
     >
@@ -707,6 +722,7 @@ export default function BusinessBookingPage() {
           onGoToServices={() => goToStep('service')}
           showPaymentStep={showPaymentStep}
           primaryColor={primaryColor}
+          pageBackgroundColor={pageBackgroundColor}
           isDarkTheme={isDarkTheme}
           onToggleTheme={() => setThemeMode((prev) => (prev === 'DARK' ? 'LIGHT' : 'DARK'))}
           onOpenLogin={handleOpenLogin}
@@ -747,6 +763,7 @@ export default function BusinessBookingPage() {
           onGoToServices={() => goToStep('service')}
           showPaymentStep={showPaymentStep}
           primaryColor={primaryColor}
+          pageBackgroundColor={pageBackgroundColor}
           isDarkTheme={isDarkTheme}
           onToggleTheme={() => setThemeMode((prev) => (prev === 'DARK' ? 'LIGHT' : 'DARK'))}
           onOpenLogin={handleOpenLogin}
@@ -796,6 +813,7 @@ export default function BusinessBookingPage() {
           onGoToServices={() => goToStep('service')}
           showPaymentStep={showPaymentStep}
           primaryColor={primaryColor}
+          pageBackgroundColor={pageBackgroundColor}
           isDarkTheme={isDarkTheme}
           onToggleTheme={() => setThemeMode((prev) => (prev === 'DARK' ? 'LIGHT' : 'DARK'))}
           onOpenLogin={handleOpenLogin}
@@ -834,6 +852,7 @@ export default function BusinessBookingPage() {
             onGoToServices={() => goToStep('service')}
             showPaymentStep={showPaymentStep}
             primaryColor={primaryColor}
+            pageBackgroundColor={pageBackgroundColor}
             isDarkTheme={isDarkTheme}
             onToggleTheme={() => setThemeMode((prev) => (prev === 'DARK' ? 'LIGHT' : 'DARK'))}
             onOpenLogin={handleOpenLogin}
@@ -848,6 +867,7 @@ export default function BusinessBookingPage() {
           businessName={business.name}
           logo={business.logo}
           isDarkTheme={isDarkTheme}
+          pageBackgroundColor={pageBackgroundColor}
           fontFamily={businessFontFamily}
           onGoToServices={() => goToStep('service')}
           onOpenLogin={handleOpenLogin}

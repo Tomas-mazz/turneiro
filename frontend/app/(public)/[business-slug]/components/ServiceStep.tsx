@@ -22,6 +22,7 @@ type ServiceStepProps = {
   onGoToServices: () => void
   showPaymentStep?: boolean
   primaryColor: string
+  pageBackgroundColor: string
   isDarkTheme?: boolean
   onToggleTheme?: () => void
   onOpenLogin?: () => void
@@ -38,6 +39,7 @@ export function ServiceStep({
   onGoToServices,
   showPaymentStep = false,
   primaryColor,
+  pageBackgroundColor,
   isDarkTheme = true,
   onToggleTheme,
   onOpenLogin,
@@ -184,6 +186,7 @@ export function ServiceStep({
       businessName={business.name}
       logo={business.logo}
       isDarkTheme={isDarkTheme}
+      pageBackgroundColor={pageBackgroundColor}
       fontFamily={business.settings?.fontFamily ?? 'ROBOTO'}
       onToggleTheme={onToggleTheme}
       onGoToServices={onGoToServices}

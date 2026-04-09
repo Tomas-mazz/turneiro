@@ -14,6 +14,18 @@ import {
 import type { AuthRequest } from '../middleware/auth'
 import { getBusinessContextOrRespond } from '../lib/requestGuards'
 
+/** Accepts `#RRGGBB` or `RRGGBB`. Undefined = omit, null/'' = clear to default. */
+function parseOptionalPublicPageBackgroundHex(
+  v: unknown
+): { ok: true; value: string | null | undefined } | { ok: false } {
+  if (v === undefined) return { ok: true, value: undefined }
+  if (v === null || v === '') return { ok: true, value: null }
+  const s = String(v).trim()
+  const h = s.startsWith('#') ? s : `#${s}`
+  if (!/^#[0-9A-Fa-f]{6}$/.test(h)) return { ok: false }
+  return { ok: true, value: h.toUpperCase() }
+}
+
 export async function getMyBusiness(req: AuthRequest, res: Response) {
   const ctx = getBusinessContextOrRespond(req, res)
   if (!ctx) return
@@ -147,7 +159,19 @@ export async function updateBusinessSettings(req: AuthRequest, res: Response, ne
       mercadoPagoPublicKey,
       mercadoPagoAccessToken,
       mercadoPagoWebhookSecret,
+      publicPageBackgroundDark,
+      publicPageBackgroundLight,
     } = req.body ?? {}
+
+    const bgDark = parseOptionalPublicPageBackgroundHex(publicPageBackgroundDark)
+    const bgLight = parseOptionalPublicPageBackgroundHex(publicPageBackgroundLight)
+    if (!bgDark.ok || !bgLight.ok) {
+      res.status(400).json({
+        error: 'Los fondos deben ser colores en formato hexadecimal de 6 dígitos (ej. #171717 o #FFFFFF).',
+      })
+      return
+    }
+
     const updated = await updateBusinessSettingsService(businessId, {
       ...(fontFamily !== undefined && { fontFamily }),
       ...(paymentRequired !== undefined && { paymentRequired: !!paymentRequired }),
@@ -165,6 +189,8 @@ export async function updateBusinessSettings(req: AuthRequest, res: Response, ne
       ...(mercadoPagoAccessToken !== undefined && { mercadoPagoAccessToken }),
       ...(mercadoPagoWebhookSecret !== undefined && { mercadoPagoWebhookSecret }),
       ...(showServiceConfirmModal !== undefined && { showServiceConfirmModal: !!showServiceConfirmModal }),
+      ...(bgDark.value !== undefined && { publicPageBackgroundDark: bgDark.value }),
+      ...(bgLight.value !== undefined && { publicPageBackgroundLight: bgLight.value }),
     })
     res.json(updated)
   } catch (err) {
