@@ -187,7 +187,7 @@ const optionalUrl = z
   .union([z.string().url(), z.string().regex(/^\/[^\s]*$/, 'Debe ser URL o ruta'), z.literal('')])
   .transform((s) => (s === '' ? undefined : s))
 
-export const createBusinessSchema = z.object({
+const createBusinessObjectSchema = z.object({
   name: z.string().min(1, 'El nombre es obligatorio').max(200),
   slug: slugSchema,
   category: z.string().min(1, 'La categoría es obligatoria').max(100),
@@ -204,13 +204,23 @@ export const createBusinessSchema = z.object({
   paymentRequired: z.boolean(),
   ownerEmail: z.union([z.string().email(), z.literal('')]).optional(),
   ownerPassword: z.string().optional(),
-}).refine(
-  (data) => {
-    const email = typeof data.ownerEmail === 'string' ? data.ownerEmail.trim() : ''
-    if (!email) return true
-    return !!data.ownerPassword && data.ownerPassword.length >= 6
-  },
-  { message: 'Si indicás email del owner, la contraseña es obligatoria (mín. 6 caracteres)', path: ['ownerPassword'] }
+})
+
+function requireOwnerPasswordIfOwnerEmailPresent<T extends { ownerEmail?: string; ownerPassword?: string }>(
+  data: T
+): boolean {
+  const email = typeof data.ownerEmail === 'string' ? data.ownerEmail.trim() : ''
+  if (!email) return true
+  return !!data.ownerPassword && data.ownerPassword.length >= 6
+}
+
+export const createBusinessSchema = createBusinessObjectSchema.refine(
+  requireOwnerPasswordIfOwnerEmailPresent,
+  {
+    message:
+      'Si indicás email del owner, la contraseña es obligatoria (mín. 6 caracteres)',
+    path: ['ownerPassword'],
+  }
 )
 
 export const updateBusinessSchema = z.object({
@@ -256,6 +266,39 @@ export const updateBusinessSchema = z.object({
 
 export type CreateBusinessInput = z.infer<typeof createBusinessSchema>
 export type UpdateBusinessInput = z.infer<typeof updateBusinessSchema>
+
+// Seller: reduced business create/edit (base fields + owner credentials only)
+export const createBusinessSellerSchema = createBusinessObjectSchema
+  .omit({
+    paymentRequired: true,
+  })
+  .extend({
+    // Seller cannot configure paymentRequired; keep it off by default.
+    paymentRequired: z.boolean().optional(),
+  })
+  .refine(requireOwnerPasswordIfOwnerEmailPresent, {
+    message:
+      'Si indicás email del owner, la contraseña es obligatoria (mín. 6 caracteres)',
+    path: ['ownerPassword'],
+  })
+
+export const updateBusinessSellerSchema = updateBusinessSchema.omit({
+  paymentRequired: true,
+  paymentOptionalEnabled: true,
+  paymentType: true,
+  depositPercentage: true,
+  mercadoPagoPublicKey: true,
+  mercadoPagoAccessToken: true,
+  mercadoPagoWebhookSecret: true,
+  freeCancellationWindow: true,
+  cancellationHasCost: true,
+  lateCancellationFee: true,
+  bufferTime: true,
+  slotIntervalMinutes: true,
+})
+
+export type CreateBusinessSellerInput = z.infer<typeof createBusinessSellerSchema>
+export type UpdateBusinessSellerInput = z.infer<typeof updateBusinessSellerSchema>
 
 // Admin: working hours (one record per day, 0=Sunday .. 6=Saturday)
 const workingHoursItemSchema = z
@@ -326,6 +369,15 @@ export const adminUpdateAppointmentStatusSchema = z.object({
 })
 
 export type AdminUpdateAppointmentStatusInput = z.infer<typeof adminUpdateAppointmentStatusSchema>
+
+// Admin: sellers (platform users)
+export const createSellerAdminSchema = z.object({
+  email: emailSchema,
+  password: passwordSchema,
+  name: z.string().max(100).optional().nullable(),
+})
+
+export type CreateSellerAdminInput = z.infer<typeof createSellerAdminSchema>
 
 // Admin: employees CRUD
 

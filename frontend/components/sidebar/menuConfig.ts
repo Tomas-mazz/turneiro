@@ -149,6 +149,13 @@ export const ADMIN_PLATFORM_DEF: SidebarMenuDefinition = {
           roles: ['ADMIN'],
         },
         {
+          id: 'sellers',
+          label: 'Vendedores',
+          path: '/admin/sellers',
+          icon: 'user',
+          roles: ['ADMIN'],
+        },
+        {
           id: 'appointments',
           label: 'Citas',
           path: '/admin/appointments',
@@ -167,15 +174,52 @@ export const ADMIN_PLATFORM_DEF: SidebarMenuDefinition = {
   ],
 }
 
+/** Seller platform (/seller) — all roles here are SELLER */
+export const SELLER_PLATFORM_DEF: SidebarMenuDefinition = {
+  standalone: [
+    {
+      id: 'seller-home',
+      label: 'Inicio',
+      path: '/seller',
+      icon: 'home',
+      roles: ['SELLER'],
+    },
+  ],
+  sections: [
+    {
+      id: 'seller-business',
+      title: 'Negocios',
+      icon: 'building2',
+      roles: ['SELLER'],
+      items: [
+        {
+          id: 'seller-businesses',
+          label: 'Mis negocios',
+          path: '/seller/businesses',
+          icon: 'building2',
+          roles: ['SELLER'],
+        },
+        {
+          id: 'seller-new-business',
+          label: 'Crear negocio',
+          path: '/seller/businesses/new',
+          icon: 'plusCircle',
+          roles: ['SELLER'],
+        },
+      ],
+    },
+  ],
+}
+
 function roleMatches(
-  def: { roles?: Array<'OWNER' | 'STAFF' | 'ADMIN'> },
-  role: ShopRole | 'ADMIN'
+  def: { roles?: Array<'OWNER' | 'STAFF' | 'ADMIN' | 'SELLER'> },
+  role: ShopRole | 'ADMIN' | 'SELLER'
 ): boolean {
   if (!def.roles?.length) return true
   return def.roles.includes(role)
 }
 
-function resolveItem(item: SidebarMenuItemDef, role: ShopRole | 'ADMIN'): ResolvedMenuItem | null {
+function resolveItem(item: SidebarMenuItemDef, role: ShopRole | 'ADMIN' | 'SELLER'): ResolvedMenuItem | null {
   if (!roleMatches(item, role)) return null
   return {
     id: item.id,
@@ -188,7 +232,7 @@ function resolveItem(item: SidebarMenuItemDef, role: ShopRole | 'ADMIN'): Resolv
 
 function resolveSection(
   section: SidebarMenuSectionDef,
-  role: ShopRole | 'ADMIN'
+  role: ShopRole | 'ADMIN' | 'SELLER'
 ): ResolvedMenuSection | null {
   if (!roleMatches(section, role)) return null
   const items: ResolvedMenuItem[] = []
@@ -208,7 +252,7 @@ function resolveSection(
 
 function resolveDefinition(
   def: SidebarMenuDefinition,
-  role: ShopRole | 'ADMIN'
+  role: ShopRole | 'ADMIN' | 'SELLER'
 ): ResolvedSidebarMenu {
   const standalone: ResolvedMenuItem[] = []
   for (const s of def.standalone) {
@@ -235,6 +279,10 @@ export function resolveShopMenu(role: ShopRole | 'ADMIN'): ResolvedSidebarMenu {
 
 export function resolveAdminPlatformMenu(): ResolvedSidebarMenu {
   return resolveDefinition(ADMIN_PLATFORM_DEF, 'ADMIN')
+}
+
+export function resolveSellerPlatformMenu(): ResolvedSidebarMenu {
+  return resolveDefinition(SELLER_PLATFORM_DEF, 'SELLER')
 }
 
 export function flattenResolvedMenu(menu: ResolvedSidebarMenu): ResolvedMenuItem[] {

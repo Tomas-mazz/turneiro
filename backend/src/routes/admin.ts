@@ -38,8 +38,13 @@ import {
   updateEmployee,
   deleteEmployee,
 } from '../controllers/admin.controller'
+import { createSeller, getSellerDetail, listSellers } from '../controllers/sellersAdmin.controller'
 
 const router = Router()
+
+router.get('/sellers', requireAdmin, listSellers)
+router.post('/sellers', requireAdmin, createSeller)
+router.get('/sellers/:id', requireAdmin, getSellerDetail)
 
 router.get('/businesses', requireAdmin, getBusinesses)
 router.get('/businesses/:id', requireAdmin, requireAdminBusinessId, getBusinessById)

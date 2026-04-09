@@ -5,8 +5,10 @@ export { SidebarSection } from './SidebarSection'
 export {
   SHOP_MENU_DEF,
   ADMIN_PLATFORM_DEF,
+  SELLER_PLATFORM_DEF,
   resolveShopMenu,
   resolveAdminPlatformMenu,
+  resolveSellerPlatformMenu,
   flattenResolvedMenu,
 } from './menuConfig'
 export { getSidebarIcon } from './iconMap'

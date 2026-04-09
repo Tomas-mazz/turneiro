@@ -75,10 +75,14 @@ import blockedSlotsRoutes from './routes/blockedSlots'
 import workingHoursRoutes from './routes/workingHours'
 import adminRoutes from './routes/admin'
 import uploadRoutes from './routes/upload'
+import sellerRoutes from './routes/seller'
+import sellerUploadRoutes from './routes/sellerUpload'
 import jobsRoutes from './routes/jobs'
 app.use('/api/businesses', businessesRoutes)
 app.use('/api/admin', adminRoutes)
 app.use('/api/admin/upload', uploadRoutes)
+app.use('/api/seller', sellerRoutes)
+app.use('/api/seller/upload', sellerUploadRoutes)
 app.use('/api/availability', availabilityRoutes)
 app.use('/api/appointments', appointmentsRoutes)
 app.use('/api/services', servicesRoutes)

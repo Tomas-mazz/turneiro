@@ -10,35 +10,39 @@ datasource db {
 
 // Business model - represents a business/barbershop/salon
 model Business {
-  id           String   @id @default(cuid())
-  name         String
-  slug         String   @unique
-  description  String?
-  category     String // Business category/rubro (barbershop, salon, spa, etc.)
-  logo         String?
-  coverPhoto       String?
-  coverVideo       String?
-  coverPhotoMobile String?
-  coverVideoMobile String?
-  theme        String   @default("DARK") // DARK = fondo oscuro, LIGHT = fondo blanco
-  primaryColor String   @default("#000000") // derived from theme for buttons (set on save)
-  phone        String?
-  email        String?
-  address      String?
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  id                String   @id @default(cuid())
+  name              String
+  slug              String   @unique
+  description       String?
+  category          String // Business category/rubro (barbershop, salon, spa, etc.)
+  logo              String?
+  coverPhoto        String?
+  coverVideo        String?
+  coverPhotoMobile  String?
+  coverVideoMobile  String?
+  theme             String   @default("DARK") // DARK = fondo oscuro, LIGHT = fondo blanco
+  primaryColor      String   @default("#000000") // derived from theme for buttons (set on save)
+  phone             String?
+  email             String?
+  address           String?
+  /// If present, indicates this business was created by a platform SELLER user.
+  createdBySellerId String?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
 
   // Relations
-  users        User[]
-  appointments Appointment[]
-  services     Service[]
-  workingHours WorkingHours[]
-  blockedSlots BlockedSlot[]
-  settings     BusinessSettings?
-  subscription Subscription?
-  employees    Employee[]
+  users           User[]
+  appointments    Appointment[]
+  services        Service[]
+  workingHours    WorkingHours[]
+  blockedSlots    BlockedSlot[]
+  settings        BusinessSettings?
+  subscription    Subscription?
+  employees       Employee[]
+  createdBySeller User?             @relation("BusinessesCreatedBySeller", fields: [createdBySellerId], references: [id], onDelete: SetNull)
 
   @@index([slug])
+  @@index([createdBySellerId])
 }
 
 // Employee model - display profile for booking page (name, photo); admin creates these
@@ -66,9 +70,9 @@ model Employee {
 // User model - authentication for business owners/staff and end clients (USER)
 model User {
   id                 String   @id @default(cuid())
-  name               String?  // Optional; used for client (USER) registration
+  name               String? // Optional; used for client (USER) registration
   email              String   @unique
-  password           String?  // Hashed password; null for OAuth-only users (Google)
+  password           String? // Hashed password; null for OAuth-only users (Google)
   role               String // OWNER, ADMIN, STAFF, USER
   businessId         String?
   googleRefreshToken String? // Google OAuth refresh token for Calendar API
@@ -80,20 +84,21 @@ model User {
   business             Business?     @relation(fields: [businessId], references: [id], onDelete: Cascade)
   employee             Employee? // STAFF user linked to one employee for dashboard / calendar
   appointmentsSyncedTo Appointment[] // appointments whose GC event was created on this user's calendar
+  businessesCreated    Business[]    @relation("BusinessesCreatedBySeller")
 
   @@index([email])
   @@index([businessId])
 }
 
 model Service {
-  id         String   @id @default(cuid())
-  name       String
-  price      Float
-  duration   Int // Duration in minutes (15-120)
-  isActive   Boolean  @default(true)
-  businessId String
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+  id               String   @id @default(cuid())
+  name             String
+  price            Float
+  duration         Int // Duration in minutes (15-120)
+  isActive         Boolean  @default(true)
+  businessId       String
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
   shortDescription String? // Short text shown by default in UI
   description      String? // Extended text shown when user clicks "leer más"
   images           String[] @default([]) // Up to 5 image URLs (enforced in API)
@@ -128,36 +133,36 @@ model SubService {
 
 // Appointment model - client appointments
 model Appointment {
-  id                   String   @id @default(cuid())
-  startTime            DateTime
-  endTime              DateTime
-  serviceName          String
-  price                Float
-  paymentStatus        String // PENDING, PAID, REFUNDED, PARTIALLY_REFUNDED
-  paymentProvider      String? // STRIPE, MERCADOPAGO
-  paymentIntentId      String? // Stripe Payment Intent ID or Mercado Pago Preference ID
-  paymentAmount        Float? // Amount paid (deposit or full)
-  paymentHoldExpiresAt DateTime?
-  refundAmount         Float? // Amount refunded (if cancelled)
-  clientName           String
-  clientEmail          String?
-  clientPhone          String
-  status               String // UPCOMING, COMPLETED, CANCELLED
-  cancellationToken    String?  @unique
-  cancellationReason   String? // Reason when cancelled by owner (mandatory in UI)
-  googleEventId        String? // Google Calendar Event ID for syncing
-  syncedToUserId       String? // User whose Google Calendar the event was created in (for per-employee sync)
-  ownerCalendarEventId String? // When synced to staff, copy on owner's calendar (for owner view with color); deleted on cancel
+  id                                String    @id @default(cuid())
+  startTime                         DateTime
+  endTime                           DateTime
+  serviceName                       String
+  price                             Float
+  paymentStatus                     String // PENDING, PAID, REFUNDED, PARTIALLY_REFUNDED
+  paymentProvider                   String? // STRIPE, MERCADOPAGO
+  paymentIntentId                   String? // Stripe Payment Intent ID or Mercado Pago Preference ID
+  paymentAmount                     Float? // Amount paid (deposit or full)
+  paymentHoldExpiresAt              DateTime?
+  refundAmount                      Float? // Amount refunded (if cancelled)
+  clientName                        String
+  clientEmail                       String?
+  clientPhone                       String
+  status                            String // UPCOMING, COMPLETED, CANCELLED
+  cancellationToken                 String?   @unique
+  cancellationReason                String? // Reason when cancelled by owner (mandatory in UI)
+  googleEventId                     String? // Google Calendar Event ID for syncing
+  syncedToUserId                    String? // User whose Google Calendar the event was created in (for per-employee sync)
+  ownerCalendarEventId              String? // When synced to staff, copy on owner's calendar (for owner view with color); deleted on cancel
   /// When post-payment QStash jobs were first enqueued (avoids duplicate emails if googleEventId is still null).
   paymentConfirmationJobsEnqueuedAt DateTime?
-  businessId           String
-  employeeId           String?
-  serviceId            String?
-  createdAt            DateTime @default(now())
-  updatedAt            DateTime @updatedAt
+  businessId                        String
+  employeeId                        String?
+  serviceId                         String?
+  createdAt                         DateTime  @default(now())
+  updatedAt                         DateTime  @updatedAt
 
   /// When the 2-hour reminder email was successfully sent to the client.
-  reminderSentAt       DateTime?
+  reminderSentAt DateTime?
 
   // Relations
   business     Business  @relation(fields: [businessId], references: [id], onDelete: Cascade)
@@ -222,7 +227,7 @@ model BusinessSettings {
   id                               String   @id @default(cuid())
   /// Font family applied to the public booking pages for this business.
   /// Stored as an enum-like string on purpose (keeps migrations simple).
-  fontFamily                        String   @default("ROBOTO") // ROBOTO, MONTSERRAT, INTER, POPPINS, NUNITO, PLAYFAIR, ROBOTO_SLAB
+  fontFamily                       String   @default("ROBOTO") // ROBOTO, MONTSERRAT, INTER, POPPINS, NUNITO, PLAYFAIR, ROBOTO_SLAB
   paymentRequired                  Boolean  @default(false)
   paymentOptionalEnabled           Boolean  @default(false)
   paymentType                      String? // PERCENTAGE or FULL

@@ -32,6 +32,9 @@ export default function LoginPage() {
           clearAdminActingShopSlug()
           router.push('/admin')
         }
+      } else if (res.data.user.role === 'SELLER') {
+        clearAdminActingShopSlug()
+        router.push('/seller')
       } else {
         clearAdminActingShopSlug()
         router.push('/setting')

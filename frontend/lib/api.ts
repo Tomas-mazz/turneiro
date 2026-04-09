@@ -12,6 +12,12 @@ import type {
   AdminAppointmentListItem,
   AdminEmployeeListItem,
   SubServiceAdminItem,
+  SellerBusinessDetail,
+  SellerBusinessListItem,
+  CreateSellerBusinessBody,
+  UpdateSellerBusinessBody,
+  AdminSellerListItem,
+  AdminSellerDetail,
 } from '@/types'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'
@@ -379,6 +385,61 @@ export async function uploadAdminFile(file: File): Promise<{ url: string }> {
   const { data } = await api.post<{ url: string }>('/admin/upload', formData, {
     headers: { 'Content-Type': 'multipart/form-data' },
   })
+  return data
+}
+
+// Seller platform
+export async function getSellerBusinesses(): Promise<SellerBusinessListItem[]> {
+  const { data } = await api.get<SellerBusinessListItem[]>('/seller/businesses')
+  return data
+}
+
+export async function getSellerBusiness(id: string): Promise<SellerBusinessDetail> {
+  const { data } = await api.get<SellerBusinessDetail>(`/seller/businesses/${id}`)
+  return data
+}
+
+export async function createSellerBusiness(
+  body: CreateSellerBusinessBody
+): Promise<{ id: string; slug: string }> {
+  const { data } = await api.post<{ id: string; slug: string }>('/seller/businesses', body)
+  return data
+}
+
+export async function updateSellerBusiness(
+  id: string,
+  body: UpdateSellerBusinessBody
+): Promise<{ ok: boolean }> {
+  const { data } = await api.patch<{ ok: boolean }>(`/seller/businesses/${id}`, body)
+  return data
+}
+
+export async function uploadSellerFile(file: File): Promise<{ url: string }> {
+  const formData = new FormData()
+  formData.append('file', file)
+  const { data } = await api.post<{ url: string }>('/seller/upload', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  })
+  return data
+}
+
+// Admin: sellers
+export async function getAdminSellers(): Promise<AdminSellerListItem[]> {
+  const { data } = await api.get<AdminSellerListItem[]>('/admin/sellers')
+  return data
+}
+
+export async function createAdminSeller(body: {
+  email: string
+  password: string
+  name?: string | null
+}): Promise<{ id: string; email: string }> {
+  const { data } = await api.post<{ id: string; email: string }>('/admin/sellers', body)
+  return data
+}
+
+export async function getAdminSellerDetail(id: string): Promise<AdminSellerDetail> {
+  const { data } = await api.get<AdminSellerDetail>(`/admin/sellers/${id}`)
   return data
 }
 
