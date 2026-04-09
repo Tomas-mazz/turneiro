@@ -47,6 +47,7 @@ function LoginEntryIcon({ className }: { className?: string }) {
 
 const ROLE_LABEL: Record<string, string> = {
   ADMIN: 'ADMIN',
+  SELLER: 'SELLER',
   OWNER: 'Dueño',
   STAFF: 'Staff',
   USER: 'Cliente',
@@ -167,6 +168,16 @@ export function BookingHeader({
                       onClick={() => setAuthMenuOpen(false)}
                     >
                       Panel admin
+                    </Link>
+                  )}
+                  {user.role === 'SELLER' && (
+                    <Link
+                      href="/seller"
+                      role="menuitem"
+                      className={`block w-full px-4 py-2.5 text-left text-sm font-medium ${dropdownItemClass}`}
+                      onClick={() => setAuthMenuOpen(false)}
+                    >
+                      Panel vendedor
                     </Link>
                   )}
                   {user.role === 'ADMIN' && (
