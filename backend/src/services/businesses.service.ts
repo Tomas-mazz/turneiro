@@ -1,6 +1,7 @@
 import bcrypt from 'bcryptjs'
 import { prisma } from '../lib/prisma'
 import type { Prisma } from '@prisma/client'
+import { ensureOwnerEmployee } from './ownerEmployee.service'
 
 export interface MyBusinessInfo {
   name: string
@@ -370,6 +371,9 @@ export async function createBusinessForAdmin(
       })
     }
 
+    // Ensure the owner profile exists even if owner credentials are added later.
+    await ensureOwnerEmployee(tx, b.id, { fallbackName: input.name })
+
     if (
       input.ownerEmail &&
       input.ownerEmail.trim() &&
@@ -386,14 +390,16 @@ export async function createBusinessForAdmin(
           'Ese email ya está registrado (admin u otro negocio). Usá otro email para el dueño de este negocio.'
         )
       }
-      await tx.user.create({
+      const ownerUser = await tx.user.create({
         data: {
           email: ownerEmail,
           password: hashed,
           role: 'OWNER',
           businessId: b.id,
         },
+        select: { id: true },
       })
+      await ensureOwnerEmployee(tx, b.id, { ownerUserId: ownerUser.id, fallbackName: input.name })
     }
 
     return b
@@ -623,20 +629,23 @@ export async function updateBusinessForAdmin(
             data: updateUser,
           })
         }
+        await ensureOwnerEmployee(tx, businessId, { ownerUserId: owner.id })
       } else if (ownerEmail && ownerPassword) {
         const emailTaken = await tx.user.findUnique({
           where: { email: ownerEmail },
         })
         if (emailTaken) throw new Error('El email del owner ya está en uso')
         const hashed = await bcrypt.hash(ownerPassword, 10)
-        await tx.user.create({
+        const ownerUser = await tx.user.create({
           data: {
             email: ownerEmail,
             password: hashed,
             role: 'OWNER',
             businessId,
           },
+          select: { id: true },
         })
+        await ensureOwnerEmployee(tx, businessId, { ownerUserId: ownerUser.id })
       }
     }
   })
