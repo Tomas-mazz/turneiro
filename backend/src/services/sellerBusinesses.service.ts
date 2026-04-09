@@ -1,6 +1,7 @@
 import bcrypt from 'bcryptjs'
 import { prisma } from '../lib/prisma'
 import type { Prisma } from '@prisma/client'
+import { ensureOwnerEmployee } from './ownerEmployee.service'
 
 const BUTTON_COLOR_DARK_THEME = '#f5f5f5'
 const BUTTON_COLOR_LIGHT_THEME = '#171717'
@@ -199,6 +200,9 @@ export async function createBusinessForSeller(
       })
     }
 
+    // Ensure the owner profile exists even if owner credentials are added later.
+    await ensureOwnerEmployee(tx, b.id, { fallbackName: input.name })
+
     if (
       input.ownerEmail &&
       input.ownerEmail.trim() &&
@@ -213,14 +217,16 @@ export async function createBusinessForSeller(
         )
       }
       const hashed = await bcrypt.hash(input.ownerPassword, 10)
-      await tx.user.create({
+      const ownerUser = await tx.user.create({
         data: {
           email: ownerEmail,
           password: hashed,
           role: 'OWNER',
           businessId: b.id,
         },
+        select: { id: true },
       })
+      await ensureOwnerEmployee(tx, b.id, { ownerUserId: ownerUser.id, fallbackName: input.name })
     }
 
     return b
@@ -313,18 +319,21 @@ export async function updateBusinessForSeller(
         if (Object.keys(updateUser).length > 0) {
           await tx.user.update({ where: { id: owner.id }, data: updateUser })
         }
+        await ensureOwnerEmployee(tx, businessId, { ownerUserId: owner.id })
       } else if (ownerEmail && ownerPassword) {
         const emailTaken = await tx.user.findUnique({ where: { email: ownerEmail } })
         if (emailTaken) throw new Error('El email del owner ya está en uso')
         const hashed = await bcrypt.hash(ownerPassword, 10)
-        await tx.user.create({
+        const ownerUser = await tx.user.create({
           data: {
             email: ownerEmail,
             password: hashed,
             role: 'OWNER',
             businessId,
           },
+          select: { id: true },
         })
+        await ensureOwnerEmployee(tx, businessId, { ownerUserId: ownerUser.id })
       }
     }
   })
