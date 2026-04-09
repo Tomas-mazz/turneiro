@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
-import { createAdminSeller, getAdminSellers } from '@/lib/api'
+import { createAdminSeller, deleteAdminSeller, getAdminSellers } from '@/lib/api'
 import type { AdminSellerListItem } from '@/types'
 
 export default function AdminSellersPage() {
@@ -46,6 +46,21 @@ export default function AdminSellersPage() {
       setCreateError(msg || 'Error al crear vendedor')
     } finally {
       setCreating(false)
+    }
+  }
+
+  const handleDelete = async (sellerId: string) => {
+    const ok = window.confirm('¿Eliminar este vendedor? Esta acción no se puede deshacer.')
+    if (!ok) return
+    try {
+      await deleteAdminSeller(sellerId)
+      setSellers((prev) => prev.filter((x) => x.id !== sellerId))
+    } catch (err: unknown) {
+      const msg =
+        err && typeof err === 'object' && 'response' in err
+          ? (err as { response?: { data?: { error?: string } } }).response?.data?.error
+          : null
+      alert(msg || 'Error al eliminar vendedor')
     }
   }
 
@@ -162,12 +177,21 @@ export default function AdminSellersPage() {
                       {s.businessesCreatedCount}
                     </td>
                     <td className="px-4 py-3 text-right text-sm sm:px-6">
-                      <Link
-                        href={`/admin/sellers/${s.id}`}
-                        className="text-neutral-600 underline hover:text-neutral-900"
-                      >
-                        Ver detalle
-                      </Link>
+                      <span className="inline-flex gap-3">
+                        <Link
+                          href={`/admin/sellers/${s.id}`}
+                          className="text-neutral-600 underline hover:text-neutral-900"
+                        >
+                          Ver detalle
+                        </Link>
+                        <button
+                          type="button"
+                          onClick={() => handleDelete(s.id)}
+                          className="text-red-600 underline hover:text-red-700"
+                        >
+                          Eliminar
+                        </button>
+                      </span>
                     </td>
                   </tr>
                 ))}

@@ -109,3 +109,14 @@ export async function getSellerDetailForAdmin(sellerId: string): Promise<AdminSe
   }
 }
 
+export async function deleteSellerForAdmin(sellerId: string): Promise<void> {
+  const seller = await prisma.user.findFirst({
+    where: { id: sellerId, role: 'SELLER' },
+    select: { id: true },
+  })
+  if (!seller) {
+    throw new Error('Vendedor no encontrado')
+  }
+  await prisma.user.delete({ where: { id: sellerId } })
+}
+

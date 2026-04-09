@@ -3,6 +3,7 @@ import { ZodError } from 'zod'
 import { createSellerAdminSchema } from '../lib/schemas'
 import {
   createSellerForAdmin,
+  deleteSellerForAdmin,
   getSellerDetailForAdmin,
   listSellersForAdmin,
 } from '../services/sellers.service'
@@ -45,6 +46,22 @@ export async function getSellerDetail(req: Request, res: Response, next: NextFun
     if (!seller) return res.status(404).json({ error: 'Vendedor no encontrado' })
     res.json(seller)
   } catch (err) {
+    next(err)
+  }
+}
+
+export async function deleteSeller(req: Request, res: Response, next: NextFunction) {
+  try {
+    const id = req.params.id
+    if (!id) return res.status(400).json({ error: 'ID de vendedor obligatorio' })
+    await deleteSellerForAdmin(id)
+    res.status(204).send()
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Error al eliminar vendedor'
+    if (message.includes('no encontrado')) {
+      res.status(404).json({ error: message })
+      return
+    }
     next(err)
   }
 }
