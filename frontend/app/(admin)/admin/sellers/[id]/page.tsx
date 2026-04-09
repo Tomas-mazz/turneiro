@@ -2,16 +2,18 @@
 
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
-import { useParams } from 'next/navigation'
-import { getAdminSellerDetail } from '@/lib/api'
+import { useParams, useRouter } from 'next/navigation'
+import { deleteAdminSeller, getAdminSellerDetail } from '@/lib/api'
 import type { AdminSellerDetail } from '@/types'
 
 export default function AdminSellerDetailPage() {
   const params = useParams()
   const id = params?.id as string
+  const router = useRouter()
   const [seller, setSeller] = useState<AdminSellerDetail | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [deleting, setDeleting] = useState(false)
 
   useEffect(() => {
     if (!id) return
@@ -52,6 +54,32 @@ export default function AdminSellerDetailPage() {
         <p className="mt-1 text-sm text-neutral-600">
           {seller.email} · {seller.businessesCreatedCount} negocios creados
         </p>
+        <div className="mt-4 flex flex-wrap gap-3">
+          <button
+            type="button"
+            disabled={deleting}
+            onClick={async () => {
+              const ok = window.confirm('¿Eliminar este vendedor? Esta acción no se puede deshacer.')
+              if (!ok) return
+              setDeleting(true)
+              try {
+                await deleteAdminSeller(seller.id)
+                router.push('/admin/sellers')
+              } catch (err: unknown) {
+                const msg =
+                  err && typeof err === 'object' && 'response' in err
+                    ? (err as { response?: { data?: { error?: string } } }).response?.data?.error
+                    : null
+                alert(msg || 'Error al eliminar vendedor')
+              } finally {
+                setDeleting(false)
+              }
+            }}
+            className="rounded-lg border border-red-200 bg-red-50 px-4 py-2.5 text-sm font-medium text-red-700 hover:bg-red-100 disabled:opacity-50"
+          >
+            {deleting ? 'Eliminando...' : 'Eliminar vendedor'}
+          </button>
+        </div>
       </header>
 
       <section className="rounded-lg border border-neutral-200 bg-white shadow-sm">

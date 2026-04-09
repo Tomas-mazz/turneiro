@@ -443,6 +443,10 @@ export async function getAdminSellerDetail(id: string): Promise<AdminSellerDetai
   return data
 }
 
+export async function deleteAdminSeller(id: string): Promise<void> {
+  await api.delete(`/admin/sellers/${id}`)
+}
+
 export type CreateEmployeeAdminBody = {
   name: string
   photoUrl?: string
