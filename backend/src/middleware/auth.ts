@@ -61,6 +61,34 @@ export function requireAdmin(
   })
 }
 
+export function requireSeller(
+  req: AuthRequest,
+  res: Response,
+  next: NextFunction
+): void {
+  requireAuth(req, res, () => {
+    if (!req.user || req.user.role !== 'SELLER') {
+      res.status(403).json({ error: 'Acceso denegado. Solo vendedores.' })
+      return
+    }
+    next()
+  })
+}
+
+export function requireAdminOrSeller(
+  req: AuthRequest,
+  res: Response,
+  next: NextFunction
+): void {
+  requireAuth(req, res, () => {
+    if (!req.user || !['ADMIN', 'SELLER'].includes(req.user.role)) {
+      res.status(403).json({ error: 'Acceso denegado.' })
+      return
+    }
+    next()
+  })
+}
+
 export function requireOwnerOnly(
   req: AuthRequest,
   res: Response,

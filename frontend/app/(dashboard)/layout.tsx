@@ -249,6 +249,10 @@ export default function DashboardLayout({
       return
     }
     const user = getAuthUser()
+    if (user?.role === 'SELLER') {
+      router.replace('/seller')
+      return
+    }
     if (user?.role === 'ADMIN' && !getAdminActingShopSlug()) {
       router.replace('/admin')
       return

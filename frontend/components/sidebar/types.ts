@@ -25,7 +25,7 @@ export type SidebarMenuItemDef = {
   icon: SidebarIconKey
   variant?: ItemVariant
   /** If set, item is only shown for these roles */
-  roles?: Array<'OWNER' | 'STAFF' | 'ADMIN'>
+  roles?: Array<'OWNER' | 'STAFF' | 'ADMIN' | 'SELLER'>
 }
 
 export type SidebarMenuSectionDef = {
@@ -36,7 +36,7 @@ export type SidebarMenuSectionDef = {
   tone?: 'default' | 'danger'
   items: SidebarMenuItemDef[]
   /** Section is omitted if no items remain after role filter */
-  roles?: Array<'OWNER' | 'STAFF' | 'ADMIN'>
+  roles?: Array<'OWNER' | 'STAFF' | 'ADMIN' | 'SELLER'>
 }
 
 export type SidebarMenuStandaloneDef = {
@@ -44,7 +44,7 @@ export type SidebarMenuStandaloneDef = {
   label: string
   path: string
   icon: SidebarIconKey
-  roles?: Array<'OWNER' | 'STAFF' | 'ADMIN'>
+  roles?: Array<'OWNER' | 'STAFF' | 'ADMIN' | 'SELLER'>
 }
 
 export type SidebarMenuDefinition = {

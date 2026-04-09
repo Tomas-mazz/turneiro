@@ -252,7 +252,7 @@ export default function AdminLayout({
     }
     const user = getAuthUser()
     if (!user || user.role !== 'ADMIN') {
-      router.replace('/setting')
+      router.replace(user?.role === 'SELLER' ? '/seller' : '/setting')
       return
     }
     setAllowed(true)

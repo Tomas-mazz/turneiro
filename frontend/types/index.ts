@@ -156,3 +156,62 @@ export interface AdminEmployeeListItem {
   photoUrl: string | null
   isOwner: boolean
 }
+
+// Seller (platform) - reduced business management
+export interface SellerBusinessListItem {
+  id: string
+  name: string
+  slug: string
+  category: string
+  email: string | null
+  phone: string | null
+  createdAt: string
+  appointmentsCount: number
+}
+
+export interface SellerBusinessDetail {
+  id: string
+  name: string
+  slug: string
+  category: string
+  description: string | null
+  logo: string | null
+  coverPhoto: string | null
+  coverVideo: string | null
+  coverPhotoMobile: string | null
+  coverVideoMobile: string | null
+  theme: string
+  phone: string | null
+  email: string | null
+  address: string | null
+  createdAt: string
+  updatedAt: string
+  owner: { id: string; email: string } | null
+}
+
+export type CreateSellerBusinessBody = Omit<CreateBusinessBody, 'paymentRequired'>
+export type UpdateSellerBusinessBody = Partial<CreateSellerBusinessBody>
+
+// Admin: seller management
+export interface AdminSellerListItem {
+  id: string
+  email: string
+  name: string | null
+  createdAt: string
+  businessesCreatedCount: number
+}
+
+export interface AdminSellerDetail {
+  id: string
+  email: string
+  name: string | null
+  createdAt: string
+  businessesCreatedCount: number
+  businesses: Array<{
+    id: string
+    name: string
+    slug: string
+    category: string
+    createdAt: string
+  }>
+}
