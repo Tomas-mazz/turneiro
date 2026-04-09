@@ -38,6 +38,11 @@ import { ServicesSection } from './components/sections/ServicesSection'
 import { HoursSection } from './components/sections/HoursSection'
 import { BlockingSection } from './components/sections/BlockingSection'
 import { CancelSection } from './components/sections/CancelSection'
+import { PublicPageBackgroundSection } from './components/PublicPageBackgroundSection'
+import {
+  DEFAULT_PUBLIC_PAGE_BG_DARK,
+  DEFAULT_PUBLIC_PAGE_BG_LIGHT,
+} from '@/lib/publicPageBackground'
 import type {
   ServiceListItem,
   AppointmentListItem,
@@ -138,6 +143,8 @@ export function DashboardContent({ section = 'all' }: { section?: DashboardSecti
   const [workingHoursError, setWorkingHoursError] = useState<string | null>(null)
   const [workingHoursJustSaved, setWorkingHoursJustSaved] = useState(false)
   const [fontFamily, setFontFamily] = useState<FontFamilyKey>('ROBOTO')
+  const [bgDarkHex, setBgDarkHex] = useState(DEFAULT_PUBLIC_PAGE_BG_DARK)
+  const [bgLightHex, setBgLightHex] = useState(DEFAULT_PUBLIC_PAGE_BG_LIGHT)
   const [savingFont, setSavingFont] = useState(false)
   const [fontJustSaved, setFontJustSaved] = useState(false)
 
@@ -211,10 +218,14 @@ export function DashboardContent({ section = 'all' }: { section?: DashboardSecti
         setMercadoPagoPublicKey(s.mercadoPagoPublicKey ?? '')
         setMercadoPagoWebhookSecret(s.mercadoPagoWebhookSecret ?? '')
         setHasMercadoPagoAccessToken(!!s.hasMercadoPagoAccessToken)
+        setBgDarkHex(s.publicPageBackgroundDark ?? DEFAULT_PUBLIC_PAGE_BG_DARK)
+        setBgLightHex(s.publicPageBackgroundLight ?? DEFAULT_PUBLIC_PAGE_BG_LIGHT)
       })
       .catch(() => {
         setShowServiceConfirmModal(false)
         setFontFamily('ROBOTO')
+        setBgDarkHex(DEFAULT_PUBLIC_PAGE_BG_DARK)
+        setBgLightHex(DEFAULT_PUBLIC_PAGE_BG_LIGHT)
         setPaymentMode('CONFIRM_ONLY')
         setPaymentRequired(false)
         setPaymentOptionalEnabled(false)
@@ -564,20 +575,26 @@ export function DashboardContent({ section = 'all' }: { section?: DashboardSecti
     }
   }
 
-  const handleSaveFont = async () => {
+  const handleSaveAppearance = async () => {
     setSavingFont(true)
     setFontJustSaved(false)
     try {
-      const updated = await updateBusinessSettings({ fontFamily })
+      const updated = await updateBusinessSettings({
+        fontFamily,
+        publicPageBackgroundDark: bgDarkHex === DEFAULT_PUBLIC_PAGE_BG_DARK ? null : bgDarkHex,
+        publicPageBackgroundLight: bgLightHex === DEFAULT_PUBLIC_PAGE_BG_LIGHT ? null : bgLightHex,
+      })
       const next = String((updated as any).fontFamily ?? fontFamily).toUpperCase()
       if (FONT_OPTIONS.some((x) => x.key === next)) {
         setFontFamily(next as FontFamilyKey)
       }
+      setBgDarkHex(updated.publicPageBackgroundDark ?? DEFAULT_PUBLIC_PAGE_BG_DARK)
+      setBgLightHex(updated.publicPageBackgroundLight ?? DEFAULT_PUBLIC_PAGE_BG_LIGHT)
       setFontJustSaved(true)
     } catch (err) {
       setError(
         (err as { response?: { data?: { error?: string } } })?.response?.data?.error ||
-          'Error al guardar la fuente'
+          'Error al guardar la apariencia'
       )
     } finally {
       setSavingFont(false)
@@ -894,7 +911,7 @@ export function DashboardContent({ section = 'all' }: { section?: DashboardSecti
           <div className="mb-4">
             <h2 className="text-lg font-semibold text-neutral-900">Fuentes y Colores</h2>
             <p className="mt-1 text-sm text-neutral-600">
-              Elegí la fuente que se usa en la página pública de tu negocio.
+              Fuente y fondos de la página pública de reserva (servicios, calendario, datos, pago).
             </p>
           </div>
 
@@ -943,14 +960,25 @@ export function DashboardContent({ section = 'all' }: { section?: DashboardSecti
             })}
           </div>
 
+          <PublicPageBackgroundSection
+            darkHex={bgDarkHex}
+            lightHex={bgLightHex}
+            onDarkChange={setBgDarkHex}
+            onLightChange={setBgLightHex}
+            onResetToDefaults={() => {
+              setBgDarkHex(DEFAULT_PUBLIC_PAGE_BG_DARK)
+              setBgLightHex(DEFAULT_PUBLIC_PAGE_BG_LIGHT)
+            }}
+          />
+
           <div className="mt-4 flex flex-wrap items-center gap-3">
             <button
               type="button"
-              onClick={handleSaveFont}
+              onClick={handleSaveAppearance}
               disabled={savingFont}
               className="rounded-lg bg-neutral-900 px-4 py-2 text-sm font-medium text-white disabled:opacity-60"
             >
-              {savingFont ? 'Guardando...' : 'Guardar fuente'}
+              {savingFont ? 'Guardando...' : 'Guardar'}
             </button>
             {fontJustSaved && (
               <span className="text-sm font-medium text-green-700">Guardado</span>

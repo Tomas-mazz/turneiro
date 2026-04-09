@@ -51,6 +51,7 @@ type DateStepProps = {
   onGoToServices: () => void
   showPaymentStep?: boolean
   primaryColor: string
+  pageBackgroundColor: string
   isDarkTheme?: boolean
   onToggleTheme?: () => void
   onOpenLogin?: () => void
@@ -84,6 +85,7 @@ export function DateStep({
   onGoToServices,
   showPaymentStep = false,
   primaryColor,
+  pageBackgroundColor,
   isDarkTheme = true,
   onToggleTheme,
   onOpenLogin,
@@ -162,6 +164,7 @@ export function DateStep({
       businessName={businessName}
       logo={logo}
       isDarkTheme={isDarkTheme}
+      pageBackgroundColor={pageBackgroundColor}
       fontFamily={fontFamily}
       onToggleTheme={onToggleTheme}
       onGoToServices={onGoToServices}

@@ -8,6 +8,8 @@ type BookingLayoutProps = {
   businessName: string
   logo?: string | null
   isDarkTheme?: boolean
+  /** Resolved page background for the current theme (public booking CSS color). */
+  pageBackgroundColor?: string
   fontFamily?: string | null
   onToggleTheme?: () => void
   onGoToServices: () => void
@@ -31,6 +33,7 @@ export function BookingLayout({
   businessName,
   logo,
   isDarkTheme = true,
+  pageBackgroundColor,
   fontFamily = 'ROBOTO',
   onToggleTheme,
   onGoToServices,
@@ -40,7 +43,8 @@ export function BookingLayout({
   onLogout,
   children,
 }: BookingLayoutProps) {
-  const bgColor = isDarkTheme ? 'hsl(0, 0%, 9%)' : 'rgb(255, 255, 255)'
+  const bgColor =
+    pageBackgroundColor ?? (isDarkTheme ? 'hsl(0, 0%, 9%)' : 'rgb(255, 255, 255)')
   const textColor = isDarkTheme ? 'text-white' : 'text-neutral-900'
   const fontVar = FONT_CSS_VAR_BY_KEY[String(fontFamily || 'ROBOTO').toUpperCase()] ?? FONT_CSS_VAR_BY_KEY.ROBOTO
 
