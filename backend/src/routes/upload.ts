@@ -1,7 +1,7 @@
 import { Router, Request, Response } from 'express'
 import multer from 'multer'
 import { requireBusinessOwner } from '../middleware/auth'
-import { cloudinary, CLOUDINARY_UPLOAD_FOLDER } from '../lib/cloudinary'
+import { cloudinary, CLOUDINARY_UPLOAD_FOLDER, buildDirectUploadSignature } from '../lib/cloudinary'
 import { Readable } from 'stream'
 
 const upload = multer({
@@ -15,6 +15,23 @@ const upload = multer({
 })
 
 const router = Router()
+
+/** Returns signed params so the client can upload directly to Cloudinary (large videos). */
+router.post('/signature', requireBusinessOwner, (req: Request, res: Response) => {
+  const resourceType = req.body?.resourceType as string | undefined
+  if (resourceType !== 'image' && resourceType !== 'video') {
+    res.status(400).json({ error: 'Indicá resourceType: image o video' })
+    return
+  }
+  const payload = buildDirectUploadSignature(resourceType)
+  if (!payload) {
+    res
+      .status(503)
+      .json({ error: 'Subida de archivos no disponible: Cloudinary no está configurado en el servidor' })
+    return
+  }
+  res.json(payload)
+})
 
 router.post(
   '/',

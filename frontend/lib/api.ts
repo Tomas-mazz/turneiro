@@ -379,13 +379,57 @@ export async function deleteAdminBlockedSlot(blockId: string): Promise<void> {
   await api.delete(`/admin/blocked-slots/${blockId}`)
 }
 
-export async function uploadAdminFile(file: File): Promise<{ url: string }> {
+type CloudinaryDirectSignPayload = {
+  cloudName: string
+  apiKey: string
+  timestamp: number
+  signature: string
+  folder: string
+  resourceType: 'image' | 'video'
+}
+
+/** Browser → Cloudinary direct (avoids Vercel ~4.5MB request body limit on the API). */
+const MAX_DIRECT_UPLOAD_BYTES = 100 * 1024 * 1024
+
+async function uploadFileViaCloudinaryDirect(
+  file: File,
+  signPath: '/admin/upload/signature' | '/seller/upload/signature'
+): Promise<{ url: string }> {
+  if (!file.type.startsWith('image/') && !file.type.startsWith('video/')) {
+    throw new Error('Solo se permiten imágenes o videos')
+  }
+  if (file.size > MAX_DIRECT_UPLOAD_BYTES) {
+    throw new Error('El archivo no debe superar 100 MB')
+  }
+  const resourceType = file.type.startsWith('video/') ? 'video' : 'image'
+  const { data: sig } = await api.post<CloudinaryDirectSignPayload>(signPath, { resourceType })
   const formData = new FormData()
   formData.append('file', file)
-  const { data } = await api.post<{ url: string }>('/admin/upload', formData, {
-    headers: { 'Content-Type': 'multipart/form-data' },
-  })
-  return data
+  formData.append('api_key', sig.apiKey)
+  formData.append('timestamp', String(sig.timestamp))
+  formData.append('signature', sig.signature)
+  formData.append('folder', sig.folder)
+  const uploadUrl = `https://api.cloudinary.com/v1_1/${sig.cloudName}/${sig.resourceType}/upload`
+  const res = await fetch(uploadUrl, { method: 'POST', body: formData })
+  if (!res.ok) {
+    const body = (await res.json().catch(() => null)) as
+      | { error?: { message?: string } }
+      | { error?: string }
+      | null
+    const msg =
+      body && typeof body === 'object' && body.error
+        ? typeof body.error === 'string'
+          ? body.error
+          : body.error?.message
+        : null
+    throw new Error(msg || 'Error al subir el archivo')
+  }
+  const data = (await res.json()) as { secure_url: string }
+  return { url: data.secure_url }
+}
+
+export async function uploadAdminFile(file: File): Promise<{ url: string }> {
+  return uploadFileViaCloudinaryDirect(file, '/admin/upload/signature')
 }
 
 // Seller platform
@@ -415,12 +459,7 @@ export async function updateSellerBusiness(
 }
 
 export async function uploadSellerFile(file: File): Promise<{ url: string }> {
-  const formData = new FormData()
-  formData.append('file', file)
-  const { data } = await api.post<{ url: string }>('/seller/upload', formData, {
-    headers: { 'Content-Type': 'multipart/form-data' },
-  })
-  return data
+  return uploadFileViaCloudinaryDirect(file, '/seller/upload/signature')
 }
 
 // Admin: sellers
