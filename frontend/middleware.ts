@@ -47,6 +47,7 @@ export function middleware(req: NextRequest) {
     '/dashboard',
     '/setting',
     '/admin',
+    '/seller',
     '/login',
     '/register',
     '/verify-email',
