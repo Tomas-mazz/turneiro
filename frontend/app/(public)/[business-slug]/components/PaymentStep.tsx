@@ -78,18 +78,16 @@ export function PaymentStep({
     mercadoPagoRedirectMode === 'fallback' && mercadoPagoPreferenceId && paymentAmount != null
   const showRedirecting = mercadoPagoRedirectMode === 'redirecting'
 
-  const titleText = isDarkTheme ? 'text-white' : 'text-neutral-800'
-  const subText = isDarkTheme ? 'text-neutral-400' : 'text-neutral-600'
-  const summaryCardClass = isDarkTheme
-    ? 'border border-neutral-700/80 bg-neutral-800/80 text-neutral-100'
-    : 'border border-neutral-200 bg-white text-neutral-900'
-  const summaryIconBg = isDarkTheme ? 'bg-neutral-700 text-neutral-100' : 'bg-neutral-900 text-white'
-  const backBtnClass = isDarkTheme
-    ? 'bg-neutral-700/80 text-white hover:bg-neutral-600'
-    : 'border border-neutral-300 bg-neutral-100 text-neutral-700 hover:bg-neutral-200'
-  const secondaryBtnClass = isDarkTheme
-    ? 'w-full rounded-lg border border-neutral-500 bg-neutral-700/80 py-3 font-medium text-white hover:bg-neutral-600'
-    : 'w-full rounded-lg border border-neutral-400 bg-transparent py-3 font-medium text-neutral-800 hover:bg-neutral-100'
+  const titleText = 'text-[color:var(--booking-fg)]'
+  const subText = 'text-[color:var(--booking-fg-muted)]'
+  const summaryCardClass =
+    'border border-[color:var(--booking-card-border)] bg-[color:var(--booking-card-bg)] text-[color:var(--booking-fg)]'
+  const summaryIconBg =
+    'bg-[color:var(--booking-control-bg)] text-[color:var(--booking-fg)]'
+  const backBtnClass =
+    'bg-[color:var(--booking-control-bg)] text-[color:var(--booking-control-text)] hover:bg-[color:var(--booking-control-hover)]'
+  const secondaryBtnClass =
+    'w-full rounded-lg border border-[color:var(--booking-secondary-btn-border)] bg-[color:var(--booking-secondary-btn-bg)] py-3 font-medium text-[color:var(--booking-fg)] hover:bg-[color:var(--booking-row-hover)]'
 
   return (
     <BookingLayout
@@ -107,7 +105,6 @@ export function PaymentStep({
     >
       <BookingStepper
         step="payment"
-        isDarkTheme={isDarkTheme}
         showPaymentStep={showPaymentStep}
         onStepChange={(target) => {
           if (target === 'service') onGoToServices()
@@ -200,16 +197,16 @@ export function PaymentStep({
         )}
 
         {showRedirecting && (
-          <div className="mb-6 rounded-2xl px-4 py-4 shadow-sm border border-neutral-700/50 bg-neutral-900/20">
-            <p className="text-sm font-medium text-neutral-100">Abriendo Mercado Pago...</p>
-            <p className="mt-1 text-xs text-neutral-400">
+          <div className="mb-6 rounded-2xl border border-[color:var(--booking-card-border)] bg-[color:var(--booking-card-bg)] px-4 py-4 shadow-sm">
+            <p className="text-sm font-medium text-[color:var(--booking-fg)]">Abriendo Mercado Pago...</p>
+            <p className="mt-1 text-xs text-[color:var(--booking-fg-muted)]">
               Si no se abre automáticamente, podés pagar con tarjeta en esta página.
             </p>
             {onForceMercadoPagoBrick && (
               <button
                 type="button"
                 onClick={onForceMercadoPagoBrick}
-                className="mt-3 w-full rounded-lg bg-neutral-800 py-2.5 text-sm font-medium text-white hover:bg-neutral-700"
+                className="mt-3 w-full rounded-lg bg-[color:var(--booking-control-bg)] py-2.5 text-sm font-medium text-[color:var(--booking-fg)] hover:bg-[color:var(--booking-control-hover)]"
               >
                 Pagar con tarjeta en esta página
               </button>

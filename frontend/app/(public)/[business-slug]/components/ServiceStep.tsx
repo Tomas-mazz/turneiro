@@ -55,36 +55,26 @@ export function ServiceStep({
     return `${words.slice(0, maxWords).join(' ')}…`
   }
 
-  const titleColor = isDarkTheme ? 'text-neutral-300' : 'text-neutral-800'
-  const serviceNameColor = isDarkTheme ? 'text-white' : 'text-neutral-900'
-  const serviceMetaColor = isDarkTheme ? 'text-neutral-400' : 'text-neutral-700'
-  const serviceRowHover = isDarkTheme ? 'hover:bg-neutral-700/50' : 'hover:bg-neutral-100'
-  const bulletBorder = isDarkTheme ? 'border-neutral-500' : 'border-neutral-500'
-  const bulletFill = isDarkTheme ? 'bg-white' : 'bg-neutral-900'
-  const asideHeadingColor = isDarkTheme ? 'text-neutral-400' : 'text-neutral-700'
-  const asideTextColor = isDarkTheme ? 'text-neutral-300' : 'text-neutral-900'
-  const asideIconColor = isDarkTheme ? 'text-neutral-500' : 'text-neutral-600'
-  const asideLinkHover = isDarkTheme ? 'hover:text-white' : 'hover:text-neutral-900'
+  const titleColor = 'text-[color:var(--booking-fg-heading)]'
+  const serviceNameColor = 'text-[color:var(--booking-fg)]'
+  const serviceMetaColor = 'text-[color:var(--booking-fg-muted)]'
+  const serviceRowHover = 'hover:bg-[color:var(--booking-row-hover)]'
+  const bulletBorder = 'border-[color:var(--booking-bullet-border)]'
+  const bulletFill = 'bg-[color:var(--booking-bullet-fill)]'
+  const asideHeadingColor = 'text-[color:var(--booking-fg-heading)]'
+  const asideTextColor = 'text-[color:var(--booking-fg-muted)]'
+  const asideIconColor = 'text-[color:var(--booking-fg-subtle)]'
+  const asideLinkHover = 'hover:text-[color:var(--booking-link-hover)]'
 
-  // Cart behavior requested:
-  // - LIGHT page: black cart with white content
-  // - DARK page: keep previous dark appearance
-  const cartBg = isDarkTheme ? 'rgb(41, 41, 41)' : 'rgb(236, 236, 236)'
-  const cartPanelClass = isDarkTheme
-    ? 'border-neutral-700 shadow-[0_-4px_24px_rgba(0,0,0,0.3)]'
-    : 'border-neutral-300 shadow-[0_-4px_24px_rgba(0,0,0,0.12)]'
-  const cartTitleColor = isDarkTheme ? 'text-white' : 'text-neutral-900'
-  const cartTextColor = isDarkTheme ? 'text-neutral-100' : 'text-neutral-800'
-  const cartCloseClass = isDarkTheme
-    ? 'border-neutral-500 text-neutral-400 hover:bg-neutral-600 hover:text-white'
-    : 'border-neutral-400 text-neutral-600 hover:bg-neutral-200 hover:text-neutral-800'
-  const cartCtaClass = isDarkTheme
-    ? 'bg-white text-black hover:opacity-90'
-    : 'border border-neutral-300 bg-white text-black hover:bg-neutral-50'
+  const cartTitleColor = 'text-[color:var(--booking-cart-fg)]'
+  const cartTextColor = 'text-[color:var(--booking-cart-fg-muted)]'
+  const cartCloseClass =
+    'border-[color:var(--booking-cart-close-border)] text-[color:var(--booking-cart-close-text)] hover:bg-[color:var(--booking-cart-close-hover)] hover:text-[color:var(--booking-cart-fg)]'
+  const cartCtaClass =
+    'bg-[color:var(--booking-cart-cta-bg)] text-[color:var(--booking-cart-cta-text)] hover:bg-[color:var(--booking-cart-cta-hover)]'
 
-  const verMasBtnClass = isDarkTheme
-    ? 'inline-flex h-5 items-center rounded-full border border-neutral-700/70 bg-neutral-800/20 px-2 text-[10px] font-medium leading-none text-neutral-300 transition-colors hover:bg-neutral-800 hover:text-white'
-    : 'inline-flex h-5 items-center rounded-full border border-neutral-200 bg-white/70 px-2 text-[10px] font-medium leading-none text-neutral-700 transition-colors hover:bg-neutral-50 hover:text-neutral-900'
+  const verMasBtnClass =
+    'inline-flex h-5 items-center rounded-full border border-[color:var(--booking-vermas-border)] bg-[color:var(--booking-vermas-bg)] px-2 text-[10px] font-medium leading-none text-[color:var(--booking-vermas-text)] transition-colors hover:opacity-90'
 
   const [openServiceSubListId, setOpenServiceSubListId] = useState<string | null>(null)
   const [activeServiceId, setActiveServiceId] = useState<string | null>(null)
@@ -201,6 +191,7 @@ export function ServiceStep({
         images={aboutTarget?.images ?? []}
         shortDescription={aboutTarget?.shortDescription ?? null}
         description={aboutTarget?.description ?? null}
+        pageBackgroundColor={pageBackgroundColor}
         isDarkTheme={isDarkTheme}
         primaryColor={primaryColor}
         showConfirmButton={mustConfirmBeforeCalendar}
@@ -210,18 +201,14 @@ export function ServiceStep({
         }}
         onConfirm={handleAboutConfirm}
       />
-      <BookingStepper
-        step="service"
-        isDarkTheme={isDarkTheme}
-        showPaymentStep={showPaymentStep}
-      />
+      <BookingStepper step="service" showPaymentStep={showPaymentStep} />
       <div className="flex max-w-4xl flex-col gap-8 md:max-w-4xl md:flex-row md:gap-10 lg:max-w-6xl lg:gap-12">
         {/* Left: services list */}
         <div className="min-w-0 flex-1">
           <h2 className={`mb-4 text-center text-lg font-semibold md:mb-5 md:text-left md:text-xl ${titleColor}`}>
             Servicios
           </h2>
-          <ul className={`divide-y ${isDarkTheme ? 'divide-neutral-600' : 'divide-neutral-300'}`}>
+          <ul className="divide-y divide-[color:var(--booking-divide)]">
             {business.services.map((s) => {
               const subServices = s.subServices ?? []
               const hasSubServices = subServices.length > 0
@@ -491,11 +478,7 @@ export function ServiceStep({
                       className="flex flex-col items-center gap-1.5"
                     >
                       <div className="relative overflow-visible">
-                        <div
-                          className={`flex h-12 w-12 items-center justify-center overflow-hidden rounded-full text-lg font-medium ${
-                            isDarkTheme ? 'bg-neutral-600 text-neutral-200' : 'bg-neutral-300 text-neutral-700'
-                          }`}
-                        >
+                        <div className="flex h-12 w-12 items-center justify-center overflow-hidden rounded-full bg-[color:var(--booking-avatar-bg)] text-lg font-medium text-[color:var(--booking-avatar-text)]">
                           {emp.photoUrl ? (
                             <Image
                               src={emp.photoUrl}
@@ -601,8 +584,7 @@ export function ServiceStep({
           <div
             ref={panelRef}
             onAnimationEnd={handleSlideDownEnd}
-            className={`mx-auto w-full max-w-lg rounded-2xl border p-6 transition-colors duration-300 ease-out md:max-w-xl md:p-7 ${cartPanelClass} ${isClosing ? 'animate-slide-down' : 'animate-slide-up'}`}
-            style={{ backgroundColor: cartBg }}
+            className={`booking-liquid-glass mx-auto w-full max-w-lg overflow-hidden rounded-2xl p-6 transition-colors duration-300 ease-out md:max-w-xl md:p-7 ${isClosing ? 'animate-slide-down' : 'animate-slide-up'}`}
           >
             <div className="mb-4 flex items-center justify-between">
               <h2 id="cart-title" className={`text-lg font-semibold ${cartTitleColor}`}>

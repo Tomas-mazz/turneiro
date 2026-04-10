@@ -75,18 +75,16 @@ export function ClientFormStep({
   user = null,
   onLogout,
 }: ClientFormStepProps) {
-  const titleText = isDarkTheme ? 'text-white' : 'text-neutral-800'
-  const subText = isDarkTheme ? 'text-neutral-400' : 'text-neutral-600'
-  const inputClass = isDarkTheme
-    ? 'w-full rounded-lg border border-neutral-600 bg-neutral-700/80 px-4 py-3 text-white placeholder-neutral-500 focus:border-neutral-500 focus:outline-none focus:ring-1 focus:ring-neutral-500'
-    : 'w-full rounded-lg border border-neutral-400 bg-white px-4 py-3 text-neutral-800 placeholder-neutral-400 focus:border-neutral-600 focus:outline-none focus:ring-1 focus:ring-neutral-600'
-  const summaryCardClass = isDarkTheme
-    ? 'border border-neutral-700/80 bg-neutral-800/80 text-neutral-100'
-    : 'border border-neutral-200 bg-white text-neutral-900'
-  const summaryIconBg = isDarkTheme ? 'bg-neutral-700 text-neutral-100' : 'bg-neutral-900 text-white'
-  const secondaryBtnClass = isDarkTheme
-    ? 'w-full rounded-lg border border-neutral-500 bg-neutral-700/80 py-3 font-medium text-white hover:bg-neutral-600'
-    : 'w-full rounded-lg border border-neutral-400 bg-transparent py-3 font-medium text-neutral-800 hover:bg-neutral-100'
+  const titleText = 'text-[color:var(--booking-fg)]'
+  const subText = 'text-[color:var(--booking-fg-muted)]'
+  const inputClass =
+    'w-full rounded-lg border border-[color:var(--booking-input-border)] bg-[color:var(--booking-input-bg)] px-4 py-3 text-[color:var(--booking-input-text)] placeholder:text-[color:var(--booking-input-placeholder)] focus:border-[color:var(--booking-border)] focus:outline-none focus:ring-1 focus:ring-[color:var(--booking-border)]'
+  const summaryCardClass =
+    'border border-[color:var(--booking-card-border)] bg-[color:var(--booking-card-bg)] text-[color:var(--booking-fg)]'
+  const summaryIconBg =
+    'bg-[color:var(--booking-control-bg)] text-[color:var(--booking-fg)]'
+  const secondaryBtnClass =
+    'w-full rounded-lg border border-[color:var(--booking-secondary-btn-border)] bg-[color:var(--booking-secondary-btn-bg)] py-3 font-medium text-[color:var(--booking-fg)] hover:bg-[color:var(--booking-row-hover)]'
 
   if (createdAppointment && onContinueToPayment) {
     return (
@@ -105,7 +103,6 @@ export function ClientFormStep({
       >
         <BookingStepper
           step="form"
-          isDarkTheme={isDarkTheme}
           showPaymentStep={showPaymentStep}
           onStepChange={(target) => {
             if (target === 'service') {
@@ -128,7 +125,7 @@ export function ClientFormStep({
             <p className={`text-xs font-semibold uppercase tracking-wide ${subText}`}>
               Resumen de tu turno
             </p>
-            <p className="mt-2 text-sm">
+            <p className="mt-2 text-sm text-[color:var(--booking-fg-muted)]">
               Tu reserva está lista. Completá el pago para confirmar.
             </p>
           </div>
@@ -172,7 +169,6 @@ export function ClientFormStep({
     >
       <BookingStepper
         step="form"
-        isDarkTheme={isDarkTheme}
         showPaymentStep={showPaymentStep}
         onStepChange={(target) => {
           if (target === 'service') {
@@ -283,7 +279,7 @@ export function ClientFormStep({
                   type="button"
                   disabled={submitLoading}
                   onClick={onSubmitAndPay}
-                  className="w-full rounded-lg border border-neutral-400 bg-transparent py-3 font-medium text-white transition-opacity hover:opacity-90 disabled:opacity-50"
+                  className="w-full rounded-lg border border-[color:var(--booking-secondary-btn-border)] bg-transparent py-3 font-medium text-[color:var(--booking-fg)] transition-opacity hover:opacity-90 disabled:opacity-50"
                 >
                   {submitLoading ? 'Reservando...' : 'Confirmar y pagar'}
                 </button>

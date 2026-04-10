@@ -3,28 +3,26 @@
 import Link from 'next/link'
 
 type LegalFooterProps = {
+  /** @deprecated Kept for API compatibility; footer colors follow --booking-* from the layout. */
   isDarkTheme?: boolean
   className?: string
 }
 
-export function LegalFooter({ isDarkTheme = false, className = '' }: LegalFooterProps) {
-  const textColor = isDarkTheme ? 'text-white/70' : 'text-neutral-500'
-  const hoverColor = isDarkTheme ? 'hover:text-white' : 'hover:text-neutral-800'
-
+export function LegalFooter({ className = '' }: LegalFooterProps) {
   return (
     <footer
-      className={`flex flex-wrap items-center justify-center gap-3 px-4 py-6 text-center text-sm ${textColor} ${className}`.trim()}
+      className={`flex flex-wrap items-center justify-center gap-3 px-4 py-6 text-center text-sm text-[color:var(--booking-footer-muted,#737373)] ${className}`.trim()}
     >
       <Link
         href="https://www.turneiro.com/privacy"
-        className={`underline underline-offset-4 transition-colors ${hoverColor}`}
+        className="underline underline-offset-4 transition-colors hover:text-[color:var(--booking-fg,#171717)]"
       >
         Privacy Policy
       </Link>
       <span aria-hidden="true">·</span>
       <Link
         href="https://www.turneiro.com/terms"
-        className={`underline underline-offset-4 transition-colors ${hoverColor}`}
+        className="underline underline-offset-4 transition-colors hover:text-[color:var(--booking-fg,#171717)]"
       >
         Terms of Service
       </Link>

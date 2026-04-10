@@ -151,6 +151,7 @@ export async function updateBusinessSettings(req: AuthRequest, res: Response, ne
     const { businessId } = ctx
     const {
       fontFamily,
+      theme,
       showServiceConfirmModal,
       paymentRequired,
       paymentOptionalEnabled,
@@ -163,6 +164,14 @@ export async function updateBusinessSettings(req: AuthRequest, res: Response, ne
       publicPageBackgroundLight,
     } = req.body ?? {}
 
+    if (theme !== undefined && theme !== null && theme !== '') {
+      const t = String(theme).toUpperCase()
+      if (t !== 'LIGHT' && t !== 'DARK') {
+        res.status(400).json({ error: 'El tema debe ser LIGHT o DARK.' })
+        return
+      }
+    }
+
     const bgDark = parseOptionalPublicPageBackgroundHex(publicPageBackgroundDark)
     const bgLight = parseOptionalPublicPageBackgroundHex(publicPageBackgroundLight)
     if (!bgDark.ok || !bgLight.ok) {
@@ -174,6 +183,11 @@ export async function updateBusinessSettings(req: AuthRequest, res: Response, ne
 
     const updated = await updateBusinessSettingsService(businessId, {
       ...(fontFamily !== undefined && { fontFamily }),
+      ...(theme !== undefined &&
+        theme !== null &&
+        theme !== '' && {
+          theme: String(theme).toUpperCase() === 'LIGHT' ? 'LIGHT' : 'DARK',
+        }),
       ...(paymentRequired !== undefined && { paymentRequired: !!paymentRequired }),
       ...(paymentOptionalEnabled !== undefined && {
         paymentOptionalEnabled: !!paymentOptionalEnabled,

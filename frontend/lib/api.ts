@@ -616,6 +616,8 @@ export async function updateBusinessImages(body: {
 
 export type BusinessSettings = {
   fontFamily: string
+  /** Default light/dark for the public booking page (visitor can still toggle). */
+  theme: 'DARK' | 'LIGHT'
   paymentRequired: boolean
   paymentOptionalEnabled: boolean
   paymentType: 'PERCENTAGE' | 'FULL' | null

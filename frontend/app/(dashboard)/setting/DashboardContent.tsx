@@ -39,6 +39,7 @@ import { HoursSection } from './components/sections/HoursSection'
 import { BlockingSection } from './components/sections/BlockingSection'
 import { CancelSection } from './components/sections/CancelSection'
 import { PublicPageBackgroundSection } from './components/PublicPageBackgroundSection'
+import { PublicDefaultThemeSection } from './components/PublicDefaultThemeSection'
 import {
   DEFAULT_PUBLIC_PAGE_BG_DARK,
   DEFAULT_PUBLIC_PAGE_BG_LIGHT,
@@ -145,6 +146,7 @@ export function DashboardContent({ section = 'all' }: { section?: DashboardSecti
   const [fontFamily, setFontFamily] = useState<FontFamilyKey>('ROBOTO')
   const [bgDarkHex, setBgDarkHex] = useState(DEFAULT_PUBLIC_PAGE_BG_DARK)
   const [bgLightHex, setBgLightHex] = useState(DEFAULT_PUBLIC_PAGE_BG_LIGHT)
+  const [publicDefaultTheme, setPublicDefaultTheme] = useState<'LIGHT' | 'DARK'>('DARK')
   const [savingFont, setSavingFont] = useState(false)
   const [fontJustSaved, setFontJustSaved] = useState(false)
 
@@ -220,12 +222,15 @@ export function DashboardContent({ section = 'all' }: { section?: DashboardSecti
         setHasMercadoPagoAccessToken(!!s.hasMercadoPagoAccessToken)
         setBgDarkHex(s.publicPageBackgroundDark ?? DEFAULT_PUBLIC_PAGE_BG_DARK)
         setBgLightHex(s.publicPageBackgroundLight ?? DEFAULT_PUBLIC_PAGE_BG_LIGHT)
+        const th = String(s.theme ?? 'DARK').toUpperCase()
+        setPublicDefaultTheme(th === 'LIGHT' ? 'LIGHT' : 'DARK')
       })
       .catch(() => {
         setShowServiceConfirmModal(false)
         setFontFamily('ROBOTO')
         setBgDarkHex(DEFAULT_PUBLIC_PAGE_BG_DARK)
         setBgLightHex(DEFAULT_PUBLIC_PAGE_BG_LIGHT)
+        setPublicDefaultTheme('DARK')
         setPaymentMode('CONFIRM_ONLY')
         setPaymentRequired(false)
         setPaymentOptionalEnabled(false)
@@ -581,6 +586,7 @@ export function DashboardContent({ section = 'all' }: { section?: DashboardSecti
     try {
       const updated = await updateBusinessSettings({
         fontFamily,
+        theme: publicDefaultTheme,
         publicPageBackgroundDark: bgDarkHex === DEFAULT_PUBLIC_PAGE_BG_DARK ? null : bgDarkHex,
         publicPageBackgroundLight: bgLightHex === DEFAULT_PUBLIC_PAGE_BG_LIGHT ? null : bgLightHex,
       })
@@ -588,6 +594,7 @@ export function DashboardContent({ section = 'all' }: { section?: DashboardSecti
       if (FONT_OPTIONS.some((x) => x.key === next)) {
         setFontFamily(next as FontFamilyKey)
       }
+      setPublicDefaultTheme(updated.theme === 'LIGHT' ? 'LIGHT' : 'DARK')
       setBgDarkHex(updated.publicPageBackgroundDark ?? DEFAULT_PUBLIC_PAGE_BG_DARK)
       setBgLightHex(updated.publicPageBackgroundLight ?? DEFAULT_PUBLIC_PAGE_BG_LIGHT)
       setFontJustSaved(true)
@@ -970,6 +977,8 @@ export function DashboardContent({ section = 'all' }: { section?: DashboardSecti
               setBgLightHex(DEFAULT_PUBLIC_PAGE_BG_LIGHT)
             }}
           />
+
+          <PublicDefaultThemeSection value={publicDefaultTheme} onChange={setPublicDefaultTheme} />
 
           <div className="mt-4 flex flex-wrap items-center gap-3">
             <button
