@@ -8,6 +8,7 @@ import {
   DEFAULT_PUBLIC_PAGE_BG_LIGHT,
 } from '@/lib/publicPageBackground'
 import { PublicPageBackgroundSection } from '../components/PublicPageBackgroundSection'
+import { PublicDefaultThemeSection } from '../components/PublicDefaultThemeSection'
 
 type FontFamilyKey = 'ROBOTO' | 'MONTSERRAT' | 'INTER' | 'POPPINS' | 'NUNITO' | 'PLAYFAIR'
 
@@ -24,6 +25,7 @@ export default function AppearancePage() {
   const [fontFamily, setFontFamily] = useState<FontFamilyKey>('ROBOTO')
   const [bgDarkHex, setBgDarkHex] = useState(DEFAULT_PUBLIC_PAGE_BG_DARK)
   const [bgLightHex, setBgLightHex] = useState(DEFAULT_PUBLIC_PAGE_BG_LIGHT)
+  const [publicDefaultTheme, setPublicDefaultTheme] = useState<'LIGHT' | 'DARK'>('DARK')
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [justSaved, setJustSaved] = useState(false)
@@ -41,6 +43,8 @@ export default function AppearancePage() {
         }
         setBgDarkHex(s.publicPageBackgroundDark ?? DEFAULT_PUBLIC_PAGE_BG_DARK)
         setBgLightHex(s.publicPageBackgroundLight ?? DEFAULT_PUBLIC_PAGE_BG_LIGHT)
+        const th = String(s.theme ?? 'DARK').toUpperCase()
+        setPublicDefaultTheme(th === 'LIGHT' ? 'LIGHT' : 'DARK')
         setError(null)
       })
       .catch(() => {
@@ -63,11 +67,13 @@ export default function AppearancePage() {
     try {
       const updated = await updateBusinessSettings({
         fontFamily,
+        theme: publicDefaultTheme,
         publicPageBackgroundDark: bgDarkHex === DEFAULT_PUBLIC_PAGE_BG_DARK ? null : bgDarkHex,
         publicPageBackgroundLight: bgLightHex === DEFAULT_PUBLIC_PAGE_BG_LIGHT ? null : bgLightHex,
       })
       const next = String((updated as any).fontFamily ?? fontFamily).toUpperCase()
       if (FONT_OPTIONS.some((x) => x.key === next)) setFontFamily(next as FontFamilyKey)
+      setPublicDefaultTheme(updated.theme === 'LIGHT' ? 'LIGHT' : 'DARK')
       setBgDarkHex(updated.publicPageBackgroundDark ?? DEFAULT_PUBLIC_PAGE_BG_DARK)
       setBgLightHex(updated.publicPageBackgroundLight ?? DEFAULT_PUBLIC_PAGE_BG_LIGHT)
       setJustSaved(true)
@@ -163,6 +169,8 @@ export default function AppearancePage() {
                 setBgLightHex(DEFAULT_PUBLIC_PAGE_BG_LIGHT)
               }}
             />
+
+            <PublicDefaultThemeSection value={publicDefaultTheme} onChange={setPublicDefaultTheme} />
 
             <div className="mt-6 flex flex-wrap items-center gap-3">
               <button

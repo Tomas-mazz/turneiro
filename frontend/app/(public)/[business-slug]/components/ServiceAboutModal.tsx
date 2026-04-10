@@ -1,5 +1,6 @@
 'use client'
 
+import { isDarkUiForBackground } from '@/lib/booking'
 import { FocusImageCarousel } from './FocusImageCarousel'
 
 type Props = {
@@ -8,6 +9,8 @@ type Props = {
   images: string[]
   shortDescription?: string | null
   description?: string | null
+  /** When set, carousel chrome follows contrast of the page background. */
+  pageBackgroundColor?: string | null
   isDarkTheme?: boolean
   primaryColor: string
   showConfirmButton?: boolean
@@ -69,6 +72,7 @@ export function ServiceAboutModal({
   images,
   shortDescription,
   description,
+  pageBackgroundColor = null,
   isDarkTheme = true,
   primaryColor,
   showConfirmButton = false,
@@ -77,10 +81,15 @@ export function ServiceAboutModal({
 }: Props) {
   if (!open) return null
 
-  const panelBg = isDarkTheme ? 'bg-neutral-900' : 'bg-white'
-  const titleColor = isDarkTheme ? 'text-white' : 'text-neutral-900'
-  const textColor = isDarkTheme ? 'text-neutral-200' : 'text-neutral-700'
-  const border = isDarkTheme ? 'border-neutral-700' : 'border-neutral-200'
+  const carouselDark =
+    pageBackgroundColor != null && pageBackgroundColor !== ''
+      ? isDarkUiForBackground(pageBackgroundColor)
+      : isDarkTheme
+
+  const panelBg = 'bg-[color:var(--booking-modal-bg)]'
+  const titleColor = 'text-[color:var(--booking-fg)]'
+  const textColor = 'text-[color:var(--booking-fg-muted)]'
+  const border = 'border-[color:var(--booking-modal-border)]'
   const rgb = parseColorToRgb(primaryColor)
   const isLightPrimary = rgb ? relativeLuminance(rgb) > 0.72 : false
   const ctaText = isLightPrimary ? 'text-neutral-900' : 'text-white'
@@ -98,11 +107,7 @@ export function ServiceAboutModal({
             <button
               type="button"
               onClick={onClose}
-              className={`rounded-lg border px-3 py-1.5 text-sm font-medium ${
-                isDarkTheme
-                  ? 'border-neutral-700 text-neutral-200 hover:bg-neutral-800'
-                  : 'border-neutral-200 text-neutral-800 hover:bg-neutral-50'
-              }`}
+              className="rounded-lg border border-[color:var(--booking-border)] px-3 py-1.5 text-sm font-medium text-[color:var(--booking-fg-muted)] hover:bg-[color:var(--booking-row-hover)]"
             >
               Cerrar
             </button>
@@ -110,7 +115,7 @@ export function ServiceAboutModal({
 
           <div className="flex-1 overflow-y-auto px-5 py-5">
             {images?.length ? (
-              <FocusImageCarousel images={images} title={title} isDarkTheme={isDarkTheme} />
+              <FocusImageCarousel images={images} title={title} isDarkTheme={carouselDark} />
             ) : null}
 
             {(shortDescription || description) && (

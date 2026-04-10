@@ -19,10 +19,11 @@ type BookingHeaderProps = {
   onLogout?: () => void
 }
 
-const headerButtonClass = (isDark: boolean) =>
-  isDark
-    ? 'bg-neutral-700/80 text-white hover:bg-neutral-600'
-    : 'bg-neutral-100 text-neutral-800 hover:bg-neutral-200'
+const headerControlBtn =
+  'bg-[color:var(--booking-control-bg)] text-[color:var(--booking-control-text)] hover:bg-[color:var(--booking-control-hover)]'
+
+const headerFocusRing =
+  'focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-transparent focus-visible:ring-neutral-500'
 
 function PersonIcon({ className }: { className?: string }) {
   return (
@@ -71,8 +72,7 @@ export function BookingHeader({
   const [authMenuOpen, setAuthMenuOpen] = useState(false)
   const authMenuRef = useRef<HTMLDivElement>(null)
   const displayName = useTypewriter(businessName)
-  const borderColor = isDarkTheme ? 'border-neutral-600' : 'border-neutral-300'
-  const btnClass = `rounded-xl transition-all duration-300 ease-out h-10 sm:h-11 px-3 sm:px-4 text-sm font-medium shrink-0 ${headerButtonClass(isDarkTheme)} focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-transparent focus-visible:ring-neutral-500`
+  const btnClass = `rounded-xl transition-all duration-300 ease-out h-10 sm:h-11 px-3 sm:px-4 text-sm font-medium shrink-0 ${headerControlBtn} ${headerFocusRing}`
 
   const isStaffOrOwner = user?.role === 'OWNER' || user?.role === 'STAFF'
   const displayUserName = user?.name?.trim() || user?.email || 'Usuario'
@@ -106,15 +106,13 @@ export function BookingHeader({
     setAuthMenuOpen(false)
   }
 
-  const dropdownBg = isDarkTheme ? 'bg-neutral-700/95' : 'bg-neutral-100'
-  const dropdownItemClass = isDarkTheme
-    ? 'text-white hover:bg-neutral-600'
-    : 'text-neutral-800 hover:bg-neutral-200'
+  const dropdownItemClass =
+    'text-[color:var(--booking-fg)] hover:bg-[color:var(--booking-dropdown-hover)]'
 
   const showGuestAuth = !user && (onOpenLogin ?? onOpenRegister)
 
   return (
-    <header className={`w-full border-b ${borderColor} py-4 md:py-6`}>
+    <header className="w-full border-b border-[color:var(--booking-border)] py-4 md:py-6">
       <div className="mx-auto flex max-w-4xl items-center justify-between gap-3 px-4 md:px-6 lg:max-w-6xl lg:px-8">
         <button
           type="button"
@@ -129,7 +127,7 @@ export function BookingHeader({
               className="h-10 w-10 shrink-0 rounded-full object-cover md:h-12 md:w-12"
             />
           )}
-          <span className={`truncate text-2xl font-bold md:text-3xl ${isDarkTheme ? 'text-white' : 'text-neutral-900'}`}>
+          <span className="truncate text-2xl font-bold text-[color:var(--booking-fg)] md:text-3xl">
             {displayName}
             <span className="animate-pulse">|</span>
           </span>
@@ -141,7 +139,7 @@ export function BookingHeader({
               <button
                 type="button"
                 onClick={() => setAuthMenuOpen((o) => !o)}
-                className={`flex items-center justify-center gap-2 rounded-xl transition-all duration-300 ease-out h-10 w-10 shrink-0 md:h-11 md:w-auto md:min-w-0 md:max-w-[12rem] md:px-3 md:justify-start lg:max-w-[14rem] lg:px-4 text-sm font-medium ${headerButtonClass(isDarkTheme)} focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-transparent focus-visible:ring-neutral-500`}
+                className={`flex items-center justify-center gap-2 rounded-xl transition-all duration-300 ease-out h-10 w-10 shrink-0 md:h-11 md:w-auto md:min-w-0 md:max-w-[12rem] md:px-3 md:justify-start lg:max-w-[14rem] lg:px-4 text-sm font-medium ${headerControlBtn} ${headerFocusRing}`}
                 aria-label="Menú de cuenta"
                 aria-expanded={authMenuOpen}
               >
@@ -149,7 +147,7 @@ export function BookingHeader({
                 <span className="min-w-0 truncate md:inline hidden">
                   {displayUserName}
                   {roleLabel && (
-                    <span className={isDarkTheme ? ' text-neutral-300' : ' text-neutral-600'}>
+                    <span className="text-[color:var(--booking-fg-muted)]">
                       {' '}({roleLabel})
                     </span>
                   )}
@@ -157,7 +155,7 @@ export function BookingHeader({
               </button>
               {authMenuOpen && (
               <div
-                  className={`absolute right-0 top-full z-20 mt-2 min-w-[11rem] rounded-xl py-1 shadow-lg overflow-hidden ${dropdownBg}`}
+                  className="absolute right-0 top-full z-20 mt-2 min-w-[11rem] overflow-hidden rounded-xl bg-[color:var(--booking-dropdown-bg)] py-1 shadow-lg"
                   role="menu"
                 >
                   {user.role === 'ADMIN' && (
@@ -234,7 +232,7 @@ export function BookingHeader({
               <button
                 type="button"
                 onClick={() => setAuthMenuOpen((o) => !o)}
-                className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl transition-all duration-300 ease-out sm:h-11 sm:w-11 ${headerButtonClass(isDarkTheme)} focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-transparent focus-visible:ring-neutral-500`}
+                className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl transition-all duration-300 ease-out sm:h-11 sm:w-11 ${headerControlBtn} ${headerFocusRing}`}
                 aria-label="Cuenta"
                 aria-expanded={authMenuOpen}
               >
@@ -242,7 +240,7 @@ export function BookingHeader({
               </button>
               {authMenuOpen && (
                 <div
-                  className={`absolute right-0 top-full z-20 mt-2 min-w-[10rem] rounded-xl py-1 shadow-lg overflow-hidden ${dropdownBg}`}
+                  className="absolute right-0 top-full z-20 mt-2 min-w-[10rem] overflow-hidden rounded-xl bg-[color:var(--booking-dropdown-bg)] py-1 shadow-lg"
                   role="menu"
                 >
                   {onOpenLogin && (
@@ -284,7 +282,7 @@ export function BookingHeader({
             <button
               type="button"
               onClick={onToggleTheme}
-              className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl transition-all duration-300 ease-out sm:h-11 sm:w-11 ${headerButtonClass(isDarkTheme)} focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-transparent focus-visible:ring-neutral-500`}
+              className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl transition-all duration-300 ease-out sm:h-11 sm:w-11 ${headerControlBtn} ${headerFocusRing}`}
               aria-label={isDarkTheme ? 'Cambiar a modo claro' : 'Cambiar a modo oscuro'}
               title={isDarkTheme ? 'Modo oscuro' : 'Modo claro'}
             >

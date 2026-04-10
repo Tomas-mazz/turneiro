@@ -11,6 +11,7 @@ type EmployeeSelectModalProps = {
   availableEmployeeIds: string[]
   onSelect: (employeeId: string) => void
   onClose: () => void
+  /** @deprecated Modal follows --booking-* from the booking layout. */
   isDarkTheme?: boolean
   primaryColor: string
 }
@@ -32,7 +33,6 @@ export function EmployeeSelectModal({
   availableEmployeeIds,
   onSelect,
   onClose,
-  isDarkTheme = true,
   primaryColor,
 }: EmployeeSelectModalProps) {
   const panelRef = useRef<HTMLDivElement>(null)
@@ -63,15 +63,16 @@ export function EmployeeSelectModal({
   if (!isOpen) return null
 
   const bgOverlay = 'fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4'
-  const panelBg = isDarkTheme ? 'bg-neutral-800' : 'bg-white'
-  const panelBorder = isDarkTheme ? 'border-neutral-600' : 'border-neutral-200'
-  const titleColor = isDarkTheme ? 'text-white' : 'text-neutral-900'
-  const cardBg = isDarkTheme ? 'bg-neutral-700/80 hover:bg-neutral-600' : 'bg-neutral-100 hover:bg-neutral-200'
-  const cardDisabled = isDarkTheme ? 'bg-neutral-800/60 text-neutral-500 cursor-default' : 'bg-neutral-100 text-neutral-500 cursor-default'
-  const avatarBg = isDarkTheme ? 'bg-neutral-600 text-neutral-200' : 'bg-neutral-300 text-neutral-700'
-  const closeBtn = isDarkTheme
-    ? 'border-neutral-500 text-neutral-300 hover:bg-neutral-600 hover:text-white'
-    : 'border-neutral-400 text-neutral-600 hover:bg-neutral-200 hover:text-neutral-800'
+  const panelBg = 'bg-[color:var(--booking-modal-bg)]'
+  const panelBorder = 'border-[color:var(--booking-modal-border)]'
+  const titleColor = 'text-[color:var(--booking-fg)]'
+  const cardBg =
+    'bg-[color:var(--booking-control-bg)] hover:bg-[color:var(--booking-control-hover)]'
+  const cardDisabled =
+    'cursor-default border-[color:var(--booking-border)] bg-[color:var(--booking-card-bg)] text-[color:var(--booking-fg-subtle)]'
+  const avatarBg = 'bg-[color:var(--booking-avatar-bg)] text-[color:var(--booking-avatar-text)]'
+  const closeBtn =
+    'border-[color:var(--booking-cart-close-border)] text-[color:var(--booking-cart-close-text)] hover:bg-[color:var(--booking-row-hover)] hover:text-[color:var(--booking-fg)]'
 
   return (
     <div
@@ -152,7 +153,7 @@ export function EmployeeSelectModal({
                     </div>
                     <div className="flex flex-1 flex-col">
                       <span className={`font-medium ${titleColor}`}>{emp.name}</span>
-                      <span className="text-sm text-neutral-500">Sin turno disponible</span>
+                      <span className="text-sm text-[color:var(--booking-fg-subtle)]">Sin turno disponible</span>
                     </div>
                   </div>
                 )}

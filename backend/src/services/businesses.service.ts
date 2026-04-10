@@ -732,6 +732,8 @@ export async function updateBusinessImagesService(
 
 export type BusinessSettings = {
   fontFamily: string
+  /** Public booking default: first paint before toggle (synced with Business.theme). */
+  theme: 'DARK' | 'LIGHT'
   paymentRequired: boolean
   paymentOptionalEnabled: boolean
   paymentType: 'PERCENTAGE' | 'FULL' | null
@@ -755,24 +757,33 @@ export type UpdateBusinessSettingsInput = Partial<
 export async function getBusinessSettingsService(
   businessId: string
 ): Promise<BusinessSettings> {
-  const settings = await prisma.businessSettings.findUnique({
-    where: { businessId },
-    select: {
-      fontFamily: true,
-      paymentRequired: true,
-      paymentOptionalEnabled: true,
-      paymentType: true,
-      depositPercentage: true,
-      mercadoPagoPublicKey: true,
-      mercadoPagoAccessToken: true,
-      mercadoPagoWebhookSecret: true,
-      showServiceConfirmModal: true,
-      publicPageBackgroundDark: true,
-      publicPageBackgroundLight: true,
-    },
-  })
+  const [settings, businessRow] = await Promise.all([
+    prisma.businessSettings.findUnique({
+      where: { businessId },
+      select: {
+        fontFamily: true,
+        paymentRequired: true,
+        paymentOptionalEnabled: true,
+        paymentType: true,
+        depositPercentage: true,
+        mercadoPagoPublicKey: true,
+        mercadoPagoAccessToken: true,
+        mercadoPagoWebhookSecret: true,
+        showServiceConfirmModal: true,
+        publicPageBackgroundDark: true,
+        publicPageBackgroundLight: true,
+      },
+    }),
+    prisma.business.findUnique({
+      where: { id: businessId },
+      select: { theme: true },
+    }),
+  ])
+  const themeRaw = (businessRow?.theme ?? 'DARK').toUpperCase()
+  const theme: 'DARK' | 'LIGHT' = themeRaw === 'LIGHT' ? 'LIGHT' : 'DARK'
   return {
     fontFamily: settings?.fontFamily ?? 'ROBOTO',
+    theme,
     paymentRequired: settings?.paymentRequired ?? false,
     paymentOptionalEnabled: settings?.paymentOptionalEnabled ?? false,
     paymentType:
@@ -888,8 +899,28 @@ export async function updateBusinessSettingsService(
       publicPageBackgroundLight: true,
     },
   })
+
+  if (input.theme !== undefined) {
+    const t = input.theme === 'LIGHT' ? 'LIGHT' : 'DARK'
+    await prisma.business.update({
+      where: { id: businessId },
+      data: {
+        theme: t,
+        primaryColor: t === 'LIGHT' ? BUTTON_COLOR_LIGHT_THEME : BUTTON_COLOR_DARK_THEME,
+      },
+    })
+  }
+
+  const businessTheme = await prisma.business.findUnique({
+    where: { id: businessId },
+    select: { theme: true },
+  })
+  const themeRaw = (businessTheme?.theme ?? 'DARK').toUpperCase()
+  const theme: 'DARK' | 'LIGHT' = themeRaw === 'LIGHT' ? 'LIGHT' : 'DARK'
+
   return {
     fontFamily: updated.fontFamily ?? 'ROBOTO',
+    theme,
     paymentRequired: updated.paymentRequired,
     paymentOptionalEnabled: updated.paymentOptionalEnabled,
     paymentType: (updated.paymentType as 'PERCENTAGE' | 'FULL' | null | undefined) ?? null,

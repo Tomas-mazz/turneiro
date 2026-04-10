@@ -93,20 +93,16 @@ export function DateStep({
   user = null,
   onLogout,
 }: DateStepProps) {
-  const titleText = isDarkTheme ? 'text-white' : 'text-neutral-800'
-  const subText = isDarkTheme ? 'text-neutral-400' : 'text-neutral-600'
-  const actionBtnClass = isDarkTheme
-    ? 'bg-neutral-700/80 text-white hover:bg-neutral-600'
-    : 'border border-neutral-400 bg-transparent text-neutral-800 hover:bg-neutral-100'
-  const navBtnClass = isDarkTheme
-    ? 'bg-neutral-700/80 text-white hover:bg-neutral-600 disabled:hover:bg-neutral-700/80'
-    : 'border border-neutral-400 bg-transparent text-neutral-700 hover:bg-neutral-100 disabled:hover:bg-transparent'
-  const noSlotsCardClass = isDarkTheme
-    ? 'bg-neutral-700/80 text-neutral-300'
-    : 'border border-neutral-200 bg-neutral-100 text-neutral-500'
-  const slotBtnClass = isDarkTheme
-    ? 'bg-neutral-700/80 text-white hover:bg-neutral-600'
-    : 'border border-neutral-400 bg-white text-neutral-700 hover:bg-neutral-50'
+  const titleText = 'text-[color:var(--booking-fg)]'
+  const subText = 'text-[color:var(--booking-fg-muted)]'
+  const actionBtnClass =
+    'bg-[color:var(--booking-control-bg)] text-[color:var(--booking-control-text)] hover:bg-[color:var(--booking-control-hover)]'
+  const navBtnClass =
+    'border border-[color:var(--booking-border)] bg-[color:var(--booking-control-bg)] text-[color:var(--booking-control-text)] hover:bg-[color:var(--booking-control-hover)] disabled:hover:bg-[color:var(--booking-control-bg)]'
+  const noSlotsCardClass =
+    'border border-[color:var(--booking-card-border)] bg-[color:var(--booking-card-bg)] text-[color:var(--booking-fg-muted)]'
+  const slotBtnClass =
+    'bg-[color:var(--booking-control-bg)] text-[color:var(--booking-control-text)] hover:bg-[color:var(--booking-control-hover)]'
   const visibleDates = getVisibleDates(calendarMonth)
   const monthLabel = calendarMonth.toLocaleString('es', { month: 'long', year: 'numeric' })
 
@@ -176,7 +172,6 @@ export function DateStep({
       <div className="flex w-full flex-col">
         <BookingStepper
           step="date"
-          isDarkTheme={isDarkTheme}
           showPaymentStep={showPaymentStep}
           onStepChange={(target) => {
             if (target === 'service') {
@@ -239,17 +234,11 @@ export function DateStep({
                 type="button"
                 onClick={() => onSelectedDate(key)}
                 className={`flex min-w-0 flex-1 flex-col rounded-lg px-2 py-2.5 text-center transition-colors md:min-w-[4.5rem] md:flex-none md:shrink-0 md:rounded-xl md:px-3 md:py-3.5 lg:min-w-[5.5rem] lg:px-4 lg:py-4 ${
-                  isDarkTheme
-                    ? !canSelect
-                      ? 'cursor-pointer bg-neutral-800/60 text-neutral-500 hover:bg-neutral-800/70'
-                      : isSelected
-                        ? 'border border-neutral-300 bg-white text-neutral-800'
-                        : 'bg-neutral-800/80 text-white hover:bg-neutral-700'
-                    : !canSelect
-                      ? 'cursor-pointer border border-neutral-200 bg-neutral-100 text-neutral-400 hover:bg-neutral-100'
-                      : isSelected
-                        ? 'border border-neutral-800 bg-neutral-900 text-white'
-                        : 'border border-neutral-400 bg-neutral-100 text-neutral-800 hover:bg-white'
+                  !canSelect
+                    ? 'cursor-default bg-[color:var(--booking-card-bg)] text-[color:var(--booking-fg-subtle)] opacity-70'
+                    : isSelected
+                      ? 'border-2 border-[color:var(--booking-fg)] bg-[color:var(--booking-card-bg)] text-[color:var(--booking-fg)] shadow-sm'
+                      : 'border border-[color:var(--booking-border)] bg-[color:var(--booking-control-bg)] text-[color:var(--booking-fg)] hover:bg-[color:var(--booking-control-hover)]'
                 }`}
               >
                 <span
@@ -292,9 +281,8 @@ export function DateStep({
                     .filter((e): e is Employee => e != null)
                   const showCount = Math.min(3, slotEmployees.length)
                   const extraCount = slotEmployees.length - showCount
-                  const avatarClass = isDarkTheme
-                    ? 'bg-neutral-600 text-neutral-200'
-                    : 'bg-neutral-300 text-neutral-700'
+                  const avatarClass =
+                    'bg-[color:var(--booking-avatar-bg)] text-[color:var(--booking-avatar-text)]'
                   return (
                     <div key={slot} className="flex flex-col items-start gap-1.5">
                       {/* Photos: separate container above and left of the horario box */}
@@ -320,7 +308,7 @@ export function DateStep({
                           </div>
                         ))}
                         {extraCount > 0 && (
-                          <span className={`text-xs font-medium ${isDarkTheme ? 'text-neutral-300' : 'text-neutral-600'}`}>
+                          <span className="text-xs font-medium text-[color:var(--booking-fg-muted)]">
                             +{extraCount}
                           </span>
                         )}
@@ -351,11 +339,7 @@ export function DateStep({
                     {/* Avatar left; name on top, price (min) below — no card background */}
                     <div className="flex items-start gap-4">
                       <div className="relative shrink-0 overflow-visible">
-                        <div
-                          className={`flex h-12 w-12 items-center justify-center overflow-hidden rounded-full text-lg font-medium ${
-                            isDarkTheme ? 'bg-neutral-600 text-neutral-200' : 'bg-neutral-300 text-neutral-700'
-                          }`}
-                        >
+                        <div className="flex h-12 w-12 items-center justify-center overflow-hidden rounded-full bg-[color:var(--booking-avatar-bg)] text-lg font-medium text-[color:var(--booking-avatar-text)]">
                           {emp.photoUrl ? (
                             <Image
                               src={emp.photoUrl}
@@ -462,7 +446,6 @@ export function DateStep({
               }
             }}
             onClose={() => setModalSlot(null)}
-            isDarkTheme={isDarkTheme}
             primaryColor={primaryColor}
           />
         )}

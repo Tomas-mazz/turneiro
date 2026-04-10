@@ -4,6 +4,7 @@ import type { Step } from '../types'
 
 type BookingStepperProps = {
   step: Step
+  /** Kept for API compatibility; stepper colors follow --booking-* from the layout. */
   isDarkTheme?: boolean
   showPaymentStep?: boolean
   onStepChange?: (next: Step) => void
@@ -17,7 +18,6 @@ const BASE_STEPS: { id: Step; label: string }[] = [
 
 export function BookingStepper({
   step,
-  isDarkTheme = true,
   showPaymentStep = false,
   onStepChange,
 }: BookingStepperProps) {
@@ -29,22 +29,15 @@ export function BookingStepper({
 
   const progressPct = (activeIndex / Math.max(1, STEPS.length - 1)) * 100
 
-  const track = isDarkTheme ? 'bg-neutral-700/80' : 'bg-neutral-200'
-  const fill = isDarkTheme ? 'bg-neutral-200' : 'bg-neutral-800'
-  const muted = isDarkTheme ? 'text-neutral-500' : 'text-neutral-500'
-  const active = isDarkTheme ? 'text-neutral-100' : 'text-neutral-900'
-  const done = isDarkTheme ? 'text-neutral-400' : 'text-neutral-600'
-
   return (
     <div className="mb-5 md:mb-6">
       <div className="relative mx-auto max-w-md md:max-w-xl">
-        {/* Línea base */}
         <div
-          className={`absolute left-0 right-0 top-[7px] h-[2px] rounded-full ${track}`}
+          className="absolute left-0 right-0 top-[7px] h-[2px] rounded-full bg-[color:var(--booking-stepper-track)]"
           aria-hidden
         />
         <div
-          className={`absolute left-0 top-[7px] h-[2px] rounded-full transition-[width] duration-500 ease-out ${fill}`}
+          className="absolute left-0 top-[7px] h-[2px] rounded-full bg-[color:var(--booking-stepper-fill)] transition-[width] duration-500 ease-out"
           style={{ width: `${progressPct}%` }}
           aria-hidden
         />
@@ -54,23 +47,21 @@ export function BookingStepper({
             const isActive = index === activeIndex
             const isCompleted = index < activeIndex
             const canGoBack = typeof onStepChange === 'function' && index < activeIndex
-            const text = isCompleted ? done : isActive ? active : muted
+            const text = isCompleted
+              ? 'text-[color:var(--booking-stepper-done)]'
+              : isActive
+                ? 'text-[color:var(--booking-stepper-active)]'
+                : 'text-[color:var(--booking-stepper-muted)]'
 
             return (
               <li key={s.id} className="flex min-w-0 flex-1 flex-col items-center">
                 <span
                   className={`mb-2 block h-[14px] w-[14px] shrink-0 rounded-full border-2 transition-colors duration-300 ${
                     isCompleted
-                      ? isDarkTheme
-                        ? 'border-neutral-300 bg-neutral-300'
-                        : 'border-neutral-700 bg-neutral-700'
+                      ? 'border-[color:var(--booking-stepper-fill)] bg-[color:var(--booking-stepper-fill)]'
                       : isActive
-                        ? isDarkTheme
-                          ? 'border-neutral-200 bg-[hsl(0,0%,9%)] ring-2 ring-neutral-600 ring-offset-2 ring-offset-[hsl(0,0%,9%)]'
-                          : 'border-neutral-800 bg-white ring-2 ring-neutral-200 ring-offset-2 ring-offset-[rgb(244,244,245)]'
-                        : isDarkTheme
-                          ? 'border-neutral-600 bg-[hsl(0,0%,9%)]'
-                          : 'border-neutral-300 bg-white'
+                        ? 'border-[color:var(--booking-stepper-fill)] bg-[color:var(--booking-stepper-dot-fill)] ring-2 ring-[color:var(--booking-stepper-dot-border-strong)] ring-offset-2 ring-offset-[color:var(--booking-stepper-ring-offset)]'
+                        : 'border-[color:var(--booking-stepper-dot-border-strong)] bg-[color:var(--booking-stepper-dot-fill)]'
                   }`}
                   aria-hidden
                 />
@@ -78,7 +69,7 @@ export function BookingStepper({
                   <button
                     type="button"
                     onClick={() => onStepChange(s.id)}
-                    className={`max-w-full truncate text-center text-[11px] font-medium leading-tight hover:underline md:text-xs ${text} focus:outline-none focus-visible:ring-1 focus-visible:ring-neutral-500 rounded-sm`}
+                    className={`max-w-full truncate text-center text-[11px] font-medium leading-tight hover:underline md:text-xs ${text} focus:outline-none focus-visible:rounded-sm focus-visible:ring-1 focus-visible:ring-[color:var(--booking-border)]`}
                   >
                     {s.label}
                   </button>
