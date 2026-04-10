@@ -528,7 +528,7 @@ export default function BusinessBookingPage() {
     })
   }
 
-  const handleCreateMercadoPagoIntent = () => {
+  const handleCreateMercadoPagoIntent = (payOption?: 'DEPOSIT' | 'FULL') => {
     if (!createdAppointment || !selectedService || !selectedDate || !selectedSlot) return
     setPaymentLoading(true)
     setPaymentError(null)
@@ -538,6 +538,7 @@ export default function BusinessBookingPage() {
         {
           appointmentId: createdAppointment.id,
           provider: 'MERCADOPAGO',
+          payOption,
           returnOrigin: typeof window !== 'undefined' ? window.location.origin : undefined,
         }
       )
@@ -838,6 +839,9 @@ export default function BusinessBookingPage() {
             createdAppointment={createdAppointment}
             selectedDate={selectedDate}
             selectedSlot={selectedSlot}
+            paymentType={business.settings?.paymentType ?? null}
+            depositPercentage={business.settings?.depositPercentage ?? null}
+            servicePrice={selectedService.price}
             paymentAmount={paymentAmount}
             paymentError={paymentError}
             mercadoPagoPreferenceId={mercadoPagoPreferenceId}

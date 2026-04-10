@@ -1,6 +1,7 @@
 import crypto from 'crypto'
 
 const PAYMENT_HOLD_MINUTES = 5
+import { Prisma } from '@prisma/client'
 import { prisma } from '../lib/prisma'
 import { getAvailabilityService } from './availability.service'
 import type { CreateAppointmentInput } from '../lib/schemas'
@@ -781,16 +782,19 @@ export async function getAppointmentsService(
   businessId: string,
   employeeId?: string | null
 ): Promise<AppointmentListItem[]> {
-  const where: {
-    businessId: string
-    status: string
-    employeeId?: string
-  } = {
+  const where = {
     businessId,
     status: 'UPCOMING',
-  }
+    // Hide "payment hold" reservations from Citas until they are paid.
+    // Free reservations keep paymentStatus=PENDING but have paymentHoldExpiresAt=null.
+    AND: [
+      {
+        OR: [{ paymentStatus: { not: 'PENDING' } }, { paymentHoldExpiresAt: null }],
+      },
+    ],
+  } satisfies Prisma.AppointmentWhereInput
   if (employeeId != null && employeeId !== '') {
-    where.employeeId = employeeId
+    ;(where as Prisma.AppointmentWhereInput).employeeId = employeeId
   }
   const appointments = await prisma.appointment.findMany({
     where,
@@ -824,16 +828,18 @@ export async function getAppointmentsByPhoneService(
   if (!trimmed) return []
 
   const normalizedInput = normalizePhone(trimmed)
-  const where: {
-    businessId: string
-    status: string
-    employeeId?: string
-  } = {
+  const where = {
     businessId,
     status: 'UPCOMING',
-  }
+    // Same as getAppointmentsService: do not include pending payment-hold reservations.
+    AND: [
+      {
+        OR: [{ paymentStatus: { not: 'PENDING' } }, { paymentHoldExpiresAt: null }],
+      },
+    ],
+  } satisfies Prisma.AppointmentWhereInput
   if (staffEmployeeId != null && staffEmployeeId !== '') {
-    where.employeeId = staffEmployeeId
+    ;(where as Prisma.AppointmentWhereInput).employeeId = staffEmployeeId
   }
   const appointments = await prisma.appointment.findMany({
     where,
@@ -869,7 +875,15 @@ export async function getAppointmentsForAdminService(params: {
   dateTo?: string
   status?: string
 }): Promise<AdminAppointmentListItem[]> {
-  const where: Record<string, unknown> = {}
+  const where: Record<string, unknown> = {
+    // Hide "payment hold" reservations from admin lists until they are paid.
+    // Keeps free reservations (paymentHoldExpiresAt = null).
+    AND: [
+      {
+        OR: [{ paymentStatus: { not: 'PENDING' } }, { paymentHoldExpiresAt: null }],
+      },
+    ],
+  }
 
   if (params.businessId) {
     where.businessId = params.businessId

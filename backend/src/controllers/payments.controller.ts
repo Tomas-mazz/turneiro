@@ -68,7 +68,7 @@ function mercadoPagoPaymentBelongsToAppointment(
  */
 export async function createPaymentIntent(req: Request, res: Response) {
   try {
-    const { appointmentId, provider } = req.body
+    const { appointmentId, provider, payOption } = req.body
 
     if (!appointmentId || !provider) {
       return res.status(400).json({
@@ -131,12 +131,19 @@ export async function createPaymentIntent(req: Request, res: Response) {
     // Calculate payment amount based on settings
     let paymentAmount = appointment.price
 
-    if (
-      settings.paymentRequired &&
-      settings.paymentType === 'PERCENTAGE' &&
-      settings.depositPercentage
-    ) {
-      paymentAmount = appointment.price * (settings.depositPercentage / 100)
+    const isDepositFlow =
+      settings.paymentType === 'PERCENTAGE' && !!settings.depositPercentage
+    if (isDepositFlow) {
+      const normalized = payOption != null ? String(payOption).toUpperCase() : ''
+      if (normalized !== 'DEPOSIT' && normalized !== 'FULL') {
+        return res.status(400).json({
+          error: 'Debes seleccionar si querés pagar seña (DEPOSIT) o total (FULL)',
+        })
+      }
+      paymentAmount =
+        normalized === 'FULL'
+          ? appointment.price
+          : appointment.price * ((settings.depositPercentage as number) / 100)
     }
 
     // Round to 2 decimals
@@ -147,6 +154,7 @@ export async function createPaymentIntent(req: Request, res: Response) {
       businessId: appointment.businessId,
       clientName: appointment.clientName,
       clientPhone: appointment.clientPhone,
+      payOption: payOption != null ? String(payOption) : undefined,
     }
 
     const { preferenceId, initPoint } =
