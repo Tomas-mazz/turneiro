@@ -1,4 +1,5 @@
 import type { CSSProperties } from 'react'
+import { mixHex, mixTowardBlack } from './colorMix'
 import { isDarkUiForBackground, normalizeHex6 } from './luminance'
 import {
   DEFAULT_PUBLIC_PAGE_BG_DARK,
@@ -14,6 +15,13 @@ export function bookingPageCssVars(backgroundHex: string): CSSProperties {
   const dark = isDarkUiForBackground(hex)
 
   if (dark) {
+    /* Superficies elevadas: mezcla del color del negocio + blanco (no blanco puro; coherencia con el fondo). */
+    const modalSurface = mixHex(hex, '#FFFFFF', 0.76)
+    const cartSurface = mixHex(hex, '#FFFFFF', 0.7)
+    const modalBorder = mixTowardBlack(modalSurface, 0.1)
+    const cartBorder = mixTowardBlack(cartSurface, 0.11)
+    const ctaFill = mixHex(hex, '#111111', 0.72)
+
     return {
       '--booking-page-bg': hex,
       '--booking-fg': 'rgba(255,255,255,0.96)',
@@ -39,14 +47,6 @@ export function bookingPageCssVars(backgroundHex: string): CSSProperties {
       '--booking-stepper-dot-fill': hex,
       '--booking-bullet-border': 'rgba(255,255,255,0.45)',
       '--booking-bullet-fill': '#ffffff',
-      '--booking-cart-bg': 'rgba(12,12,16,0.94)',
-      '--booking-cart-border': 'rgba(255,255,255,0.16)',
-      '--booking-cart-shadow': '0 -4px 28px rgba(0,0,0,0.45)',
-      '--booking-cart-cta-bg': '#fafafa',
-      '--booking-cart-cta-text': '#111111',
-      '--booking-cart-cta-hover': 'rgba(250,250,250,0.9)',
-      '--booking-cart-close-border': 'rgba(255,255,255,0.28)',
-      '--booking-cart-close-text': 'rgba(255,255,255,0.65)',
       '--booking-vermas-border': 'rgba(255,255,255,0.22)',
       '--booking-vermas-bg': 'rgba(0,0,0,0.18)',
       '--booking-vermas-text': 'rgba(255,255,255,0.82)',
@@ -61,11 +61,44 @@ export function bookingPageCssVars(backgroundHex: string): CSSProperties {
       '--booking-card-border': 'rgba(255,255,255,0.18)',
       '--booking-secondary-btn-border': 'rgba(255,255,255,0.35)',
       '--booking-secondary-btn-bg': 'rgba(255,255,255,0.1)',
-      '--booking-modal-bg': 'rgba(22,22,26,0.98)',
-      '--booking-modal-border': 'rgba(255,255,255,0.14)',
+      /* Modales / carrito: tinte del color de página + blanco */
+      '--booking-modal-bg': modalSurface,
+      '--booking-modal-fg': '#171717',
+      '--booking-modal-fg-muted': 'rgba(23,23,23,0.68)',
+      '--booking-modal-fg-subtle': 'rgba(23,23,23,0.5)',
+      '--booking-modal-border': modalBorder,
+      '--booking-modal-hover': 'rgba(0,0,0,0.07)',
+      '--booking-modal-control-bg': mixTowardBlack(modalSurface, 0.05),
+      '--booking-modal-control-hover': mixTowardBlack(modalSurface, 0.09),
+      '--booking-modal-avatar-bg': mixTowardBlack(modalSurface, 0.08),
+      '--booking-modal-avatar-text': '#171717',
+      '--booking-modal-disabled-bg': mixTowardBlack(modalSurface, 0.03),
+      '--booking-cart-bg': cartSurface,
+      '--booking-cart-fg': '#171717',
+      '--booking-cart-fg-muted': 'rgba(23,23,23,0.72)',
+      '--booking-cart-border': cartBorder,
+      '--booking-cart-shadow': '0 -6px 36px rgba(0,0,0,0.22)',
+      '--booking-cart-cta-bg': ctaFill,
+      '--booking-cart-cta-text': '#fafafa',
+      '--booking-cart-cta-hover': mixHex(ctaFill, '#000000', 0.12),
+      '--booking-cart-close-border': mixTowardBlack(cartSurface, 0.14),
+      '--booking-cart-close-text': 'rgba(23,23,23,0.55)',
+      '--booking-cart-close-hover': mixTowardBlack(cartSurface, 0.06),
+      /* Cristal esmerilado (blur): tinte suave hacia el color de página + fallback opaco */
+      '--booking-glass-fill': `color-mix(in srgb, ${hex} 24%, rgba(255, 255, 255, 0.16))`,
+      '--booking-glass-border': 'rgba(255, 255, 255, 0.48)',
+      '--booking-glass-shadow':
+        '0 12px 48px rgba(0, 0, 0, 0.22), inset 0 1px 0 rgba(255, 255, 255, 0.42)',
+      '--booking-glass-fallback': modalSurface,
       '--booking-footer-muted': 'rgba(255,255,255,0.62)',
     } as CSSProperties
   }
+
+  const modalSurfaceLight = mixHex(hex, '#FFFFFF', 0.42)
+  const cartSurfaceLight = mixHex(hex, '#FFFFFF', 0.48)
+  const modalBorderLight = mixTowardBlack(modalSurfaceLight, 0.08)
+  const cartBorderLight = mixTowardBlack(cartSurfaceLight, 0.09)
+  const ctaFillLight = mixHex(hex, '#171717', 0.55)
 
   return {
     '--booking-page-bg': hex,
@@ -92,14 +125,17 @@ export function bookingPageCssVars(backgroundHex: string): CSSProperties {
     '--booking-stepper-dot-fill': hex,
     '--booking-bullet-border': 'rgba(23,23,23,0.45)',
     '--booking-bullet-fill': '#171717',
-    '--booking-cart-bg': 'rgba(255,255,255,0.96)',
-    '--booking-cart-border': 'rgba(23,23,23,0.12)',
-    '--booking-cart-shadow': '0 -4px 28px rgba(0,0,0,0.12)',
-    '--booking-cart-cta-bg': '#171717',
+    '--booking-cart-bg': cartSurfaceLight,
+    '--booking-cart-fg': '#171717',
+    '--booking-cart-fg-muted': 'rgba(23,23,23,0.72)',
+    '--booking-cart-border': cartBorderLight,
+    '--booking-cart-shadow': '0 -4px 28px rgba(0,0,0,0.14)',
+    '--booking-cart-cta-bg': ctaFillLight,
     '--booking-cart-cta-text': '#fafafa',
-    '--booking-cart-cta-hover': 'rgba(23,23,23,0.92)',
-    '--booking-cart-close-border': 'rgba(23,23,23,0.2)',
+    '--booking-cart-cta-hover': mixHex(ctaFillLight, '#000000', 0.1),
+    '--booking-cart-close-border': mixTowardBlack(cartSurfaceLight, 0.12),
     '--booking-cart-close-text': 'rgba(23,23,23,0.55)',
+    '--booking-cart-close-hover': mixTowardBlack(cartSurfaceLight, 0.05),
     '--booking-vermas-border': 'rgba(23,23,23,0.18)',
     '--booking-vermas-bg': 'rgba(255,255,255,0.85)',
     '--booking-vermas-text': 'rgba(23,23,23,0.78)',
@@ -114,8 +150,22 @@ export function bookingPageCssVars(backgroundHex: string): CSSProperties {
     '--booking-card-border': 'rgba(23,23,23,0.12)',
     '--booking-secondary-btn-border': 'rgba(23,23,23,0.28)',
     '--booking-secondary-btn-bg': 'transparent',
-    '--booking-modal-bg': '#ffffff',
-    '--booking-modal-border': 'rgba(23,23,23,0.12)',
+    '--booking-modal-bg': modalSurfaceLight,
+    '--booking-modal-fg': '#171717',
+    '--booking-modal-fg-muted': 'rgba(23,23,23,0.65)',
+    '--booking-modal-fg-subtle': 'rgba(23,23,23,0.5)',
+    '--booking-modal-border': modalBorderLight,
+    '--booking-modal-hover': 'rgba(0,0,0,0.06)',
+    '--booking-modal-control-bg': mixTowardBlack(modalSurfaceLight, 0.04),
+    '--booking-modal-control-hover': mixTowardBlack(modalSurfaceLight, 0.08),
+    '--booking-modal-avatar-bg': mixTowardBlack(modalSurfaceLight, 0.07),
+    '--booking-modal-avatar-text': '#171717',
+    '--booking-modal-disabled-bg': mixTowardBlack(modalSurfaceLight, 0.03),
+    '--booking-glass-fill': `color-mix(in srgb, ${hex} 14%, rgba(255, 255, 255, 0.48))`,
+    '--booking-glass-border': 'rgba(255, 255, 255, 0.72)',
+    '--booking-glass-shadow':
+      '0 12px 40px rgba(0, 0, 0, 0.12), inset 0 1px 0 rgba(255, 255, 255, 0.85)',
+    '--booking-glass-fallback': modalSurfaceLight,
     '--booking-footer-muted': 'rgba(23,23,23,0.55)',
   } as CSSProperties
 }

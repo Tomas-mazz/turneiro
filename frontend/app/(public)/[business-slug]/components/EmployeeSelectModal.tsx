@@ -62,17 +62,17 @@ export function EmployeeSelectModal({
 
   if (!isOpen) return null
 
-  const bgOverlay = 'fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4'
-  const panelBg = 'bg-[color:var(--booking-modal-bg)]'
-  const panelBorder = 'border-[color:var(--booking-modal-border)]'
-  const titleColor = 'text-[color:var(--booking-fg)]'
+  const bgOverlay =
+    'fixed inset-0 z-50 flex items-center justify-center bg-black/45 p-4 backdrop-blur-sm'
+  const titleColor = 'text-[color:var(--booking-modal-fg)]'
   const cardBg =
-    'bg-[color:var(--booking-control-bg)] hover:bg-[color:var(--booking-control-hover)]'
+    'bg-[color:var(--booking-modal-control-bg)] hover:bg-[color:var(--booking-modal-control-hover)]'
   const cardDisabled =
-    'cursor-default border-[color:var(--booking-border)] bg-[color:var(--booking-card-bg)] text-[color:var(--booking-fg-subtle)]'
-  const avatarBg = 'bg-[color:var(--booking-avatar-bg)] text-[color:var(--booking-avatar-text)]'
+    'cursor-default border-[color:var(--booking-modal-border)] bg-[color:var(--booking-modal-disabled-bg)] text-[color:var(--booking-modal-fg-subtle)]'
+  const avatarBg =
+    'bg-[color:var(--booking-modal-avatar-bg)] text-[color:var(--booking-modal-avatar-text)]'
   const closeBtn =
-    'border-[color:var(--booking-cart-close-border)] text-[color:var(--booking-cart-close-text)] hover:bg-[color:var(--booking-row-hover)] hover:text-[color:var(--booking-fg)]'
+    'border-[color:var(--booking-modal-border)] text-[color:var(--booking-modal-fg-muted)] hover:bg-[color:var(--booking-modal-hover)] hover:text-[color:var(--booking-modal-fg)]'
 
   return (
     <div
@@ -84,7 +84,7 @@ export function EmployeeSelectModal({
     >
       <div
         ref={panelRef}
-        className={`w-full max-w-md rounded-2xl border p-6 shadow-xl ${panelBg} ${panelBorder}`}
+        className="booking-liquid-glass w-full max-w-md overflow-hidden rounded-2xl p-6"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="mb-4 flex items-center justify-between">
@@ -153,7 +153,7 @@ export function EmployeeSelectModal({
                     </div>
                     <div className="flex flex-1 flex-col">
                       <span className={`font-medium ${titleColor}`}>{emp.name}</span>
-                      <span className="text-sm text-[color:var(--booking-fg-subtle)]">Sin turno disponible</span>
+                      <span className="text-sm text-[color:var(--booking-modal-fg-subtle)]">Sin turno disponible</span>
                     </div>
                   </div>
                 )}

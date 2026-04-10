@@ -66,12 +66,10 @@ export function ServiceStep({
   const asideIconColor = 'text-[color:var(--booking-fg-subtle)]'
   const asideLinkHover = 'hover:text-[color:var(--booking-link-hover)]'
 
-  const cartPanelClass =
-    'border-[color:var(--booking-cart-border)] shadow-[var(--booking-cart-shadow)]'
-  const cartTitleColor = 'text-[color:var(--booking-fg)]'
-  const cartTextColor = 'text-[color:var(--booking-fg-muted)]'
+  const cartTitleColor = 'text-[color:var(--booking-cart-fg)]'
+  const cartTextColor = 'text-[color:var(--booking-cart-fg-muted)]'
   const cartCloseClass =
-    'border-[color:var(--booking-cart-close-border)] text-[color:var(--booking-cart-close-text)] hover:bg-[color:var(--booking-row-hover)] hover:text-[color:var(--booking-fg)]'
+    'border-[color:var(--booking-cart-close-border)] text-[color:var(--booking-cart-close-text)] hover:bg-[color:var(--booking-cart-close-hover)] hover:text-[color:var(--booking-cart-fg)]'
   const cartCtaClass =
     'bg-[color:var(--booking-cart-cta-bg)] text-[color:var(--booking-cart-cta-text)] hover:bg-[color:var(--booking-cart-cta-hover)]'
 
@@ -586,7 +584,7 @@ export function ServiceStep({
           <div
             ref={panelRef}
             onAnimationEnd={handleSlideDownEnd}
-            className={`mx-auto w-full max-w-lg rounded-2xl border bg-[color:var(--booking-cart-bg)] p-6 transition-colors duration-300 ease-out md:max-w-xl md:p-7 ${cartPanelClass} ${isClosing ? 'animate-slide-down' : 'animate-slide-up'}`}
+            className={`booking-liquid-glass mx-auto w-full max-w-lg overflow-hidden rounded-2xl p-6 transition-colors duration-300 ease-out md:max-w-xl md:p-7 ${isClosing ? 'animate-slide-down' : 'animate-slide-up'}`}
           >
             <div className="mb-4 flex items-center justify-between">
               <h2 id="cart-title" className={`text-lg font-semibold ${cartTitleColor}`}>
