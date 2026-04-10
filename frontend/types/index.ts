@@ -157,6 +157,15 @@ export interface AdminEmployeeListItem {
   isOwner: boolean
 }
 
+export interface OwnerEmployeeListItem {
+  id: string
+  name: string
+  photoUrl: string | null
+  isOwner: boolean
+  staffEmail: string | null
+  ownerCalendarColorId: string | null
+}
+
 // Seller (platform) - reduced business management
 export interface SellerBusinessListItem {
   id: string

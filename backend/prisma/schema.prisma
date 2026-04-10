@@ -55,6 +55,12 @@ model Employee {
   updatedAt  DateTime @updatedAt
   isOwner    Boolean  @default(false)
   userId     String?  @unique // optional link to User (STAFF) for dashboard / per-employee flows
+  /// Color (Google Calendar event colorId) to use for this employee's appointments
+  /// in the BUSINESS OWNER's calendar view (owner's calendar).
+  ownerCalendarColorId String?
+  /// Color (Google Calendar event colorId) to use when creating events on the STAFF user's
+  /// own calendar. This is assigned automatically (random) by default.
+  staffCalendarColorId String?
 
   // Relations
   business     Business      @relation(fields: [businessId], references: [id], onDelete: Cascade)

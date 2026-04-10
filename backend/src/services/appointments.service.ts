@@ -79,6 +79,8 @@ async function syncToGoogleCalendarForLoadedAppointment(
       employee?: {
         isOwner: boolean
         name?: string | null
+        ownerCalendarColorId?: string | null
+        staffCalendarColorId?: string | null
         user?: { id: string; googleRefreshToken: string | null; googleCalendarId: string | null } | null
       } | null
     }
@@ -149,12 +151,26 @@ async function syncToGoogleCalendarForLoadedAppointment(
       location: apt.business.name,
     }
 
+    let targetColorId: string | undefined
+    if (isStaffEmployee && targetUser.id === apt.employee?.user?.id) {
+      // Staff user's own calendar: use staff color (random by default).
+      targetColorId = apt.employee?.staffCalendarColorId ?? undefined
+    } else {
+      // Owner calendar: use configured owner color (via owner-employee record).
+      const ownerEmp = await prisma.employee.findFirst({
+        where: { businessId, isOwner: true },
+        select: { ownerCalendarColorId: true },
+      })
+      targetColorId = ownerEmp?.ownerCalendarColorId ?? undefined
+    }
+
     const eventId = await googleCalendarService.createCalendarEvent(
       targetUser.googleRefreshToken,
       targetUser.googleCalendarId,
       {
         ...eventPayload,
         summary: isStaffEmployee ? summaryForStaff : summaryOwnerOwn,
+        ...(targetColorId ? { colorId: targetColorId } : {}),
       }
     )
 
@@ -174,13 +190,14 @@ async function syncToGoogleCalendarForLoadedAppointment(
       }
       if (ownerData?.googleRefreshToken && ownerData?.googleCalendarId) {
         try {
+          const ownerCopyColorId = apt.employee?.ownerCalendarColorId ?? '9'
           ownerCalendarEventId = await googleCalendarService.createCalendarEvent(
             ownerData.googleRefreshToken,
             ownerData.googleCalendarId,
             {
               ...eventPayload,
               summary: summaryOwnerCopyStaff,
-              colorId: '9',
+              colorId: ownerCopyColorId,
             }
           )
         } catch (err) {
@@ -391,10 +408,11 @@ export async function resyncStaffUpcomingAppointmentsToOwnCalendar(
           location: appointment.business.name,
         }
 
+        const staffColorId = appointment.employee?.staffCalendarColorId ?? undefined
         const eventId = await googleCalendarService.createCalendarEvent(
           staffUser.googleRefreshToken,
           staffUser.googleCalendarId,
-          { ...eventPayload, summary: summaryForStaff }
+          { ...eventPayload, summary: summaryForStaff, ...(staffColorId ? { colorId: staffColorId } : {}) }
         )
 
         let ownerCalendarEventId: string | null = null
@@ -404,10 +422,11 @@ export async function resyncStaffUpcomingAppointmentsToOwnCalendar(
         })
         if (owner?.googleRefreshToken && owner?.googleCalendarId) {
           try {
+            const ownerCopyColorId = appointment.employee?.ownerCalendarColorId ?? '9'
             ownerCalendarEventId = await googleCalendarService.createCalendarEvent(
               owner.googleRefreshToken,
               owner.googleCalendarId,
-              { ...eventPayload, summary: summaryForOwner, colorId: '9' }
+              { ...eventPayload, summary: summaryForOwner, colorId: ownerCopyColorId }
             )
           } catch (err) {
             console.error('Resync: failed to create owner calendar copy:', err)
