@@ -11,6 +11,7 @@ import type {
   WorkingHoursItem,
   AdminAppointmentListItem,
   AdminEmployeeListItem,
+  OwnerEmployeeListItem,
   SubServiceAdminItem,
   SellerBusinessDetail,
   SellerBusinessListItem,
@@ -196,6 +197,58 @@ export async function createBlockedSlot(
 
 export async function deleteBlockedSlot(id: string): Promise<void> {
   await api.delete(`/blocked-slots/${id}`)
+}
+
+// Employees (owner dashboard)
+export async function getOwnerEmployees(): Promise<OwnerEmployeeListItem[]> {
+  const { data } = await api.get<OwnerEmployeeListItem[]>('/businesses/employees')
+  return data
+}
+
+export async function getOwnerCalendarColor(): Promise<{ ownerCalendarColorId: string | null }> {
+  const { data } = await api.get<{ ownerCalendarColorId: string | null }>(
+    '/businesses/owner-calendar-color'
+  )
+  return data
+}
+
+export async function updateOwnerCalendarColor(body: {
+  ownerCalendarColorId?: string | null
+}): Promise<{ ownerCalendarColorId: string | null }> {
+  const { data } = await api.patch<{ ownerCalendarColorId: string | null }>(
+    '/businesses/owner-calendar-color',
+    body
+  )
+  return data
+}
+
+export async function createOwnerEmployee(body: {
+  name: string
+  photoUrl?: string | null
+  staffEmail: string
+  staffPassword: string
+  ownerCalendarColorId?: string | null
+}): Promise<OwnerEmployeeListItem> {
+  const { data } = await api.post<OwnerEmployeeListItem>('/businesses/employees', body)
+  return data
+}
+
+export async function updateOwnerEmployee(
+  employeeId: string,
+  body: {
+    name?: string
+    photoUrl?: string | null
+    staffEmail?: string
+    staffPassword?: string
+    ownerCalendarColorId?: string | null
+  }
+): Promise<OwnerEmployeeListItem> {
+  const { data } = await api.patch<OwnerEmployeeListItem>(`/businesses/employees/${employeeId}`, body)
+  return data
+}
+
+export async function deleteOwnerEmployee(employeeId: string): Promise<void> {
+  await api.delete(`/businesses/employees/${employeeId}`)
 }
 
 export async function getAdminBusinesses(): Promise<AdminBusinessListItem[]> {

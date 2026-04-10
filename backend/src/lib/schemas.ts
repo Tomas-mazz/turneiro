@@ -412,3 +412,44 @@ export const updateEmployeeAdminSchema = z.object({
 
 export type CreateEmployeeAdminInput = z.infer<typeof createEmployeeAdminSchema>
 export type UpdateEmployeeAdminInput = z.infer<typeof updateEmployeeAdminSchema>
+
+// Owner dashboard: employees CRUD (scoped to current business)
+const optionalColorId = z
+  .union([z.string().regex(/^(?:[1-9]|10|11)$/), z.literal('')])
+  .optional()
+  .transform((v) => (v === '' ? null : v))
+
+export const createOwnerEmployeeSchema = z.object({
+  name: z.string().min(1, 'El nombre es obligatorio').max(200),
+  photoUrl: optionalUrl.optional(),
+  staffEmail: z.string().email('Email inválido'),
+  staffPassword: z.string().min(6, 'La contraseña debe tener al menos 6 caracteres'),
+  ownerCalendarColorId: optionalColorId,
+})
+
+export const updateOwnerEmployeeSchema = z
+  .object({
+    name: z.string().min(1).max(200).optional(),
+    photoUrl: optionalUrl.optional(),
+    staffEmail: z.union([z.string().email(), z.literal('')]).optional(),
+    staffPassword: z.union([z.string().min(6), z.literal('')]).optional(),
+    ownerCalendarColorId: optionalColorId,
+  })
+  .refine(
+    (data) =>
+      data.name !== undefined ||
+      data.photoUrl !== undefined ||
+      data.staffEmail !== undefined ||
+      data.staffPassword !== undefined ||
+      data.ownerCalendarColorId !== undefined,
+    { message: 'Debe enviar al menos un campo para actualizar' }
+  )
+
+export type CreateOwnerEmployeeInput = z.infer<typeof createOwnerEmployeeSchema>
+export type UpdateOwnerEmployeeInput = z.infer<typeof updateOwnerEmployeeSchema>
+
+export const updateOwnerCalendarColorSchema = z.object({
+  ownerCalendarColorId: optionalColorId,
+})
+
+export type UpdateOwnerCalendarColorInput = z.infer<typeof updateOwnerCalendarColorSchema>

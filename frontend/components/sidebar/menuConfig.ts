@@ -64,6 +64,13 @@ export const SHOP_MENU_DEF: SidebarMenuDefinition = {
           icon: 'calendarOff',
           roles: ['OWNER', 'STAFF', 'ADMIN'],
         },
+        {
+          id: 'employees',
+          label: 'Empleados',
+          path: '/setting/employees',
+          icon: 'user',
+          roles: ['OWNER', 'ADMIN'],
+        },
       ],
     },
     {

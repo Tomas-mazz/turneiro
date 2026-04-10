@@ -128,6 +128,13 @@ export default function SettingPage() {
             href: '/setting/blocking',
           },
           {
+            id: 'employees',
+            title: 'Empleados',
+            description:
+              'Administrá tus empleados: creá, editá o eliminá accesos al panel y elegí el color con el que se ven sus turnos en tu Google Calendar.',
+            href: '/setting/employees',
+          },
+          {
             id: 'cancel',
             title: 'Cancelar turnos',
             description:

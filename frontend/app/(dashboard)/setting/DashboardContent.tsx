@@ -29,6 +29,12 @@ import {
   updateWorkingHours,
   getBusinessSettings,
   updateBusinessSettings,
+  getOwnerEmployees,
+  getOwnerCalendarColor,
+  createOwnerEmployee,
+  updateOwnerEmployee,
+  updateOwnerCalendarColor,
+  deleteOwnerEmployee,
 } from '@/lib/api'
 import { ImagesModal } from '@/components/ImagesModal'
 import { ServiceDescriptionsModal } from './components/modals/ServiceDescriptionsModal'
@@ -38,6 +44,7 @@ import { ServicesSection } from './components/sections/ServicesSection'
 import { HoursSection } from './components/sections/HoursSection'
 import { BlockingSection } from './components/sections/BlockingSection'
 import { CancelSection } from './components/sections/CancelSection'
+import { EmployeesSection } from './components/sections/EmployeesSection'
 import { PublicPageBackgroundSection } from './components/PublicPageBackgroundSection'
 import { PublicDefaultThemeSection } from './components/PublicDefaultThemeSection'
 import {
@@ -50,11 +57,12 @@ import type {
   BlockedSlotListItem,
   WorkingHoursItem,
   SubServiceAdminItem,
+  OwnerEmployeeListItem,
 } from '@/types'
 
 const GOOGLE_CALENDAR_URL = 'https://calendar.google.com'
 
-type DashboardSection = 'all' | 'services' | 'payments' | 'blocking' | 'hours' | 'cancel'
+type DashboardSection = 'all' | 'services' | 'payments' | 'blocking' | 'hours' | 'employees' | 'cancel'
 type PaymentMode = 'REQUIRED' | 'OPTIONAL' | 'CONFIRM_ONLY'
 type FontFamilyKey = 'ROBOTO' | 'MONTSERRAT' | 'INTER' | 'POPPINS' | 'NUNITO' | 'PLAYFAIR'
 
@@ -149,6 +157,33 @@ export function DashboardContent({ section = 'all' }: { section?: DashboardSecti
   const [publicDefaultTheme, setPublicDefaultTheme] = useState<'LIGHT' | 'DARK'>('DARK')
   const [savingFont, setSavingFont] = useState(false)
   const [fontJustSaved, setFontJustSaved] = useState(false)
+
+  const [employees, setEmployees] = useState<OwnerEmployeeListItem[]>([])
+  const [loadingEmployees, setLoadingEmployees] = useState(false)
+  const [creatingEmployee, setCreatingEmployee] = useState(false)
+  const [savingEmployeeId, setSavingEmployeeId] = useState<string | null>(null)
+  const [deletingEmployeeId, setDeletingEmployeeId] = useState<string | null>(null)
+  const [ownerCalendarColorId, setOwnerCalendarColorId] = useState('')
+  const [savingOwnerCalendarColor, setSavingOwnerCalendarColor] = useState(false)
+  const [newEmployee, setNewEmployee] = useState({
+    name: '',
+    photoUrl: '',
+    staffEmail: '',
+    staffPassword: '',
+    ownerCalendarColorId: '',
+  })
+  const [editingEmployee, setEditingEmployee] = useState<
+    Record<
+      string,
+      Partial<{
+        name: string
+        photoUrl: string
+        staffEmail: string
+        staffPassword: string
+        ownerCalendarColorId: string
+      }>
+    >
+  >({})
 
   useEffect(() => {
     setUserRole(getAuthUser()?.role ?? null)
@@ -253,6 +288,23 @@ export function DashboardContent({ section = 'all' }: { section?: DashboardSecti
       .finally(() => setLoadingWorkingHours(false))
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [userRole, section, actsAsOwner])
+
+  useEffect(() => {
+    if (!actsAsOwner) return
+    if (!(section === 'all' || section === 'employees')) return
+    setLoadingEmployees(true)
+    Promise.all([getOwnerEmployees(), getOwnerCalendarColor()])
+      .then(([list, ownerColor]) => {
+        setEmployees(list)
+        setOwnerCalendarColorId(ownerColor.ownerCalendarColorId ?? '')
+      })
+      .catch((err) => {
+        setEmployees([])
+        setError(err?.response?.data?.error || 'Error al cargar empleados')
+      })
+      .finally(() => setLoadingEmployees(false))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [actsAsOwner, section])
 
 
   const loadBlockedSlots = () => {
@@ -529,6 +581,95 @@ export function DashboardContent({ section = 'all' }: { section?: DashboardSecti
       setError((err as { response?: { data?: { error?: string } } })?.response?.data?.error || 'Error al eliminar el bloqueo')
     } finally {
       setDeletingBlockId(null)
+    }
+  }
+
+  const handleCreateEmployee = async () => {
+    const name = newEmployee.name.trim()
+    const staffEmail = newEmployee.staffEmail.trim()
+    const staffPassword = newEmployee.staffPassword.trim()
+    if (!name || !staffEmail || staffPassword.length < 6) return
+    setCreatingEmployee(true)
+    try {
+      const created = await createOwnerEmployee({
+        name,
+        photoUrl: newEmployee.photoUrl.trim() || null,
+        staffEmail,
+        staffPassword,
+        ownerCalendarColorId: newEmployee.ownerCalendarColorId || null,
+      })
+      setEmployees((prev) => [...prev, created])
+      setNewEmployee({
+        name: '',
+        photoUrl: '',
+        staffEmail: '',
+        staffPassword: '',
+        ownerCalendarColorId: '',
+      })
+    } catch (err: any) {
+      setError(err?.response?.data?.error || 'Error al crear empleado')
+    } finally {
+      setCreatingEmployee(false)
+    }
+  }
+
+  const handleSaveEmployee = async (emp: OwnerEmployeeListItem) => {
+    const changes = editingEmployee[emp.id] ?? {}
+    const payload: any = {}
+    if (changes.name !== undefined) payload.name = changes.name.trim()
+    if (changes.photoUrl !== undefined) payload.photoUrl = changes.photoUrl.trim() || null
+    if (changes.staffEmail !== undefined) payload.staffEmail = changes.staffEmail.trim()
+    if (changes.staffPassword !== undefined) payload.staffPassword = changes.staffPassword
+    if (changes.ownerCalendarColorId !== undefined) {
+      payload.ownerCalendarColorId = changes.ownerCalendarColorId || null
+    }
+    if (Object.keys(payload).length === 0) return
+
+    setSavingEmployeeId(emp.id)
+    try {
+      const updated = await updateOwnerEmployee(emp.id, payload)
+      setEmployees((prev) => prev.map((x) => (x.id === emp.id ? updated : x)))
+      setEditingEmployee((prev) => {
+        const next = { ...prev }
+        delete next[emp.id]
+        return next
+      })
+    } catch (err: any) {
+      setError(err?.response?.data?.error || 'Error al guardar empleado')
+    } finally {
+      setSavingEmployeeId(null)
+    }
+  }
+
+  const handleDeleteEmployee = async (emp: OwnerEmployeeListItem) => {
+    if (!window.confirm(`¿Eliminar a ${emp.name}?`)) return
+    setDeletingEmployeeId(emp.id)
+    try {
+      await deleteOwnerEmployee(emp.id)
+      setEmployees((prev) => prev.filter((x) => x.id !== emp.id))
+      setEditingEmployee((prev) => {
+        const next = { ...prev }
+        delete next[emp.id]
+        return next
+      })
+    } catch (err: any) {
+      setError(err?.response?.data?.error || 'Error al eliminar empleado')
+    } finally {
+      setDeletingEmployeeId(null)
+    }
+  }
+
+  const handleSaveOwnerCalendarColor = async () => {
+    setSavingOwnerCalendarColor(true)
+    try {
+      const updated = await updateOwnerCalendarColor({
+        ownerCalendarColorId: ownerCalendarColorId || null,
+      })
+      setOwnerCalendarColorId(updated.ownerCalendarColorId ?? '')
+    } catch (err: any) {
+      setError(err?.response?.data?.error || 'Error al guardar color del dueño')
+    } finally {
+      setSavingOwnerCalendarColor(false)
     }
   }
 
@@ -1093,6 +1234,30 @@ export function DashboardContent({ section = 'all' }: { section?: DashboardSecti
         onCreate={handleCreateBlock}
         blockScope={blockScope}
         setBlockScope={setBlockScope}
+      />
+
+      <EmployeesSection
+        visible={actsAsOwner && (section === 'all' || section === 'employees')}
+        loading={loadingEmployees}
+        employees={employees}
+        ownerCalendarColorId={ownerCalendarColorId}
+        setOwnerCalendarColorId={setOwnerCalendarColorId}
+        savingOwnerColor={savingOwnerCalendarColor}
+        onSaveOwnerColor={handleSaveOwnerCalendarColor}
+        creating={creatingEmployee}
+        savingId={savingEmployeeId}
+        deletingId={deletingEmployeeId}
+        newEmployee={newEmployee}
+        setNewEmployee={setNewEmployee}
+        editing={editingEmployee}
+        setEditing={setEditingEmployee}
+        onCreate={handleCreateEmployee}
+        onSave={handleSaveEmployee}
+        onDelete={handleDeleteEmployee}
+        onUploadPhoto={async (file) => {
+          const { url } = await uploadAdminFile(file)
+          return url
+        }}
       />
 
       <CancelSection

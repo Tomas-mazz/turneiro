@@ -162,6 +162,8 @@ interface LoadedAppointment {
   employee?: {
     isOwner: boolean
     name?: string | null
+    ownerCalendarColorId?: string | null
+    staffCalendarColorId?: string | null
     user?: {
       id: string
       googleRefreshToken: string | null
@@ -242,12 +244,24 @@ async function syncAppointmentToGoogleCalendar(
     location: appointment.business.name,
   }
 
+  let targetColorId: string | undefined
+  if (isStaffEmployee && targetUser.id === appointment.employee?.user?.id) {
+    targetColorId = appointment.employee?.staffCalendarColorId ?? undefined
+  } else {
+    const ownerEmp = await prisma.employee.findFirst({
+      where: { businessId, isOwner: true },
+      select: { ownerCalendarColorId: true },
+    })
+    targetColorId = ownerEmp?.ownerCalendarColorId ?? undefined
+  }
+
   const eventId = await googleCalendarService.createCalendarEvent(
     targetUser.googleRefreshToken,
     targetUser.googleCalendarId,
     {
       ...eventPayload,
       summary: isStaffEmployee ? summaryForStaff : summaryOwnerOwn,
+      ...(targetColorId ? { colorId: targetColorId } : {}),
     }
   )
 
@@ -267,13 +281,14 @@ async function syncAppointmentToGoogleCalendar(
     }
     if (ownerData?.googleRefreshToken && ownerData?.googleCalendarId) {
       try {
+        const ownerCopyColorId = appointment.employee?.ownerCalendarColorId ?? '9'
         ownerCalendarEventId = await googleCalendarService.createCalendarEvent(
           ownerData.googleRefreshToken,
           ownerData.googleCalendarId,
           {
             ...eventPayload,
             summary: summaryOwnerCopyStaff,
-            colorId: '9',
+            colorId: ownerCopyColorId,
           }
         )
       } catch (err) {
