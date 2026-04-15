@@ -153,6 +153,7 @@ export async function updateBusinessSettings(req: AuthRequest, res: Response, ne
       fontFamily,
       theme,
       showServiceConfirmModal,
+      allowMultipleServices,
       paymentRequired,
       paymentOptionalEnabled,
       paymentType,
@@ -203,6 +204,7 @@ export async function updateBusinessSettings(req: AuthRequest, res: Response, ne
       ...(mercadoPagoAccessToken !== undefined && { mercadoPagoAccessToken }),
       ...(mercadoPagoWebhookSecret !== undefined && { mercadoPagoWebhookSecret }),
       ...(showServiceConfirmModal !== undefined && { showServiceConfirmModal: !!showServiceConfirmModal }),
+      ...(allowMultipleServices !== undefined && { allowMultipleServices: !!allowMultipleServices }),
       ...(bgDark.value !== undefined && { publicPageBackgroundDark: bgDark.value }),
       ...(bgLight.value !== undefined && { publicPageBackgroundLight: bgLight.value }),
     })

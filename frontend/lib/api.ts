@@ -679,6 +679,7 @@ export type BusinessSettings = {
   hasMercadoPagoAccessToken: boolean
   mercadoPagoWebhookSecret: string | null
   showServiceConfirmModal: boolean
+  allowMultipleServices: boolean
   publicPageBackgroundDark: string | null
   publicPageBackgroundLight: string | null
 }

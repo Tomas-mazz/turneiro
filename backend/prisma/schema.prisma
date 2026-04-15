@@ -252,6 +252,8 @@ model BusinessSettings {
   bufferTime                       Int? // Legacy: additional buffer minutes between appointments
   slotIntervalMinutes              Int      @default(15) // Base slot interval (15, 20, 30...) for availability generation
   showServiceConfirmModal          Boolean  @default(false) // Show extra confirmation modal after "Confirmar servicio"
+  /// When true, public booking allows selecting multiple services/subservices in one appointment.
+  allowMultipleServices            Boolean  @default(false)
   businessId                       String   @unique
   createdAt                        DateTime @default(now())
   updatedAt                        DateTime @updatedAt

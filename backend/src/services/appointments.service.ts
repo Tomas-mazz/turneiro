@@ -464,55 +464,72 @@ export async function createAppointmentService(data: CreateAppointmentInput) {
     throw new SlotUnavailableError('Negocio no encontrado')
   }
 
-  // serviceId can refer to either a Service or a SubService.
+  const requestedIds = Array.isArray((data as any).serviceIds) && (data as any).serviceIds.length > 0
+    ? ((data as any).serviceIds as string[])
+    : data.serviceId
+      ? [data.serviceId]
+      : []
+
+  if (requestedIds.length === 0) {
+    throw new SlotUnavailableError('Servicio no encontrado')
+  }
+
+  // Each id can refer to either a Service or a SubService.
   // Prefer SubService when it exists so that price/duration come from the variant.
-  const subService = await prisma.subService.findFirst({
-    where: {
-      id: data.serviceId,
-      isActive: true,
-      service: {
-        businessId: business.id,
+  type ResolvedItem = {
+    kind: 'SERVICE' | 'SUBSERVICE'
+    baseServiceId: string
+    displayName: string
+    price: number
+    duration: number
+  }
+
+  const resolved: ResolvedItem[] = []
+  for (const id of requestedIds) {
+    const sub = await prisma.subService.findFirst({
+      where: {
+        id,
+        isActive: true,
+        service: { businessId: business.id },
       },
-    },
-    include: {
-      service: true,
-    },
-  })
-
-  let baseService: { id: string; name: string; price: number; duration: number } | null = null
-  let finalName: string
-  let finalPrice: number
-  let finalDuration: number
-
-  if (subService) {
-    baseService = {
-      id: subService.service.id,
-      name: subService.service.name,
-      price: subService.service.price,
-      duration: subService.service.duration,
+      include: { service: true },
+    })
+    if (sub) {
+      resolved.push({
+        kind: 'SUBSERVICE',
+        baseServiceId: sub.service.id,
+        displayName: `${sub.service.name} - ${sub.name}`,
+        price: sub.price,
+        duration: sub.duration,
+      })
+      continue
     }
-    finalName = `${subService.service.name} - ${subService.name}`
-    finalPrice = subService.price
-    finalDuration = subService.duration
-  } else {
-    const service = await prisma.service.findFirst({
-      where: { id: data.serviceId, isActive: true, businessId: business.id },
+    const svc = await prisma.service.findFirst({
+      where: { id, isActive: true, businessId: business.id },
       select: { id: true, name: true, price: true, duration: true },
     })
-    if (!service) {
+    if (!svc) {
       throw new SlotUnavailableError('Servicio no encontrado')
     }
-    baseService = service
-    finalName = service.name
-    finalPrice = service.price
-    finalDuration = service.duration
+    resolved.push({
+      kind: 'SERVICE',
+      baseServiceId: svc.id,
+      displayName: svc.name,
+      price: svc.price,
+      duration: svc.duration,
+    })
   }
+
+  const finalName = resolved.map((x) => x.displayName).join(' + ')
+  const finalPrice = resolved.reduce((acc, x) => acc + (Number.isFinite(x.price) ? x.price : 0), 0)
+  const finalDuration = resolved.reduce((acc, x) => acc + (Number.isFinite(x.duration) ? x.duration : 0), 0)
+  const appointmentServiceId = resolved.length === 1 ? resolved[0].baseServiceId : null
 
   const dateForAvailability = new Date(data.date + 'T12:00:00')
   const employeeId = data.employeeId ?? undefined
   const slots = await getAvailabilityService(
     data.businessSlug,
-    data.serviceId,
+    requestedIds,
     dateForAvailability,
     data.date,
     employeeId
@@ -531,7 +548,7 @@ export async function createAppointmentService(data: CreateAppointmentInput) {
   const appointment = await prisma.appointment.create({
     data: {
       businessId: business.id,
-      serviceId: baseService.id,
+      serviceId: appointmentServiceId,
       employeeId: employeeId ?? null,
       startTime,
       endTime,
