@@ -136,6 +136,8 @@ export function DashboardContent({ section = 'all' }: { section?: DashboardSecti
   } | null>(null)
   const [showServiceConfirmModal, setShowServiceConfirmModal] = useState(false)
   const [showServiceConfirmModalSaving, setShowServiceConfirmModalSaving] = useState(false)
+  const [allowMultipleServices, setAllowMultipleServices] = useState(false)
+  const [allowMultipleServicesSaving, setAllowMultipleServicesSaving] = useState(false)
   const [paymentRequired, setPaymentRequired] = useState(false)
   const [paymentOptionalEnabled, setPaymentOptionalEnabled] = useState(false)
   const [paymentMode, setPaymentMode] = useState<PaymentMode>('CONFIRM_ONLY')
@@ -232,6 +234,7 @@ export function DashboardContent({ section = 'all' }: { section?: DashboardSecti
     getBusinessSettings()
       .then((s) => {
         setShowServiceConfirmModal(!!s.showServiceConfirmModal)
+        setAllowMultipleServices(!!(s as { allowMultipleServices?: boolean }).allowMultipleServices)
         const nextFont = String((s as any).fontFamily ?? 'ROBOTO').toUpperCase()
         if (FONT_OPTIONS.some((x) => x.key === nextFont)) {
           setFontFamily(nextFont as FontFamilyKey)
@@ -262,6 +265,7 @@ export function DashboardContent({ section = 'all' }: { section?: DashboardSecti
       })
       .catch(() => {
         setShowServiceConfirmModal(false)
+        setAllowMultipleServices(false)
         setFontFamily('ROBOTO')
         setBgDarkHex(DEFAULT_PUBLIC_PAGE_BG_DARK)
         setBgLightHex(DEFAULT_PUBLIC_PAGE_BG_LIGHT)
@@ -1154,6 +1158,23 @@ export function DashboardContent({ section = 'all' }: { section?: DashboardSecti
             )
           } finally {
             setShowServiceConfirmModalSaving(false)
+          }
+        }}
+        allowMultipleServices={allowMultipleServices}
+        allowMultipleServicesSaving={allowMultipleServicesSaving}
+        onToggleAllowMultipleServices={async (next) => {
+          setAllowMultipleServices(next)
+          setAllowMultipleServicesSaving(true)
+          try {
+            await updateBusinessSettings({ allowMultipleServices: next })
+          } catch (err) {
+            setAllowMultipleServices((prev) => !prev)
+            setError(
+              (err as { response?: { data?: { error?: string } } })?.response?.data?.error ||
+                'Error al guardar la configuración'
+            )
+          } finally {
+            setAllowMultipleServicesSaving(false)
           }
         }}
         loadingServices={loadingServices}

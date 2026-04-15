@@ -5,15 +5,18 @@ const DATE_REGEX = /^\d{4}-\d{2}-\d{2}$/
 
 export async function getAvailability(req: Request, res: Response, next: NextFunction) {
   try {
-    const { businessSlug, serviceId, date: dateStr, employeeId } = req.query as {
+    const { businessSlug, serviceId, serviceIds, date: dateStr, employeeId } = req.query as {
       businessSlug?: string
       serviceId?: string
+      serviceIds?: string
       date?: string
       employeeId?: string
     }
-    if (!businessSlug?.trim() || !serviceId?.trim() || !dateStr?.trim()) {
+    const hasSingle = !!serviceId?.trim()
+    const hasMany = !!serviceIds?.trim()
+    if (!businessSlug?.trim() || !(hasSingle || hasMany) || !dateStr?.trim()) {
       res.status(400).json({
-        error: 'Faltan parámetros: businessSlug, serviceId, date (AAAA-MM-DD)',
+        error: 'Faltan parámetros: businessSlug, serviceId/serviceIds, date (AAAA-MM-DD)',
       })
       return
     }
@@ -26,9 +29,16 @@ export async function getAvailability(req: Request, res: Response, next: NextFun
       res.status(400).json({ error: 'Fecha inválida' })
       return
     }
+    const resolvedServiceIds = hasMany
+      ? serviceIds!
+          .split(',')
+          .map((s) => s.trim())
+          .filter(Boolean)
+      : null
+    const serviceParam = resolvedServiceIds && resolvedServiceIds.length > 0 ? resolvedServiceIds : serviceId!.trim()
     const slots = await getAvailabilityService(
       businessSlug.trim(),
-      serviceId.trim(),
+      serviceParam,
       date,
       dateStr,
       employeeId?.trim() || undefined
@@ -41,14 +51,17 @@ export async function getAvailability(req: Request, res: Response, next: NextFun
 
 export async function getWeekAvailability(req: Request, res: Response, next: NextFunction) {
   try {
-    const { businessSlug, serviceId, startDate: startDateStr } = req.query as {
+    const { businessSlug, serviceId, serviceIds, startDate: startDateStr } = req.query as {
       businessSlug?: string
       serviceId?: string
+      serviceIds?: string
       startDate?: string
     }
-    if (!businessSlug?.trim() || !serviceId?.trim() || !startDateStr?.trim()) {
+    const hasSingle = !!serviceId?.trim()
+    const hasMany = !!serviceIds?.trim()
+    if (!businessSlug?.trim() || !(hasSingle || hasMany) || !startDateStr?.trim()) {
       res.status(400).json({
-        error: 'Faltan parámetros: businessSlug, serviceId, startDate (AAAA-MM-DD)',
+        error: 'Faltan parámetros: businessSlug, serviceId/serviceIds, startDate (AAAA-MM-DD)',
       })
       return
     }
@@ -61,9 +74,16 @@ export async function getWeekAvailability(req: Request, res: Response, next: Nex
       res.status(400).json({ error: 'Fecha de inicio inválida' })
       return
     }
+    const resolvedServiceIds = hasMany
+      ? serviceIds!
+          .split(',')
+          .map((s) => s.trim())
+          .filter(Boolean)
+      : null
+    const serviceParam = resolvedServiceIds && resolvedServiceIds.length > 0 ? resolvedServiceIds : serviceId!.trim()
     const week = await getWeekAvailabilityService(
       businessSlug.trim(),
-      serviceId.trim(),
+      serviceParam,
       startDate
     )
     res.json({ week })

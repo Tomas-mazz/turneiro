@@ -48,7 +48,7 @@ export default function BusinessBookingPage() {
   const [error, setError] = useState<string | null>(null)
 
   const [step, setStep] = useState<Step>(getStepFromHistory)
-  const [selectedService, setSelectedService] = useState<ServiceOption | null>(null)
+  const [selectedServices, setSelectedServices] = useState<ServiceOption[]>([])
   const [calendarMonth, setCalendarMonth] = useState(() => new Date())
   const [weekAvailability, setWeekAvailability] = useState<Record<string, boolean>>({})
   const [selectedDate, setSelectedDate] = useState<string | null>(null)
@@ -217,6 +217,7 @@ export default function BusinessBookingPage() {
       const parsed = JSON.parse(raw) as {
         step?: Step
         serviceId?: string
+        serviceIds?: string[]
         calendarMonth?: string
         selectedDate?: string | null
         selectedSlot?: string | null
@@ -226,38 +227,46 @@ export default function BusinessBookingPage() {
         clientPhone?: string
       }
 
-      let restoredService: ServiceOption | null = null
-      if (parsed.serviceId && business.services) {
-        // Try to match as a top-level service first
-        const topLevel = business.services.find((s) => s.id === parsed.serviceId)
-        if (topLevel) {
-          restoredService = {
-            id: topLevel.id,
-            name: topLevel.name,
-            price: topLevel.price,
-            duration: topLevel.duration,
+      const restoredIds =
+        Array.isArray(parsed.serviceIds) && parsed.serviceIds.length > 0
+          ? parsed.serviceIds
+          : parsed.serviceId
+            ? [parsed.serviceId]
+            : []
+      const restoredServices: ServiceOption[] = []
+      if (restoredIds.length > 0 && business.services) {
+        for (const rid of restoredIds) {
+          // Try to match as a top-level service first
+          const topLevel = business.services.find((s) => s.id === rid)
+          if (topLevel) {
+            restoredServices.push({
+              id: topLevel.id,
+              name: topLevel.name,
+              price: topLevel.price,
+              duration: topLevel.duration,
+            })
+            continue
           }
-        } else {
           // Otherwise, try to match as a subservice
           for (const s of business.services) {
-            const sub = (s.subServices ?? []).find((sub) => sub.id === parsed.serviceId)
+            const sub = (s.subServices ?? []).find((sub) => sub.id === rid)
             if (sub) {
-              restoredService = {
+              restoredServices.push({
                 id: sub.id,
                 name: `${s.name} - ${sub.name}`,
                 price: sub.price,
                 duration: sub.duration,
                 parentServiceId: s.id,
                 parentServiceName: s.name,
-              }
+              })
               break
             }
           }
         }
       }
 
-      if (restoredService) {
-        setSelectedService(restoredService)
+      if (restoredServices.length > 0) {
+        setSelectedServices(restoredServices)
       }
       if (parsed.calendarMonth) {
         const d = new Date(parsed.calendarMonth)
@@ -274,7 +283,7 @@ export default function BusinessBookingPage() {
 
       // Decide the safest step we can restore given the data we have.
       const requestedStep = parsed.step ?? step
-      const hasService = !!restoredService
+      const hasService = restoredServices.length > 0
       const hasDate = !!parsed.selectedDate
       const hasSlot = !!parsed.selectedSlot
 
@@ -313,11 +322,11 @@ export default function BusinessBookingPage() {
     if (!slug) return
 
     const storageKey = `booking:${slug}`
-    const serviceId = selectedService?.id
+    const serviceIds = selectedServices.map((s) => s.id)
 
     const payload = {
       step,
-      serviceId,
+      serviceIds,
       calendarMonth: calendarMonth.toISOString(),
       selectedDate,
       selectedSlot,
@@ -331,7 +340,7 @@ export default function BusinessBookingPage() {
   }, [
     slug,
     step,
-    selectedService,
+    selectedServices,
     calendarMonth,
     selectedDate,
     selectedSlot,
@@ -369,24 +378,24 @@ export default function BusinessBookingPage() {
     if (typeof window === 'undefined') return
     if (!business) return
 
-    const hasCoreSelection = !!(selectedService && selectedDate && selectedSlot)
+    const hasCoreSelection = !!(selectedServices.length > 0 && selectedDate && selectedSlot)
 
     if (!hasCoreSelection && (step === 'form' || step === 'payment')) {
-      const fallbackStep: Step = selectedService ? 'date' : 'service'
+      const fallbackStep: Step = selectedServices.length > 0 ? 'date' : 'service'
       setStep(fallbackStep)
       window.history.replaceState({ step: fallbackStep }, '', getDisplayPath())
       return
     }
 
     if (step === 'payment' && !createdAppointment) {
-      const fallbackStep: Step = hasCoreSelection ? 'form' : selectedService ? 'date' : 'service'
+      const fallbackStep: Step = hasCoreSelection ? 'form' : selectedServices.length > 0 ? 'date' : 'service'
       setStep(fallbackStep)
       window.history.replaceState({ step: fallbackStep }, '', getDisplayPath())
     }
   }, [
     step,
     business,
-    selectedService,
+    selectedServices,
     selectedDate,
     selectedSlot,
     createdAppointment,
@@ -394,14 +403,14 @@ export default function BusinessBookingPage() {
   ])
 
   useEffect(() => {
-    if (step !== 'date' || !business || !selectedService) return
+    if (step !== 'date' || !business || selectedServices.length === 0) return
     const startStr = formatDateKey(calendarMonth)
     const { dateKey: todayStr, timeStr: currentTimeStr } = getNowInArgentina()
     api
       .get<{ week: { date: string; hasSlots: boolean }[] }>('/availability/week', {
         params: {
           businessSlug: slug,
-          serviceId: selectedService.id,
+          serviceIds: selectedServices.map((s) => s.id).join(','),
           startDate: startStr,
           today: todayStr,
           currentTime: currentTimeStr,
@@ -415,10 +424,10 @@ export default function BusinessBookingPage() {
         setWeekAvailability(map)
       })
       .catch(() => setWeekAvailability({}))
-  }, [step, business, selectedService, slug, calendarMonth])
+  }, [step, business, selectedServices, slug, calendarMonth])
 
   useEffect(() => {
-    if (!selectedDate || !selectedService) return
+    if (!selectedDate || selectedServices.length === 0) return
     const employees = business?.employees ?? []
     setSlotsLoading(true)
     setSelectedSlot(null)
@@ -432,7 +441,7 @@ export default function BusinessBookingPage() {
             .get<{ slots: string[] }>('/availability', {
               params: {
                 businessSlug: slug,
-                serviceId: selectedService.id,
+                serviceIds: selectedServices.map((s) => s.id).join(','),
                 date: selectedDate,
                 employeeId: emp.id,
               },
@@ -455,7 +464,7 @@ export default function BusinessBookingPage() {
         .get<{ slots: string[] }>('/availability', {
           params: {
             businessSlug: slug,
-            serviceId: selectedService.id,
+            serviceIds: selectedServices.map((s) => s.id).join(','),
             date: selectedDate,
           },
         })
@@ -466,10 +475,10 @@ export default function BusinessBookingPage() {
         .catch(() => setSlots([]))
         .finally(() => setSlotsLoading(false))
     }
-  }, [selectedDate, selectedService, slug, business?.employees])
+  }, [selectedDate, selectedServices, slug, business?.employees])
 
   const createAppointment = (opts: { deferConfirmationUntilPayment: boolean; onSuccess: () => void }) => {
-    if (!business || !selectedService || !selectedDate || !selectedSlot) return
+    if (!business || selectedServices.length === 0 || !selectedDate || !selectedSlot) return
 
     const email = clientEmail.trim()
     const gmailRegex = /^[a-zA-Z0-9._%+-]+@gmail\.com$/i
@@ -482,7 +491,9 @@ export default function BusinessBookingPage() {
     api
       .post<CreatedAppointment>('/appointments', {
         businessSlug: slug,
-        serviceId: selectedService.id,
+        ...(selectedServices.length === 1
+          ? { serviceId: selectedServices[0].id }
+          : { serviceIds: selectedServices.map((s) => s.id) }),
         date: selectedDate,
         slotTime: selectedSlot,
         clientName: clientName.trim(),
@@ -528,8 +539,8 @@ export default function BusinessBookingPage() {
     })
   }
 
-  const handleCreateMercadoPagoIntent = () => {
-    if (!createdAppointment || !selectedService || !selectedDate || !selectedSlot) return
+  const handleCreateMercadoPagoIntent = (payOption?: 'DEPOSIT' | 'FULL') => {
+    if (!createdAppointment || selectedServices.length === 0 || !selectedDate || !selectedSlot) return
     setPaymentLoading(true)
     setPaymentError(null)
     api
@@ -538,6 +549,7 @@ export default function BusinessBookingPage() {
         {
           appointmentId: createdAppointment.id,
           provider: 'MERCADOPAGO',
+          payOption,
           returnOrigin: typeof window !== 'undefined' ? window.location.origin : undefined,
         }
       )
@@ -716,8 +728,8 @@ export default function BusinessBookingPage() {
       {step === 'service' && (
         <ServiceStep
           business={business}
-          selectedService={selectedService}
-          onSelectService={setSelectedService}
+          selectedServices={selectedServices}
+          onSelectServices={setSelectedServices}
           onContinue={() => goToStep('date')}
           onGoToServices={() => goToStep('service')}
           showPaymentStep={showPaymentStep}
@@ -734,12 +746,17 @@ export default function BusinessBookingPage() {
         />
       )}
 
-      {step === 'date' && selectedService && (
+      {step === 'date' && selectedServices.length > 0 && (
         <DateStep
           businessName={business.name}
           logo={business.logo}
           fontFamily={businessFontFamily}
-          selectedService={selectedService}
+          selectedService={{
+            id: selectedServices.map((s) => s.id).join(','),
+            name: selectedServices.map((s) => s.name).join(' + '),
+            price: selectedServices.reduce((acc, s) => acc + s.price, 0),
+            duration: selectedServices.reduce((acc, s) => acc + s.duration, 0),
+          }}
           employees={business.employees ?? []}
           calendarMonth={calendarMonth}
           onCalendarMonth={setCalendarMonth}
@@ -775,12 +792,17 @@ export default function BusinessBookingPage() {
         />
       )}
 
-      {step === 'form' && selectedService && selectedDate && selectedSlot && (
+      {step === 'form' && selectedServices.length > 0 && selectedDate && selectedSlot && (
         <ClientFormStep
           businessName={business.name}
           logo={business.logo}
           fontFamily={businessFontFamily}
-          selectedService={selectedService}
+          selectedService={{
+            id: selectedServices.map((s) => s.id).join(','),
+            name: selectedServices.map((s) => s.name).join(' + '),
+            price: selectedServices.reduce((acc, s) => acc + s.price, 0),
+            duration: selectedServices.reduce((acc, s) => acc + s.duration, 0),
+          }}
           selectedDate={selectedDate}
           selectedSlot={selectedSlot}
           clientName={clientName}
@@ -827,7 +849,7 @@ export default function BusinessBookingPage() {
 
       {step === 'payment' &&
         createdAppointment &&
-        selectedService &&
+        selectedServices.length > 0 &&
         selectedDate &&
         selectedSlot &&
         business && (
@@ -838,6 +860,9 @@ export default function BusinessBookingPage() {
             createdAppointment={createdAppointment}
             selectedDate={selectedDate}
             selectedSlot={selectedSlot}
+            paymentType={business.settings?.paymentType ?? null}
+            depositPercentage={business.settings?.depositPercentage ?? null}
+            servicePrice={selectedServices.reduce((acc, s) => acc + s.price, 0)}
             paymentAmount={paymentAmount}
             paymentError={paymentError}
             mercadoPagoPreferenceId={mercadoPagoPreferenceId}

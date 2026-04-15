@@ -72,7 +72,7 @@ function subtractBusyFromSegment(
  */
 export async function getAvailabilityService(
   businessSlug: string,
-  serviceId: string,
+  serviceIdOrIds: string | string[],
   date: Date,
   dateStr: string,
   employeeId?: string
@@ -91,31 +91,31 @@ export async function getAvailabilityService(
 
   if (!business) return []
 
-  // Determine duration: serviceId can be either a Service id or a SubService id.
-  // Prefer SubService when it exists, otherwise fall back to Service.
-  const subService = await prisma.subService.findFirst({
-    where: {
-      id: serviceId,
-      isActive: true,
-      service: {
-        businessId: business.id,
-      },
-    },
-    select: {
-      duration: true,
-    },
-  })
+  const requestedIds = Array.isArray(serviceIdOrIds) ? serviceIdOrIds : [serviceIdOrIds]
+  if (requestedIds.length === 0) return []
 
-  let duration: number | null = null
-  if (subService) {
-    duration = subService.duration
-  } else {
+  // Determine duration: ids can be either Service or SubService ids.
+  // Prefer SubService when it exists, otherwise fall back to Service.
+  let duration = 0
+  for (const id of requestedIds) {
+    const subService = await prisma.subService.findFirst({
+      where: {
+        id,
+        isActive: true,
+        service: { businessId: business.id },
+      },
+      select: { duration: true },
+    })
+    if (subService) {
+      duration += subService.duration
+      continue
+    }
     const service = await prisma.service.findFirst({
-      where: { id: serviceId, isActive: true, businessId: business.id },
+      where: { id, isActive: true, businessId: business.id },
       select: { duration: true },
     })
     if (!service) return []
-    duration = service.duration
+    duration += service.duration
   }
 
   const dayOfWeek = date.getDay()
@@ -249,7 +249,7 @@ export async function getAvailabilityService(
  */
 export async function getWeekAvailabilityService(
   businessSlug: string,
-  serviceId: string,
+  serviceIdOrIds: string | string[],
   startDate: Date
 ): Promise<{ date: string; hasSlots: boolean }[]> {
   const business = await prisma.business.findUnique({
@@ -279,7 +279,7 @@ export async function getWeekAvailabilityService(
       for (const employeeId of employeeIds) {
         const slots = await getAvailabilityService(
           businessSlug,
-          serviceId,
+          serviceIdOrIds,
           d,
           dateStr,
           employeeId
@@ -290,7 +290,7 @@ export async function getWeekAvailabilityService(
         }
       }
     } else {
-      const slots = await getAvailabilityService(businessSlug, serviceId, d, dateStr)
+      const slots = await getAvailabilityService(businessSlug, serviceIdOrIds, d, dateStr)
       hasSlots = slots.length > 0
     }
     result.push({ date: dateStr, hasSlots })

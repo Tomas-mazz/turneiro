@@ -115,6 +115,8 @@ export default function AdminBusinessPage() {
   const [savingEmployeeId, setSavingEmployeeId] = useState<string | null>(null)
   const [editingEmployee, setEditingEmployee] = useState<AdminEmployeeListItem | null>(null)
   const [businessSaved, setBusinessSaved] = useState(false)
+  const [showServiceConfirmModalSaving, setShowServiceConfirmModalSaving] = useState(false)
+  const [allowMultipleServicesSaving, setAllowMultipleServicesSaving] = useState(false)
 
   const DAY_NAMES = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado']
 
@@ -152,6 +154,8 @@ export default function AdminBusinessPage() {
           cancellationHasCost: b.settings?.cancellationHasCost ?? false,
           lateCancellationFee: b.settings?.lateCancellationFee ?? '',
           bufferTime: b.settings?.bufferTime ?? '',
+          showServiceConfirmModal: b.settings?.showServiceConfirmModal ?? false,
+          allowMultipleServices: b.settings?.allowMultipleServices ?? false,
           ownerEmail: b.owner?.email ?? '',
           ownerPassword: '',
         })
@@ -567,6 +571,8 @@ export default function AdminBusinessPage() {
         ? Number(form.lateCancellationFee)
         : null
       body.bufferTime = form.bufferTime === '' ? null : Number(form.bufferTime)
+      if (form.showServiceConfirmModal !== undefined) body.showServiceConfirmModal = !!form.showServiceConfirmModal
+      if (form.allowMultipleServices !== undefined) body.allowMultipleServices = !!form.allowMultipleServices
       if (form.ownerEmail !== undefined) body.ownerEmail = form.ownerEmail.trim() || undefined
       if (form.ownerPassword?.trim()) body.ownerPassword = form.ownerPassword
 
@@ -1007,6 +1013,44 @@ export default function AdminBusinessPage() {
         </fieldset>
 
         <ServicesFieldset
+          showServiceConfirmModal={!!form.showServiceConfirmModal}
+          showServiceConfirmModalSaving={showServiceConfirmModalSaving}
+          onToggleShowConfirm={async (next) => {
+            if (!id) return
+            setForm((p) => ({ ...p, showServiceConfirmModal: next }))
+            setShowServiceConfirmModalSaving(true)
+            try {
+              await updateAdminBusiness(id, { showServiceConfirmModal: next })
+            } catch (err: unknown) {
+              setForm((p) => ({ ...p, showServiceConfirmModal: !next }))
+              const msg =
+                err && typeof err === 'object' && 'response' in err
+                  ? (err as { response?: { data?: { error?: string } } }).response?.data?.error
+                  : null
+              setError(msg || 'Error al guardar la configuración')
+            } finally {
+              setShowServiceConfirmModalSaving(false)
+            }
+          }}
+          allowMultipleServices={!!form.allowMultipleServices}
+          allowMultipleServicesSaving={allowMultipleServicesSaving}
+          onToggleAllowMultipleServices={async (next) => {
+            if (!id) return
+            setForm((p) => ({ ...p, allowMultipleServices: next }))
+            setAllowMultipleServicesSaving(true)
+            try {
+              await updateAdminBusiness(id, { allowMultipleServices: next })
+            } catch (err: unknown) {
+              setForm((p) => ({ ...p, allowMultipleServices: !next }))
+              const msg =
+                err && typeof err === 'object' && 'response' in err
+                  ? (err as { response?: { data?: { error?: string } } }).response?.data?.error
+                  : null
+              setError(msg || 'Error al guardar la configuración')
+            } finally {
+              setAllowMultipleServicesSaving(false)
+            }
+          }}
           newService={newService}
           setNewService={setNewService}
           creatingService={creatingService}

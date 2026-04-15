@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from 'react'
 import Image from 'next/image'
 import type { AuthUser } from '@/lib/auth'
+import { primaryCtaTextClass } from '@/lib/booking'
 import type { Business, ServiceOption } from '../types'
 import { BookingLayout } from './BookingLayout'
 import { BookingStepper } from './BookingStepper'
@@ -16,8 +17,8 @@ const DAY_ORDER = [1, 2, 3, 4, 5, 6, 0]
 
 type ServiceStepProps = {
   business: Business
-  selectedService: ServiceOption | null
-  onSelectService: (s: ServiceOption | null) => void
+  selectedServices: ServiceOption[]
+  onSelectServices: (next: ServiceOption[]) => void
   onContinue: () => void
   onGoToServices: () => void
   showPaymentStep?: boolean
@@ -33,8 +34,8 @@ type ServiceStepProps = {
 
 export function ServiceStep({
   business,
-  selectedService,
-  onSelectService,
+  selectedServices,
+  onSelectServices,
   onContinue,
   onGoToServices,
   showPaymentStep = false,
@@ -79,6 +80,8 @@ export function ServiceStep({
   const [openServiceSubListId, setOpenServiceSubListId] = useState<string | null>(null)
   const [activeServiceId, setActiveServiceId] = useState<string | null>(null)
   const [aboutOpen, setAboutOpen] = useState(false)
+  const [confirmOpen, setConfirmOpen] = useState(false)
+  const [confirmIndex, setConfirmIndex] = useState(0)
   const [aboutTarget, setAboutTarget] = useState<{
       title: string
       images: string[]
@@ -97,24 +100,26 @@ export function ServiceStep({
   const panelRef = useRef<HTMLDivElement>(null)
 
   const mustConfirmBeforeCalendar = !!business.settings?.showServiceConfirmModal
+  const allowMultiple = !!business.settings?.allowMultipleServices
+
+  const totalPrice = selectedServices.reduce((acc, s) => acc + s.price, 0)
+  const totalDuration = selectedServices.reduce((acc, s) => acc + s.duration, 0)
 
   useEffect(() => {
-    if (selectedService) setIsClosing(false)
-  }, [selectedService])
+    if (selectedServices.length > 0) setIsClosing(false)
+  }, [selectedServices.length])
 
   // Keep the "active" marker aligned with the last real selection
   // unless the user is currently browsing a parent service with subservices.
   useEffect(() => {
-    if (!selectedService) return
-    const parentId = selectedService.parentServiceId ?? null
-    const activeId = parentId ?? selectedService.id
+    // Keep an "active" marker aligned with the most recently selected parent (if any).
+    if (selectedServices.length === 0) return
+    const last = selectedServices[selectedServices.length - 1]
+    const parentId = last.parentServiceId ?? null
+    const activeId = parentId ?? last.id
     setActiveServiceId(activeId)
-
-    // Ensure subservice panels reflect the current selection:
-    // - Selecting a leaf service closes any open subservice lists.
-    // - Selecting a subservice keeps its parent list open.
     setOpenServiceSubListId(parentId)
-  }, [selectedService])
+  }, [selectedServices])
 
   const openAboutForSelection = (sel: ServiceOption) => {
     if (sel.parentServiceId) {
@@ -150,14 +155,20 @@ export function ServiceStep({
   }
 
   const handleCartContinue = () => {
-    if (!selectedService) return
+    if (selectedServices.length === 0) return
     if (!mustConfirmBeforeCalendar) {
       onContinue()
       return
     }
-    // When confirmation is required, force the user to see/confirm the selected
-    // service/subservice details in the modal before proceeding to the calendar.
-    openAboutForSelection(selectedService)
+    // When confirmation is required:
+    // - single: show the details modal for that one service
+    // - multi: show each selected service one-by-one with a page counter (1/N)
+    if (selectedServices.length === 1) {
+      openAboutForSelection(selectedServices[0])
+      return
+    }
+    setConfirmIndex(0)
+    setConfirmOpen(true)
   }
 
   const handleCloseCart = () => {
@@ -166,7 +177,7 @@ export function ServiceStep({
 
   const handleSlideDownEnd = (e: React.AnimationEvent<HTMLDivElement>) => {
     if (e.animationName === 'slide-down') {
-      onSelectService(null)
+      onSelectServices([])
       setIsClosing(false)
     }
   }
@@ -212,8 +223,8 @@ export function ServiceStep({
             {business.services.map((s) => {
               const subServices = s.subServices ?? []
               const hasSubServices = subServices.length > 0
-              const serviceSelected = !!selectedService && selectedService.parentServiceId === s.id
-              const directSelected = selectedService?.id === s.id && !selectedService?.parentServiceId
+              const serviceSelected = selectedServices.some((x) => x.parentServiceId === s.id)
+              const directSelected = selectedServices.some((x) => x.id === s.id && !x.parentServiceId)
               const isSubListOpen = openServiceSubListId === s.id
               const isActiveParent = activeServiceId === s.id
               const serviceShort = s.shortDescription?.trim() || ''
@@ -234,17 +245,18 @@ export function ServiceStep({
                         setOpenServiceSubListId((prev) => (prev === s.id ? null : s.id))
                         // When opening a parent list, clear any previous leaf selection so
                         // the UI doesn't imply a final choice until the user picks a subservice.
-                        if (openServiceSubListId !== s.id) onSelectService(null)
+                        if (!allowMultiple && openServiceSubListId !== s.id) onSelectServices([])
                       } else {
                         // Selecting a leaf service: close any open sublists and mark it active.
                         setOpenServiceSubListId(null)
                         setActiveServiceId(s.id)
-                        onSelectService({
-                          id: s.id,
-                          name: s.name,
-                          price: s.price,
-                          duration: s.duration,
-                        })
+                        const sel: ServiceOption = { id: s.id, name: s.name, price: s.price, duration: s.duration }
+                        if (allowMultiple) {
+                          const exists = selectedServices.some((x) => x.id === sel.id && !x.parentServiceId)
+                          onSelectServices(exists ? selectedServices.filter((x) => x.id !== sel.id) : [...selectedServices, sel])
+                        } else {
+                          onSelectServices([sel])
+                        }
                       }
                     }}
                     className={`flex w-full items-start gap-4 py-4 pl-1 pr-4 text-left transition-colors md:py-5 md:gap-5 ${serviceRowHover}`}
@@ -285,7 +297,6 @@ export function ServiceStep({
                                       price: s.price,
                                       duration: s.duration,
                                     }
-                                    onSelectService(sel)
                                     openAboutForSelection(sel)
                                   }}
                                   className={`${verMasBtnClass} ml-2 align-middle`}
@@ -306,7 +317,6 @@ export function ServiceStep({
                                   price: s.price,
                                   duration: s.duration,
                                 }
-                                onSelectService(sel)
                                 openAboutForSelection(sel)
                               }}
                               className={verMasBtnClass}
@@ -352,8 +362,9 @@ export function ServiceStep({
                             (Array.isArray(sub.images) && sub.images.length > 0) || !!subLong
                           const subShortTruncated = truncateWords(subShort, 6)
                           const isSelected =
-                            selectedService?.id === sub.id &&
-                            selectedService?.parentServiceId === s.id
+                            selectedServices.some(
+                              (x) => x.id === sub.id && x.parentServiceId === s.id
+                            )
                           return (
                             <li key={sub.id}>
                               <button
@@ -369,7 +380,18 @@ export function ServiceStep({
                                   }
                                   setOpenServiceSubListId(s.id)
                                   setActiveServiceId(s.id)
-                                  onSelectService(sel)
+                                  if (allowMultiple) {
+                                    const exists = selectedServices.some(
+                                      (x) => x.id === sel.id && x.parentServiceId === sel.parentServiceId
+                                    )
+                                    onSelectServices(
+                                      exists
+                                        ? selectedServices.filter((x) => x.id !== sel.id)
+                                        : [...selectedServices, sel]
+                                    )
+                                  } else {
+                                    onSelectServices([sel])
+                                  }
                                 }}
                                 className={`flex w-full items-start gap-3 py-2 pr-4 text-left text-sm md:text-base ${serviceRowHover}`}
                               >
@@ -408,7 +430,6 @@ export function ServiceStep({
                                                 }
                                                 setOpenServiceSubListId(s.id)
                                                 setActiveServiceId(s.id)
-                                                onSelectService(sel)
                                                 openAboutForSelection(sel)
                                               }}
                                               className={`${verMasBtnClass} ml-2 align-middle`}
@@ -433,7 +454,6 @@ export function ServiceStep({
                                             }
                                             setOpenServiceSubListId(s.id)
                                             setActiveServiceId(s.id)
-                                            onSelectService(sel)
                                             openAboutForSelection(sel)
                                           }}
                                           className={verMasBtnClass}
@@ -574,7 +594,7 @@ export function ServiceStep({
       </div>
 
       {/* Cart bottom sheet — no overlay, side and bottom margins like reference */}
-      {selectedService && !aboutOpen && (
+      {selectedServices.length > 0 && !aboutOpen && (
         <div
           className="fixed bottom-0 left-0 right-0 z-50 px-4 pb-6 md:px-6 md:pb-8 lg:px-10"
           role="dialog"
@@ -599,10 +619,37 @@ export function ServiceStep({
                 <span className="text-xl leading-none">×</span>
               </button>
             </div>
-            <div className="mb-5 flex items-start justify-between gap-3 py-2">
-              <span className={`min-w-0 flex-1 text-lg ${cartTextColor}`}>{selectedService.name}</span>
+            <div className="mb-4 space-y-2">
+              {selectedServices.map((svc) => (
+                <div key={svc.id} className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className={`truncate text-base ${cartTextColor}`}>{svc.name}</p>
+                    <p className={`mt-0.5 text-xs ${cartTextColor}`}>{svc.duration} min</p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className={`shrink-0 whitespace-nowrap text-base font-semibold ${cartTextColor}`}>
+                      $ {svc.price.toFixed(0)}
+                    </span>
+                    {allowMultiple && (
+                      <button
+                        type="button"
+                        onClick={() => onSelectServices(selectedServices.filter((x) => x.id !== svc.id))}
+                        className="rounded-full border border-[color:var(--booking-cart-close-border)] px-2 py-1 text-xs font-semibold text-[color:var(--booking-cart-close-text)] hover:bg-[color:var(--booking-cart-close-hover)]"
+                        aria-label={`Quitar ${svc.name}`}
+                      >
+                        Quitar
+                      </button>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+            <div className="mb-5 flex items-start justify-between gap-3 border-t border-[color:var(--booking-divide)] pt-4">
+              <span className={`min-w-0 flex-1 text-base ${cartTextColor}`}>
+                Total ({totalDuration} min)
+              </span>
               <span className={`shrink-0 whitespace-nowrap text-lg font-semibold ${cartTextColor}`}>
-                $ {selectedService.price.toFixed(0)}
+                $ {totalPrice.toFixed(0)}
               </span>
             </div>
             <div className="flex justify-center">
@@ -616,6 +663,94 @@ export function ServiceStep({
                   →
                 </span>
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {confirmOpen && selectedServices.length > 1 && (
+        <div className="fixed inset-0 z-[60] bg-black/45 backdrop-blur-sm">
+          <div className="fixed inset-0 flex items-center justify-center p-4 md:p-6">
+            <div className="booking-liquid-glass w-full max-w-xl overflow-hidden rounded-2xl p-6 md:p-7">
+              {(() => {
+                const svc = selectedServices[confirmIndex]
+                return (
+                  <>
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <h3 className={`text-base font-semibold md:text-lg ${cartTitleColor}`}>
+                          Confirmar servicio
+                        </h3>
+                        <p className={`mt-1 text-sm ${cartTextColor}`}>
+                          {confirmIndex + 1}/{selectedServices.length}
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setConfirmOpen(false)}
+                        className="rounded-lg border border-[color:var(--booking-cart-close-border)] px-3 py-1.5 text-sm font-medium text-[color:var(--booking-cart-close-text)] hover:bg-[color:var(--booking-cart-close-hover)]"
+                      >
+                        Cerrar
+                      </button>
+                    </div>
+
+                    <div className="mt-4 rounded-xl border border-[color:var(--booking-divide)] bg-[color:var(--booking-card-bg)] p-4">
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <p className={`truncate text-base font-semibold ${cartTitleColor}`}>{svc?.name ?? ''}</p>
+                          <p className={`mt-1 text-sm ${cartTextColor}`}>{svc?.duration ?? 0} min</p>
+                        </div>
+                        <span className={`shrink-0 text-base font-semibold ${cartTextColor}`}>
+                          $ {(svc?.price ?? 0).toFixed(0)}
+                        </span>
+                      </div>
+
+                      <div className="mt-3">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (svc) openAboutForSelection(svc)
+                          }}
+                          className="rounded-full border border-[color:var(--booking-vermas-border)] bg-[color:var(--booking-vermas-bg)] px-3 py-1.5 text-xs font-semibold text-[color:var(--booking-vermas-text)]"
+                        >
+                          Ver detalles
+                        </button>
+                      </div>
+                    </div>
+                  </>
+                )
+              })()}
+              <div className="mt-4 flex items-center justify-between gap-3 border-t border-[color:var(--booking-divide)] pt-4">
+                <span className={`text-sm ${cartTextColor}`}>Total ({totalDuration} min)</span>
+                <span className={`text-base font-semibold ${cartTextColor}`}>$ {totalPrice.toFixed(0)}</span>
+              </div>
+              <div className="mt-5 flex flex-col gap-2 sm:flex-row sm:justify-end">
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (confirmIndex > 0) setConfirmIndex((i) => Math.max(0, i - 1))
+                    else setConfirmOpen(false)
+                  }}
+                  className="rounded-lg border border-[color:var(--booking-cart-close-border)] px-4 py-2 text-sm font-medium text-[color:var(--booking-cart-close-text)] hover:bg-[color:var(--booking-cart-close-hover)]"
+                >
+                  {confirmIndex > 0 ? 'Anterior' : 'Volver'}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (confirmIndex < selectedServices.length - 1) {
+                      setConfirmIndex((i) => Math.min(selectedServices.length - 1, i + 1))
+                      return
+                    }
+                    setConfirmOpen(false)
+                    onContinue()
+                  }}
+                  className={`rounded-lg px-4 py-2 text-sm font-semibold ${primaryCtaTextClass(primaryColor)}`}
+                  style={{ backgroundColor: primaryColor }}
+                >
+                  {confirmIndex < selectedServices.length - 1 ? 'Siguiente' : 'Ir al calendario'}
+                </button>
+              </div>
             </div>
           </div>
         </div>

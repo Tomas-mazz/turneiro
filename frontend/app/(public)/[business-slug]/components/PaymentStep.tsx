@@ -1,5 +1,6 @@
 'use client'
 
+import { useMemo, useState } from 'react'
 import type { AuthUser } from '@/lib/auth'
 import { MercadoPagoBrick } from './MercadoPagoBrick'
 import { BookingLayout } from './BookingLayout'
@@ -19,6 +20,9 @@ type PaymentStepProps = {
   createdAppointment: CreatedAppointment
   selectedDate: string
   selectedSlot: string
+  paymentType?: string | null
+  depositPercentage?: number | null
+  servicePrice: number
   paymentAmount: number | null
   paymentError: string | null
   /** When set, show Mercado Pago Checkout Brick in-page */
@@ -27,7 +31,7 @@ type PaymentStepProps = {
   /** Where we are in the MP flow: redirect first, then fallback to brick if needed */
   mercadoPagoRedirectMode?: 'idle' | 'redirecting' | 'fallback'
   paymentLoading: boolean
-  onMercadoPagoIntent: () => void
+  onMercadoPagoIntent: (payOption?: 'DEPOSIT' | 'FULL') => void
   onPaymentError: (msg: string) => void
   onMercadoPagoBack?: () => void
   onForceMercadoPagoBrick?: () => void
@@ -51,6 +55,9 @@ export function PaymentStep({
   createdAppointment,
   selectedDate,
   selectedSlot,
+  paymentType = null,
+  depositPercentage = null,
+  servicePrice,
   paymentAmount,
   paymentError,
   mercadoPagoPreferenceId,
@@ -77,6 +84,34 @@ export function PaymentStep({
   const showMercadoPagoBrick =
     mercadoPagoRedirectMode === 'fallback' && mercadoPagoPreferenceId && paymentAmount != null
   const showRedirecting = mercadoPagoRedirectMode === 'redirecting'
+
+  const isDepositChoiceEnabled =
+    String(paymentType).toUpperCase() === 'PERCENTAGE' &&
+    depositPercentage != null &&
+    depositPercentage > 0 &&
+    depositPercentage <= 100
+
+  const [payChoice, setPayChoice] = useState<'DEPOSIT' | 'FULL' | null>(
+    isDepositChoiceEnabled ? null : 'FULL'
+  )
+
+  const computedAmounts = useMemo(() => {
+    const total = servicePrice
+    const deposit =
+      isDepositChoiceEnabled && depositPercentage != null
+        ? Math.round(total * (depositPercentage / 100) * 100) / 100
+        : null
+    return { total, deposit }
+  }, [depositPercentage, isDepositChoiceEnabled, servicePrice])
+
+  const displayedAmount =
+    paymentAmount != null
+      ? paymentAmount
+      : payChoice === 'FULL'
+        ? computedAmounts.total
+        : payChoice === 'DEPOSIT'
+          ? computedAmounts.deposit
+          : null
 
   const titleText = 'text-[color:var(--booking-fg)]'
   const subText = 'text-[color:var(--booking-fg-muted)]'
@@ -146,9 +181,9 @@ export function PaymentStep({
               <p className={`mt-1 text-sm ${subText}`}>
                 {selectedDate} · {selectedSlot}
               </p>
-              {paymentAmount != null && (
+              {displayedAmount != null && (
                 <p className={`mt-1 text-sm font-medium ${titleText}`}>
-                  Monto a pagar: {paymentAmount.toFixed(2)}
+                  Monto a pagar: {displayedAmount.toFixed(2)}
                 </p>
               )}
             </div>
@@ -163,10 +198,56 @@ export function PaymentStep({
 
         {showMethodButtons && (
           <div className="flex flex-col gap-3">
+            {isDepositChoiceEnabled && (
+              <div
+                className="rounded-2xl border border-[color:var(--booking-card-border)] bg-[color:var(--booking-card-bg)] px-4 py-4 shadow-sm"
+              >
+                <p className={`text-sm font-semibold ${titleText}`}>Elegí cómo querés pagar</p>
+                <p className={`mt-1 text-xs ${subText}`}>
+                  Para confirmar, seleccioná una opción.
+                </p>
+                <div className="mt-3 grid gap-2">
+                  <label className="flex cursor-pointer items-center justify-between gap-3 rounded-lg border border-[color:var(--booking-input-border)] bg-[color:var(--booking-input-bg)] px-3 py-3">
+                    <span className={`text-sm ${titleText}`}>
+                      Pagar seña ({depositPercentage}%)
+                    </span>
+                    <span className="flex items-center gap-2">
+                      {computedAmounts.deposit != null && (
+                        <span className={`text-sm font-medium ${titleText}`}>
+                          {computedAmounts.deposit.toFixed(2)}
+                        </span>
+                      )}
+                      <input
+                        type="radio"
+                        name="payChoice"
+                        checked={payChoice === 'DEPOSIT'}
+                        onChange={() => setPayChoice('DEPOSIT')}
+                      />
+                    </span>
+                  </label>
+
+                  <label className="flex cursor-pointer items-center justify-between gap-3 rounded-lg border border-[color:var(--booking-input-border)] bg-[color:var(--booking-input-bg)] px-3 py-3">
+                    <span className={`text-sm ${titleText}`}>Pagar total</span>
+                    <span className="flex items-center gap-2">
+                      <span className={`text-sm font-medium ${titleText}`}>
+                        {computedAmounts.total.toFixed(2)}
+                      </span>
+                      <input
+                        type="radio"
+                        name="payChoice"
+                        checked={payChoice === 'FULL'}
+                        onChange={() => setPayChoice('FULL')}
+                      />
+                    </span>
+                  </label>
+                </div>
+              </div>
+            )}
+
             <button
               type="button"
-              onClick={onMercadoPagoIntent}
-              disabled={paymentLoading}
+              onClick={() => onMercadoPagoIntent(payChoice ?? undefined)}
+              disabled={paymentLoading || (isDepositChoiceEnabled && !payChoice)}
               className="flex w-full items-center justify-center gap-2.5 rounded-lg px-4 py-3.5 text-[15px] font-semibold text-white shadow-md transition-colors hover:shadow-lg disabled:cursor-not-allowed disabled:opacity-60"
               style={{
                 backgroundColor: MERCADOPAGO_BUTTON_BG,

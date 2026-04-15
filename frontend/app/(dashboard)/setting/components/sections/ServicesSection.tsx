@@ -8,6 +8,9 @@ type Props = {
   showServiceConfirmModal: boolean
   showServiceConfirmModalSaving: boolean
   onToggleShowConfirm: (next: boolean) => void
+  allowMultipleServices: boolean
+  allowMultipleServicesSaving: boolean
+  onToggleAllowMultipleServices: (next: boolean) => void
   loadingServices: boolean
   services: ServiceListItem[]
   newService: { name: string; price: string; duration: string; isActive: boolean }
@@ -34,6 +37,9 @@ export function ServicesSection({
   showServiceConfirmModal,
   showServiceConfirmModalSaving,
   onToggleShowConfirm,
+  allowMultipleServices,
+  allowMultipleServicesSaving,
+  onToggleAllowMultipleServices,
   loadingServices,
   services,
   newService,
@@ -54,26 +60,69 @@ export function ServicesSection({
 }: Props) {
   if (!visible) return null
 
+  const SwitchRow = ({
+    title,
+    description,
+    checked,
+    disabled,
+    onChange,
+  }: {
+    title: string
+    description: string
+    checked: boolean
+    disabled: boolean
+    onChange: (next: boolean) => void
+  }) => {
+    return (
+      <div className="rounded-lg border border-neutral-200 bg-white p-4 shadow-sm">
+        <div className="flex items-start justify-between gap-4">
+          <div className="min-w-0">
+            <p className="text-sm font-medium text-neutral-900">{title}</p>
+            <p className="mt-0.5 text-xs text-neutral-600">{description}</p>
+          </div>
+          <button
+            type="button"
+            role="switch"
+            aria-checked={checked}
+            disabled={disabled}
+            onClick={() => onChange(!checked)}
+            className={`relative inline-flex h-8 w-[4.5rem] shrink-0 items-center rounded-full border transition-colors disabled:opacity-60 ${
+              checked ? 'border-emerald-300 bg-emerald-500' : 'border-neutral-300 bg-neutral-200'
+            }`}
+          >
+            <span className="sr-only">{title}</span>
+            <span
+              className={`absolute left-1 top-1 flex h-6 w-6 items-center justify-center rounded-full bg-white text-[10px] font-bold text-neutral-800 shadow transition-transform ${
+                checked ? 'translate-x-[2.5rem]' : 'translate-x-0'
+              }`}
+              aria-hidden
+            >
+              {checked ? 'SI' : 'NO'}
+            </span>
+          </button>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <section className="mt-8 mb-10 sm:mt-10 sm:mb-12">
       <h2 className="text-lg font-semibold text-neutral-900 sm:text-xl">Servicios (precio, duración y estado)</h2>
-      <div className="mt-3 rounded-lg border border-neutral-200 bg-white p-4 shadow-sm">
-        <label className="flex items-start gap-3">
-          <input
-            type="checkbox"
-            checked={showServiceConfirmModal}
-            disabled={showServiceConfirmModalSaving}
-            onChange={(e) => onToggleShowConfirm(e.target.checked)}
-            className="mt-1 rounded border-neutral-300"
-          />
-          <span>
-            <span className="block text-sm font-medium text-neutral-900">Pedir confirmación antes del calendario</span>
-            <span className="mt-0.5 block text-xs text-neutral-600">
-              Cuando el cliente confirme un servicio/subservicio, se mostrará un segundo modal para confirmar antes de
-              pasar al calendario.
-            </span>
-          </span>
-        </label>
+      <div className="mt-3 space-y-3">
+        <SwitchRow
+          title="Pedir confirmación antes del calendario"
+          description="Cuando el cliente confirme un servicio/subservicio, se mostrará un segundo modal para confirmar antes de pasar al calendario."
+          checked={showServiceConfirmModal}
+          disabled={showServiceConfirmModalSaving}
+          onChange={onToggleShowConfirm}
+        />
+        <SwitchRow
+          title="Permitir seleccionar más de un servicio"
+          description="Si está activado, el cliente podrá seleccionar múltiples servicios/subservicios en una misma reserva (ej. uñas + pies)."
+          checked={allowMultipleServices}
+          disabled={allowMultipleServicesSaving}
+          onChange={onToggleAllowMultipleServices}
+        />
       </div>
 
       {loadingServices ? (

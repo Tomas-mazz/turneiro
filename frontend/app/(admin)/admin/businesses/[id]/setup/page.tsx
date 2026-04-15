@@ -48,6 +48,7 @@ type SetupFormState = {
   bufferTime: number | ''
   slotIntervalMinutes: number | ''
   showServiceConfirmModal: boolean
+  allowMultipleServices: boolean
 }
 
 export default function AdminBusinessSetupPage() {
@@ -109,6 +110,7 @@ export default function AdminBusinessSetupPage() {
     bufferTime: '',
     slotIntervalMinutes: 15,
     showServiceConfirmModal: false,
+    allowMultipleServices: false,
   })
   const [workingHours, setWorkingHours] = useState<WorkingHoursItem[]>([])
   const [workingHoursLoading, setWorkingHoursLoading] = useState(false)
@@ -145,6 +147,7 @@ export default function AdminBusinessSetupPage() {
           bufferTime: b.settings?.bufferTime ?? '',
           slotIntervalMinutes: b.settings?.slotIntervalMinutes ?? 15,
           showServiceConfirmModal: b.settings?.showServiceConfirmModal ?? false,
+          allowMultipleServices: b.settings?.allowMultipleServices ?? false,
         })
       })
       .catch(() => setError('Negocio no encontrado'))
@@ -350,6 +353,7 @@ export default function AdminBusinessSetupPage() {
     slotIntervalMinutes:
       form.slotIntervalMinutes === '' ? undefined : Number(form.slotIntervalMinutes),
     showServiceConfirmModal: form.showServiceConfirmModal,
+    allowMultipleServices: form.allowMultipleServices,
     ...(form.paymentRequired && { depositPercentage: form.depositPercentage === '' ? null : Number(form.depositPercentage) }),
   })
 
@@ -748,6 +752,38 @@ export default function AdminBusinessSetupPage() {
                 </span>
                 <span className="mt-0.5 block text-xs text-neutral-600">
                   Cuando el cliente confirme un servicio/subservicio, se mostrará un segundo modal para confirmar antes de pasar al calendario.
+                </span>
+              </span>
+            </label>
+          </div>
+
+          <div className="mt-3 rounded-lg border border-neutral-200 bg-neutral-50/40 p-4">
+            <label className="flex items-start gap-3">
+              <input
+                type="checkbox"
+                checked={form.allowMultipleServices}
+                onChange={async (e) => {
+                  const next = e.target.checked
+                  setForm((p) => ({ ...p, allowMultipleServices: next }))
+                  try {
+                    await updateAdminBusiness(id, { allowMultipleServices: next })
+                  } catch (err: unknown) {
+                    setForm((p) => ({ ...p, allowMultipleServices: !next }))
+                    const msg =
+                      err && typeof err === 'object' && 'response' in err
+                        ? (err as { response?: { data?: { error?: string } } }).response?.data?.error
+                        : null
+                    setError(msg || 'Error al guardar la configuración')
+                  }
+                }}
+                className="mt-1 rounded border-neutral-300"
+              />
+              <span>
+                <span className="block text-sm font-medium text-neutral-900">
+                  Permitir seleccionar más de un servicio
+                </span>
+                <span className="mt-0.5 block text-xs text-neutral-600">
+                  Si está activado, el cliente podrá seleccionar múltiples servicios/subservicios en una misma reserva (ej. uñas + pies).
                 </span>
               </span>
             </label>

@@ -11,6 +11,12 @@ type NewService = {
 }
 
 type Props = {
+  showServiceConfirmModal: boolean
+  showServiceConfirmModalSaving: boolean
+  onToggleShowConfirm: (next: boolean) => void
+  allowMultipleServices: boolean
+  allowMultipleServicesSaving: boolean
+  onToggleAllowMultipleServices: (next: boolean) => void
   newService: NewService
   setNewService: React.Dispatch<React.SetStateAction<NewService>>
   creatingService: boolean
@@ -24,6 +30,12 @@ type Props = {
 }
 
 export function ServicesFieldset({
+  showServiceConfirmModal,
+  showServiceConfirmModalSaving,
+  onToggleShowConfirm,
+  allowMultipleServices,
+  allowMultipleServicesSaving,
+  onToggleAllowMultipleServices,
   newService,
   setNewService,
   creatingService,
@@ -35,10 +47,72 @@ export function ServicesFieldset({
   onUpdateService,
   onDeleteService,
 }: Props) {
+  const SwitchRow = ({
+    title,
+    description,
+    checked,
+    disabled,
+    onChange,
+  }: {
+    title: string
+    description: string
+    checked: boolean
+    disabled: boolean
+    onChange: (next: boolean) => void
+  }) => {
+    return (
+      <div className="rounded-lg border border-neutral-200 bg-white p-4 shadow-sm">
+        <div className="flex items-start justify-between gap-4">
+          <div className="min-w-0">
+            <p className="text-sm font-medium text-neutral-900">{title}</p>
+            <p className="mt-0.5 text-xs text-neutral-600">{description}</p>
+          </div>
+          <button
+            type="button"
+            role="switch"
+            aria-checked={checked}
+            disabled={disabled}
+            onClick={() => onChange(!checked)}
+            className={`relative inline-flex h-8 w-[4.5rem] shrink-0 items-center rounded-full border transition-colors disabled:opacity-60 ${
+              checked ? 'border-emerald-300 bg-emerald-500' : 'border-neutral-300 bg-neutral-200'
+            }`}
+          >
+            <span className="sr-only">{title}</span>
+            <span
+              className={`absolute left-1 top-1 flex h-6 w-6 items-center justify-center rounded-full bg-white text-[10px] font-bold text-neutral-800 shadow transition-transform ${
+                checked ? 'translate-x-[2.5rem]' : 'translate-x-0'
+              }`}
+              aria-hidden
+            >
+              {checked ? 'SI' : 'NO'}
+            </span>
+          </button>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <fieldset id="servicios" className="rounded-lg border border-neutral-200 p-4">
       <legend className="text-sm font-medium text-neutral-700">Servicios</legend>
       <p className="mb-4 text-xs text-neutral-500">Creá, editá o eliminá servicios. El owner solo puede editar precio y duración.</p>
+
+      <div className="mb-4 space-y-3">
+        <SwitchRow
+          title="Pedir confirmación antes del calendario"
+          description="Cuando el cliente confirme un servicio/subservicio, se mostrará un segundo modal para confirmar antes de pasar al calendario."
+          checked={showServiceConfirmModal}
+          disabled={showServiceConfirmModalSaving}
+          onChange={onToggleShowConfirm}
+        />
+        <SwitchRow
+          title="Permitir seleccionar más de un servicio"
+          description="Si está activado, el cliente podrá seleccionar múltiples servicios/subservicios en una misma reserva (ej. uñas + pies)."
+          checked={allowMultipleServices}
+          disabled={allowMultipleServicesSaving}
+          onChange={onToggleAllowMultipleServices}
+        />
+      </div>
 
       <form onSubmit={onAddService} className="mb-4 flex flex-wrap items-end gap-3">
         <div className="w-40">

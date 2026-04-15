@@ -6,7 +6,9 @@ const timeRegex = /^([0-1][0-9]|2[0-3]):[0-5][0-9]$/
 
 export const createAppointmentSchema = z.object({
   businessSlug: z.string().min(1, 'El slug del negocio es obligatorio'),
-  serviceId: z.string().min(1, 'El servicio es obligatorio'),
+  // Backwards compatible: either a single serviceId OR an array of serviceIds (multi-select).
+  serviceId: z.string().min(1, 'El servicio es obligatorio').optional(),
+  serviceIds: z.array(z.string().min(1)).min(1).optional(),
   date: z.string().regex(dateRegex, 'La fecha debe ser AAAA-MM-DD'),
   slotTime: z.string().regex(timeRegex, 'El horario debe ser HH:MM'),
   clientName: z.string().min(1, 'El nombre es obligatorio').max(100),
@@ -20,7 +22,11 @@ export const createAppointmentSchema = z.object({
   // When true, appointment is created but confirmation side-effects (email/calendar)
   // are deferred until payment is confirmed.
   deferConfirmationUntilPayment: z.boolean().optional(),
-})
+}).refine((data) => {
+  const hasSingle = typeof data.serviceId === 'string' && data.serviceId.trim().length > 0
+  const hasMany = Array.isArray(data.serviceIds) && data.serviceIds.length > 0
+  return hasSingle || hasMany
+}, { message: 'Debe enviar serviceId o serviceIds', path: ['serviceId'] })
 
 export type CreateAppointmentInput = z.infer<typeof createAppointmentSchema>
 
