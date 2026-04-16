@@ -671,6 +671,12 @@ export type BusinessSettings = {
   fontFamily: string
   /** Default light/dark for the public booking page (visitor can still toggle). */
   theme: 'DARK' | 'LIGHT'
+  /** Brand color used to derive a softer booking UI. Null = legacy behavior (use publicPageBackground*). */
+  publicBrandColor: string | null
+  /** SOFT | NORMAL | STRONG */
+  publicBrandIntensity: 'SOFT' | 'NORMAL' | 'STRONG' | null
+  /** Subtle gradient behind booking. */
+  publicUseGradient: boolean
   paymentRequired: boolean
   paymentOptionalEnabled: boolean
   paymentType: 'PERCENTAGE' | 'FULL' | null

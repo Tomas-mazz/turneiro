@@ -45,7 +45,7 @@ import { HoursSection } from './components/sections/HoursSection'
 import { BlockingSection } from './components/sections/BlockingSection'
 import { CancelSection } from './components/sections/CancelSection'
 import { EmployeesSection } from './components/sections/EmployeesSection'
-import { PublicPageBackgroundSection } from './components/PublicPageBackgroundSection'
+import { PublicBrandingSection } from './components/PublicBrandingSection'
 import { PublicDefaultThemeSection } from './components/PublicDefaultThemeSection'
 import {
   DEFAULT_PUBLIC_PAGE_BG_DARK,
@@ -156,6 +156,9 @@ export function DashboardContent({ section = 'all' }: { section?: DashboardSecti
   const [fontFamily, setFontFamily] = useState<FontFamilyKey>('ROBOTO')
   const [bgDarkHex, setBgDarkHex] = useState(DEFAULT_PUBLIC_PAGE_BG_DARK)
   const [bgLightHex, setBgLightHex] = useState(DEFAULT_PUBLIC_PAGE_BG_LIGHT)
+  const [publicBrandColor, setPublicBrandColor] = useState<string | null>(null)
+  const [publicBrandIntensity, setPublicBrandIntensity] = useState<'SOFT' | 'NORMAL' | 'STRONG'>('SOFT')
+  const [publicUseGradient, setPublicUseGradient] = useState(false)
   const [publicDefaultTheme, setPublicDefaultTheme] = useState<'LIGHT' | 'DARK'>('DARK')
   const [savingFont, setSavingFont] = useState(false)
   const [fontJustSaved, setFontJustSaved] = useState(false)
@@ -260,6 +263,10 @@ export function DashboardContent({ section = 'all' }: { section?: DashboardSecti
         setHasMercadoPagoAccessToken(!!s.hasMercadoPagoAccessToken)
         setBgDarkHex(s.publicPageBackgroundDark ?? DEFAULT_PUBLIC_PAGE_BG_DARK)
         setBgLightHex(s.publicPageBackgroundLight ?? DEFAULT_PUBLIC_PAGE_BG_LIGHT)
+        setPublicBrandColor(s.publicBrandColor ?? null)
+        const rawIntensity = String(s.publicBrandIntensity ?? 'SOFT').toUpperCase()
+        setPublicBrandIntensity(rawIntensity === 'STRONG' ? 'STRONG' : rawIntensity === 'NORMAL' ? 'NORMAL' : 'SOFT')
+        setPublicUseGradient(!!s.publicUseGradient)
         const th = String(s.theme ?? 'DARK').toUpperCase()
         setPublicDefaultTheme(th === 'LIGHT' ? 'LIGHT' : 'DARK')
       })
@@ -269,6 +276,9 @@ export function DashboardContent({ section = 'all' }: { section?: DashboardSecti
         setFontFamily('ROBOTO')
         setBgDarkHex(DEFAULT_PUBLIC_PAGE_BG_DARK)
         setBgLightHex(DEFAULT_PUBLIC_PAGE_BG_LIGHT)
+        setPublicBrandColor(null)
+        setPublicBrandIntensity('SOFT')
+        setPublicUseGradient(false)
         setPublicDefaultTheme('DARK')
         setPaymentMode('CONFIRM_ONLY')
         setPaymentRequired(false)
@@ -732,6 +742,9 @@ export function DashboardContent({ section = 'all' }: { section?: DashboardSecti
       const updated = await updateBusinessSettings({
         fontFamily,
         theme: publicDefaultTheme,
+        publicBrandColor,
+        publicBrandIntensity,
+        publicUseGradient,
         publicPageBackgroundDark: bgDarkHex === DEFAULT_PUBLIC_PAGE_BG_DARK ? null : bgDarkHex,
         publicPageBackgroundLight: bgLightHex === DEFAULT_PUBLIC_PAGE_BG_LIGHT ? null : bgLightHex,
       })
@@ -742,6 +755,9 @@ export function DashboardContent({ section = 'all' }: { section?: DashboardSecti
       setPublicDefaultTheme(updated.theme === 'LIGHT' ? 'LIGHT' : 'DARK')
       setBgDarkHex(updated.publicPageBackgroundDark ?? DEFAULT_PUBLIC_PAGE_BG_DARK)
       setBgLightHex(updated.publicPageBackgroundLight ?? DEFAULT_PUBLIC_PAGE_BG_LIGHT)
+      setPublicBrandColor(updated.publicBrandColor ?? null)
+      setPublicBrandIntensity(updated.publicBrandIntensity ?? 'SOFT')
+      setPublicUseGradient(!!updated.publicUseGradient)
       setFontJustSaved(true)
     } catch (err) {
       setError(
@@ -1112,16 +1128,41 @@ export function DashboardContent({ section = 'all' }: { section?: DashboardSecti
             })}
           </div>
 
-          <PublicPageBackgroundSection
-            darkHex={bgDarkHex}
-            lightHex={bgLightHex}
-            onDarkChange={setBgDarkHex}
-            onLightChange={setBgLightHex}
-            onResetToDefaults={() => {
-              setBgDarkHex(DEFAULT_PUBLIC_PAGE_BG_DARK)
-              setBgLightHex(DEFAULT_PUBLIC_PAGE_BG_LIGHT)
+          <PublicBrandingSection
+            brandColor={publicBrandColor}
+            intensity={publicBrandIntensity}
+            useGradient={publicUseGradient}
+            legacyDarkHex={bgDarkHex}
+            legacyLightHex={bgLightHex}
+            onBrandColor={setPublicBrandColor}
+            onIntensity={setPublicBrandIntensity}
+            onUseGradient={setPublicUseGradient}
+            onReset={() => {
+              setPublicBrandColor('#E24A8D')
+              setPublicBrandIntensity('SOFT')
+              setPublicUseGradient(true)
             }}
           />
+
+          <div className="mt-4">
+            <button
+              type="button"
+              onClick={() => {
+                setPublicBrandColor(null)
+                setPublicBrandIntensity('SOFT')
+                setPublicUseGradient(false)
+                setBgDarkHex(DEFAULT_PUBLIC_PAGE_BG_DARK)
+                setBgLightHex(DEFAULT_PUBLIC_PAGE_BG_LIGHT)
+              }}
+              className="inline-flex items-center justify-center gap-2 rounded-xl border border-neutral-900 bg-neutral-900 px-4 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-neutral-800"
+            >
+              <span aria-hidden>↺</span>
+              Restaurar colores por defecto
+            </button>
+            <p className="mt-2 text-xs text-neutral-500">
+              Vuelve al estilo original: sin color de marca/gradiente y con fondo oscuro {DEFAULT_PUBLIC_PAGE_BG_DARK} / claro {DEFAULT_PUBLIC_PAGE_BG_LIGHT}.
+            </p>
+          </div>
 
           <PublicDefaultThemeSection value={publicDefaultTheme} onChange={setPublicDefaultTheme} />
 

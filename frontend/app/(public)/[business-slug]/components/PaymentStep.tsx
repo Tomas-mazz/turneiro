@@ -40,6 +40,7 @@ type PaymentStepProps = {
   showPaymentStep?: boolean
   primaryColor: string
   pageBackgroundColor: string
+  pageBackgroundImage?: string
   isDarkTheme?: boolean
   onToggleTheme?: () => void
   onOpenLogin?: () => void
@@ -73,6 +74,7 @@ export function PaymentStep({
   showPaymentStep = false,
   primaryColor,
   pageBackgroundColor,
+  pageBackgroundImage,
   isDarkTheme = true,
   onToggleTheme,
   onOpenLogin,
@@ -130,6 +132,7 @@ export function PaymentStep({
       logo={logo}
       isDarkTheme={isDarkTheme}
       pageBackgroundColor={pageBackgroundColor}
+      pageBackgroundImage={pageBackgroundImage}
       fontFamily={fontFamily}
       onToggleTheme={onToggleTheme}
       onGoToServices={onGoToServices}

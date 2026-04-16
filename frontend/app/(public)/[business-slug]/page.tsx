@@ -26,6 +26,7 @@ import {
 import { LoadingSpinner } from '@/components/LoadingSpinner'
 import { LegalFooter } from './components/LegalFooter'
 import { resolvePublicPageBackground } from '@/lib/publicPageBackground'
+import { bookingDerivedBackground } from '@/lib/booking'
 
 type ThemeMode = 'DARK' | 'LIGHT'
 
@@ -101,19 +102,31 @@ export default function BusinessBookingPage() {
   const isDarkTheme = themeMode === 'DARK'
   const businessFontFamily = business?.settings?.fontFamily ?? 'ROBOTO'
 
-  const pageBackgroundColor = useMemo(
-    () =>
-      resolvePublicPageBackground(
-        isDarkTheme,
-        business?.settings?.publicPageBackgroundDark ?? null,
-        business?.settings?.publicPageBackgroundLight ?? null
-      ),
-    [
+  const { pageBackgroundColor, pageBackgroundImage } = useMemo(() => {
+    const legacy = resolvePublicPageBackground(
       isDarkTheme,
-      business?.settings?.publicPageBackgroundDark,
-      business?.settings?.publicPageBackgroundLight,
-    ]
-  )
+      business?.settings?.publicPageBackgroundDark ?? null,
+      business?.settings?.publicPageBackgroundLight ?? null
+    )
+    const derived = bookingDerivedBackground({
+      brandColor: business?.settings?.publicBrandColor ?? null,
+      intensity: (business?.settings?.publicBrandIntensity as any) ?? null,
+      useGradient: business?.settings?.publicUseGradient ?? false,
+      variant: isDarkTheme ? 'DARK' : 'LIGHT',
+      legacyBackground: legacy,
+    })
+    return {
+      pageBackgroundColor: derived.backgroundHex,
+      pageBackgroundImage: derived.backgroundImage,
+    }
+  }, [
+    isDarkTheme,
+    business?.settings?.publicPageBackgroundDark,
+    business?.settings?.publicPageBackgroundLight,
+    business?.settings?.publicBrandColor,
+    business?.settings?.publicBrandIntensity,
+    business?.settings?.publicUseGradient,
+  ])
 
   const bookingFontVar =
     ({
@@ -701,7 +714,12 @@ export default function BusinessBookingPage() {
       }
       style={
         step === 'service' || step === 'date' || step === 'done'
-          ? { backgroundColor: pageBackgroundColor }
+          ? {
+              backgroundColor: pageBackgroundColor,
+              ...(pageBackgroundImage ? { backgroundImage: pageBackgroundImage } : {}),
+              backgroundRepeat: 'no-repeat',
+              backgroundSize: 'cover',
+            }
           : undefined
       }
     >
@@ -735,6 +753,7 @@ export default function BusinessBookingPage() {
           showPaymentStep={showPaymentStep}
           primaryColor={primaryColor}
           pageBackgroundColor={pageBackgroundColor}
+          pageBackgroundImage={pageBackgroundImage}
           isDarkTheme={isDarkTheme}
           onToggleTheme={() => setThemeMode((prev) => (prev === 'DARK' ? 'LIGHT' : 'DARK'))}
           onOpenLogin={handleOpenLogin}
@@ -781,6 +800,7 @@ export default function BusinessBookingPage() {
           showPaymentStep={showPaymentStep}
           primaryColor={primaryColor}
           pageBackgroundColor={pageBackgroundColor}
+          pageBackgroundImage={pageBackgroundImage}
           isDarkTheme={isDarkTheme}
           onToggleTheme={() => setThemeMode((prev) => (prev === 'DARK' ? 'LIGHT' : 'DARK'))}
           onOpenLogin={handleOpenLogin}
@@ -836,6 +856,7 @@ export default function BusinessBookingPage() {
           showPaymentStep={showPaymentStep}
           primaryColor={primaryColor}
           pageBackgroundColor={pageBackgroundColor}
+          pageBackgroundImage={pageBackgroundImage}
           isDarkTheme={isDarkTheme}
           onToggleTheme={() => setThemeMode((prev) => (prev === 'DARK' ? 'LIGHT' : 'DARK'))}
           onOpenLogin={handleOpenLogin}
@@ -878,6 +899,7 @@ export default function BusinessBookingPage() {
             showPaymentStep={showPaymentStep}
             primaryColor={primaryColor}
             pageBackgroundColor={pageBackgroundColor}
+            pageBackgroundImage={pageBackgroundImage}
             isDarkTheme={isDarkTheme}
             onToggleTheme={() => setThemeMode((prev) => (prev === 'DARK' ? 'LIGHT' : 'DARK'))}
             onOpenLogin={handleOpenLogin}
@@ -893,6 +915,7 @@ export default function BusinessBookingPage() {
           logo={business.logo}
           isDarkTheme={isDarkTheme}
           pageBackgroundColor={pageBackgroundColor}
+          pageBackgroundImage={pageBackgroundImage}
           fontFamily={businessFontFamily}
           onGoToServices={() => goToStep('service')}
           onOpenLogin={handleOpenLogin}

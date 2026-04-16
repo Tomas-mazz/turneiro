@@ -51,6 +51,9 @@ export type Business = {
     allowMultipleServices?: boolean
     publicPageBackgroundDark?: string | null
     publicPageBackgroundLight?: string | null
+    publicBrandColor?: string | null
+    publicBrandIntensity?: 'SOFT' | 'NORMAL' | 'STRONG' | null
+    publicUseGradient?: boolean | null
   } | null
 }
 
