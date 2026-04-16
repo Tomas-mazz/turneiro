@@ -16,6 +16,8 @@ type BookingLayoutProps = {
   isDarkTheme?: boolean
   /** Resolved page background for the current theme (public booking CSS color). */
   pageBackgroundColor?: string
+  /** Optional subtle gradient for the booking background. */
+  pageBackgroundImage?: string
   fontFamily?: string | null
   onToggleTheme?: () => void
   onGoToServices: () => void
@@ -40,6 +42,7 @@ export function BookingLayout({
   logo,
   isDarkTheme = true,
   pageBackgroundColor,
+  pageBackgroundImage,
   fontFamily = 'ROBOTO',
   onToggleTheme,
   onGoToServices,
@@ -56,10 +59,13 @@ export function BookingLayout({
   const surfaceStyle = useMemo(
     () => ({
       backgroundColor: bgColor,
+      ...(pageBackgroundImage ? { backgroundImage: pageBackgroundImage } : {}),
+      backgroundRepeat: 'no-repeat',
+      backgroundSize: 'cover',
       ...bookingPageCssVars(bgColor),
       ['--font-business' as string]: fontVar,
     }),
-    [bgColor, fontVar]
+    [bgColor, fontVar, pageBackgroundImage]
   )
 
   return (

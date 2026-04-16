@@ -69,6 +69,9 @@ export async function getBusinessBySlugService(slug: string) {
       settings: {
         select: {
           fontFamily: true,
+          publicBrandColor: true,
+          publicBrandIntensity: true,
+          publicUseGradient: true,
           paymentRequired: true,
           paymentOptionalEnabled: true,
           paymentType: true,
@@ -744,6 +747,12 @@ export type BusinessSettings = {
   fontFamily: string
   /** Public booking default: first paint before toggle (synced with Business.theme). */
   theme: 'DARK' | 'LIGHT'
+  /** Brand color used to derive a softer booking UI. Null = legacy behavior (use publicPageBackground*). */
+  publicBrandColor: string | null
+  /** SOFT | NORMAL | STRONG */
+  publicBrandIntensity: 'SOFT' | 'NORMAL' | 'STRONG' | null
+  /** Subtle gradient behind the booking UI. */
+  publicUseGradient: boolean
   paymentRequired: boolean
   paymentOptionalEnabled: boolean
   paymentType: 'PERCENTAGE' | 'FULL' | null
@@ -773,6 +782,9 @@ export async function getBusinessSettingsService(
       where: { businessId },
       select: {
         fontFamily: true,
+        publicBrandColor: true,
+        publicBrandIntensity: true,
+        publicUseGradient: true,
         paymentRequired: true,
         paymentOptionalEnabled: true,
         paymentType: true,
@@ -796,6 +808,11 @@ export async function getBusinessSettingsService(
   return {
     fontFamily: settings?.fontFamily ?? 'ROBOTO',
     theme,
+    publicBrandColor: settings?.publicBrandColor ?? null,
+    publicBrandIntensity:
+      (String(settings?.publicBrandIntensity ?? '')
+        .toUpperCase() as 'SOFT' | 'NORMAL' | 'STRONG') || null,
+    publicUseGradient: !!settings?.publicUseGradient,
     paymentRequired: settings?.paymentRequired ?? false,
     paymentOptionalEnabled: settings?.paymentOptionalEnabled ?? false,
     paymentType:
@@ -819,6 +836,9 @@ export async function updateBusinessSettingsService(
     where: { businessId },
     select: {
       fontFamily: true,
+      publicBrandColor: true,
+      publicBrandIntensity: true,
+      publicUseGradient: true,
       paymentRequired: true,
       paymentOptionalEnabled: true,
       paymentType: true,
@@ -849,6 +869,10 @@ export async function updateBusinessSettingsService(
 
   const inputBgDark = (input as { publicPageBackgroundDark?: string | null }).publicPageBackgroundDark
   const inputBgLight = (input as { publicPageBackgroundLight?: string | null }).publicPageBackgroundLight
+  const inputBrandColor = (input as { publicBrandColor?: string | null }).publicBrandColor
+  const inputBrandIntensity = (input as { publicBrandIntensity?: 'SOFT' | 'NORMAL' | 'STRONG' | null })
+    .publicBrandIntensity
+  const inputUseGradient = (input as { publicUseGradient?: boolean | null }).publicUseGradient
   const allowMultipleServices =
     (input as { allowMultipleServices?: boolean }).allowMultipleServices ??
     existing?.allowMultipleServices ??
@@ -860,6 +884,9 @@ export async function updateBusinessSettingsService(
       businessId,
       // keep other settings defaults
       fontFamily: fontFamily || 'ROBOTO',
+      publicBrandColor: inputBrandColor !== undefined ? inputBrandColor : null,
+      publicBrandIntensity: inputBrandIntensity !== undefined ? inputBrandIntensity : null,
+      publicUseGradient: inputUseGradient !== undefined ? !!inputUseGradient : false,
       paymentRequired,
       paymentOptionalEnabled,
       paymentType: normalizedPaymentType,
@@ -877,6 +904,9 @@ export async function updateBusinessSettingsService(
       ...((input as { fontFamily?: string | null }).fontFamily !== undefined && {
         fontFamily: (input as { fontFamily?: string | null }).fontFamily || 'ROBOTO',
       }),
+      ...(inputBrandColor !== undefined && { publicBrandColor: inputBrandColor }),
+      ...(inputBrandIntensity !== undefined && { publicBrandIntensity: inputBrandIntensity }),
+      ...(inputUseGradient !== undefined && { publicUseGradient: !!inputUseGradient }),
       ...(input.paymentRequired !== undefined && {
         paymentRequired: input.paymentRequired,
       }),
@@ -909,6 +939,9 @@ export async function updateBusinessSettingsService(
     },
     select: {
       fontFamily: true,
+      publicBrandColor: true,
+      publicBrandIntensity: true,
+      publicUseGradient: true,
       paymentRequired: true,
       paymentOptionalEnabled: true,
       paymentType: true,
@@ -944,6 +977,11 @@ export async function updateBusinessSettingsService(
   return {
     fontFamily: updated.fontFamily ?? 'ROBOTO',
     theme,
+    publicBrandColor: updated.publicBrandColor ?? null,
+    publicBrandIntensity:
+      (String(updated.publicBrandIntensity ?? '').toUpperCase() as 'SOFT' | 'NORMAL' | 'STRONG') ||
+      null,
+    publicUseGradient: !!updated.publicUseGradient,
     paymentRequired: updated.paymentRequired,
     paymentOptionalEnabled: updated.paymentOptionalEnabled,
     paymentType: (updated.paymentType as 'PERCENTAGE' | 'FULL' | null | undefined) ?? null,

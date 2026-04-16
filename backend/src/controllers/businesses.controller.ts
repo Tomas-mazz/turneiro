@@ -26,6 +26,16 @@ function parseOptionalPublicPageBackgroundHex(
   return { ok: true, value: h.toUpperCase() }
 }
 
+function parseOptionalBrandIntensity(
+  v: unknown
+): { ok: true; value: 'SOFT' | 'NORMAL' | 'STRONG' | null | undefined } | { ok: false } {
+  if (v === undefined) return { ok: true, value: undefined }
+  if (v === null || v === '') return { ok: true, value: null }
+  const t = String(v).trim().toUpperCase()
+  if (t !== 'SOFT' && t !== 'NORMAL' && t !== 'STRONG') return { ok: false }
+  return { ok: true, value: t as 'SOFT' | 'NORMAL' | 'STRONG' }
+}
+
 export async function getMyBusiness(req: AuthRequest, res: Response) {
   const ctx = getBusinessContextOrRespond(req, res)
   if (!ctx) return
@@ -163,6 +173,9 @@ export async function updateBusinessSettings(req: AuthRequest, res: Response, ne
       mercadoPagoWebhookSecret,
       publicPageBackgroundDark,
       publicPageBackgroundLight,
+      publicBrandColor,
+      publicBrandIntensity,
+      publicUseGradient,
     } = req.body ?? {}
 
     if (theme !== undefined && theme !== null && theme !== '') {
@@ -178,6 +191,16 @@ export async function updateBusinessSettings(req: AuthRequest, res: Response, ne
     if (!bgDark.ok || !bgLight.ok) {
       res.status(400).json({
         error: 'Los fondos deben ser colores en formato hexadecimal de 6 dígitos (ej. #171717 o #FFFFFF).',
+      })
+      return
+    }
+
+    const brandColor = parseOptionalPublicPageBackgroundHex(publicBrandColor)
+    const brandIntensity = parseOptionalBrandIntensity(publicBrandIntensity)
+    if (!brandColor.ok || !brandIntensity.ok) {
+      res.status(400).json({
+        error:
+          'El color de marca debe ser hexadecimal de 6 dígitos (ej. #FF00AA) y la intensidad debe ser SOFT, NORMAL o STRONG.',
       })
       return
     }
@@ -207,6 +230,9 @@ export async function updateBusinessSettings(req: AuthRequest, res: Response, ne
       ...(allowMultipleServices !== undefined && { allowMultipleServices: !!allowMultipleServices }),
       ...(bgDark.value !== undefined && { publicPageBackgroundDark: bgDark.value }),
       ...(bgLight.value !== undefined && { publicPageBackgroundLight: bgLight.value }),
+      ...(brandColor.value !== undefined && { publicBrandColor: brandColor.value }),
+      ...(brandIntensity.value !== undefined && { publicBrandIntensity: brandIntensity.value }),
+      ...(publicUseGradient !== undefined && { publicUseGradient: !!publicUseGradient }),
     })
     res.json(updated)
   } catch (err) {

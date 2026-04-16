@@ -238,6 +238,12 @@ model BusinessSettings {
   publicPageBackgroundDark         String?
   /// Public booking page background (light theme). Null = built-in default (#FFFFFF).
   publicPageBackgroundLight        String?
+  /// Public booking brand color used to derive a softer background + surfaces. Null = keep legacy backgrounds.
+  publicBrandColor                 String?
+  /// SOFT | NORMAL | STRONG. Null = default to SOFT.
+  publicBrandIntensity             String?
+  /// When true, apply a subtle gradient on the public booking background.
+  publicUseGradient                Boolean? @default(false)
   paymentRequired                  Boolean  @default(false)
   paymentOptionalEnabled           Boolean  @default(false)
   paymentType                      String? // PERCENTAGE or FULL
