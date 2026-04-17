@@ -32,6 +32,8 @@ export default function AppearancePage() {
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [justSaved, setJustSaved] = useState(false)
+  const [restoringDefaults, setRestoringDefaults] = useState(false)
+  const [justRestored, setJustRestored] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
@@ -66,7 +68,38 @@ export default function AppearancePage() {
     return () => clearTimeout(t)
   }, [justSaved])
 
+  useEffect(() => {
+    if (!justRestored) return
+    const t = setTimeout(() => setJustRestored(false), 2500)
+    return () => clearTimeout(t)
+  }, [justRestored])
+
   const sample = useMemo(() => 'El veloz murciélago hindú', [])
+
+  const handleRestoreDefaults = async () => {
+    setRestoringDefaults(true)
+    setJustRestored(false)
+    try {
+      const updated = await updateBusinessSettings({
+        publicBrandColor: null,
+        publicBrandIntensity: 'SOFT',
+        publicUseGradient: false,
+        publicPageBackgroundDark: null,
+        publicPageBackgroundLight: null,
+      })
+      setBgDarkHex(updated.publicPageBackgroundDark ?? DEFAULT_PUBLIC_PAGE_BG_DARK)
+      setBgLightHex(updated.publicPageBackgroundLight ?? DEFAULT_PUBLIC_PAGE_BG_LIGHT)
+      setPublicBrandColor(updated.publicBrandColor ?? null)
+      setPublicBrandIntensity(updated.publicBrandIntensity ?? 'SOFT')
+      setPublicUseGradient(!!updated.publicUseGradient)
+      setJustRestored(true)
+      setError(null)
+    } catch (err: any) {
+      setError(err?.response?.data?.error || 'No se pudo restaurar.')
+    } finally {
+      setRestoringDefaults(false)
+    }
+  }
 
   const handleSave = async () => {
     setSaving(true)
@@ -191,17 +224,12 @@ export default function AppearancePage() {
             <div className="mt-4">
               <button
                 type="button"
-                onClick={() => {
-                  setPublicBrandColor(null)
-                  setPublicBrandIntensity('SOFT')
-                  setPublicUseGradient(false)
-                  setBgDarkHex(DEFAULT_PUBLIC_PAGE_BG_DARK)
-                  setBgLightHex(DEFAULT_PUBLIC_PAGE_BG_LIGHT)
-                }}
-                className="inline-flex items-center justify-center gap-2 rounded-xl border border-neutral-900 bg-neutral-900 px-4 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-neutral-800"
+                onClick={handleRestoreDefaults}
+                disabled={restoringDefaults}
+                className="inline-flex items-center justify-center gap-2 rounded-xl border border-neutral-900 bg-neutral-900 px-4 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-neutral-800 disabled:opacity-60"
               >
-                <span aria-hidden>↺</span>
-                Restaurar colores por defecto
+                <span aria-hidden>{restoringDefaults ? '⏳' : justRestored ? '✓' : '↺'}</span>
+                {restoringDefaults ? 'Restaurando...' : 'Restaurar colores por defecto'}
               </button>
               <p className="mt-2 text-xs text-neutral-500">
                 Vuelve al estilo original: sin color de marca/gradiente y con fondo oscuro {DEFAULT_PUBLIC_PAGE_BG_DARK} / claro {DEFAULT_PUBLIC_PAGE_BG_LIGHT}.
