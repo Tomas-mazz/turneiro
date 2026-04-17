@@ -111,7 +111,7 @@ export function BookingHero({ name, coverPhoto, coverVideo, coverPhotoMobile, co
         <button
           type="button"
           onClick={onReservar}
-          className="min-w-[200px] h-14 px-8 py-3 rounded-lg font-semibold text-lg bg-white text-neutral-900 hover:bg-neutral-100 focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2 focus:ring-offset-transparent shadow-lg transition hover:scale-105 active:scale-100"
+          className="liquid-glass-btn min-w-[200px] h-14 px-8 py-3 rounded-xl font-semibold text-lg text-white focus:outline-none focus:ring-2 focus:ring-white/80 focus:ring-offset-2 focus:ring-offset-transparent transition hover:scale-105 active:scale-100"
         >
           Reservar
         </button>

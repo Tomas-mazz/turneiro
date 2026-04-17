@@ -85,8 +85,9 @@ export function bookingPageCssVars(backgroundHex: string): CSSProperties {
       '--booking-cart-close-text': 'rgba(23,23,23,0.55)',
       '--booking-cart-close-hover': mixTowardBlack(cartSurface, 0.06),
       /* Cristal esmerilado (blur): tinte suave hacia el color de página + fallback opaco */
-      '--booking-glass-fill': `color-mix(in srgb, ${hex} 24%, rgba(255, 255, 255, 0.16))`,
-      '--booking-glass-border': 'rgba(255, 255, 255, 0.48)',
+      // iOS-like glass: less opaque fill, more blur-driven translucency.
+      '--booking-glass-fill': `color-mix(in srgb, ${hex} 30%, rgba(255, 255, 255, 0.12))`,
+      '--booking-glass-border': 'rgba(255, 255, 255, 0.52)',
       '--booking-glass-shadow':
         '0 12px 48px rgba(0, 0, 0, 0.22), inset 0 1px 0 rgba(255, 255, 255, 0.42)',
       '--booking-glass-fallback': modalSurface,
@@ -161,7 +162,8 @@ export function bookingPageCssVars(backgroundHex: string): CSSProperties {
     '--booking-modal-avatar-bg': mixTowardBlack(modalSurfaceLight, 0.07),
     '--booking-modal-avatar-text': '#171717',
     '--booking-modal-disabled-bg': mixTowardBlack(modalSurfaceLight, 0.03),
-    '--booking-glass-fill': `color-mix(in srgb, ${hex} 14%, rgba(255, 255, 255, 0.48))`,
+    // Light UI: keep glass bright but still translucent.
+    '--booking-glass-fill': `color-mix(in srgb, ${hex} 18%, rgba(255, 255, 255, 0.16))`,
     '--booking-glass-border': 'rgba(255, 255, 255, 0.72)',
     '--booking-glass-shadow':
       '0 12px 40px rgba(0, 0, 0, 0.12), inset 0 1px 0 rgba(255, 255, 255, 0.85)',

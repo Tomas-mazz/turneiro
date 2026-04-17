@@ -162,6 +162,8 @@ export function DashboardContent({ section = 'all' }: { section?: DashboardSecti
   const [publicDefaultTheme, setPublicDefaultTheme] = useState<'LIGHT' | 'DARK'>('DARK')
   const [savingFont, setSavingFont] = useState(false)
   const [fontJustSaved, setFontJustSaved] = useState(false)
+  const [restoringAppearanceDefaults, setRestoringAppearanceDefaults] = useState(false)
+  const [appearanceJustRestored, setAppearanceJustRestored] = useState(false)
 
   const [employees, setEmployees] = useState<OwnerEmployeeListItem[]>([])
   const [loadingEmployees, setLoadingEmployees] = useState(false)
@@ -291,6 +293,39 @@ export function DashboardContent({ section = 'all' }: { section?: DashboardSecti
     const t = setTimeout(() => setFontJustSaved(false), 2500)
     return () => clearTimeout(t)
   }, [fontJustSaved])
+
+  useEffect(() => {
+    if (!appearanceJustRestored) return
+    const t = setTimeout(() => setAppearanceJustRestored(false), 2500)
+    return () => clearTimeout(t)
+  }, [appearanceJustRestored])
+
+  const handleRestoreAppearanceDefaults = async () => {
+    setRestoringAppearanceDefaults(true)
+    setAppearanceJustRestored(false)
+    try {
+      const updated = await updateBusinessSettings({
+        publicBrandColor: null,
+        publicBrandIntensity: 'SOFT',
+        publicUseGradient: false,
+        publicPageBackgroundDark: null,
+        publicPageBackgroundLight: null,
+      })
+      setBgDarkHex(updated.publicPageBackgroundDark ?? DEFAULT_PUBLIC_PAGE_BG_DARK)
+      setBgLightHex(updated.publicPageBackgroundLight ?? DEFAULT_PUBLIC_PAGE_BG_LIGHT)
+      setPublicBrandColor(updated.publicBrandColor ?? null)
+      setPublicBrandIntensity(updated.publicBrandIntensity ?? 'SOFT')
+      setPublicUseGradient(!!updated.publicUseGradient)
+      setAppearanceJustRestored(true)
+    } catch (err) {
+      setError(
+        (err as { response?: { data?: { error?: string } } })?.response?.data?.error ||
+          'Error al restaurar la apariencia'
+      )
+    } finally {
+      setRestoringAppearanceDefaults(false)
+    }
+  }
 
   useEffect(() => {
     if (!actsAsOwner) return
@@ -1147,17 +1182,14 @@ export function DashboardContent({ section = 'all' }: { section?: DashboardSecti
           <div className="mt-4">
             <button
               type="button"
-              onClick={() => {
-                setPublicBrandColor(null)
-                setPublicBrandIntensity('SOFT')
-                setPublicUseGradient(false)
-                setBgDarkHex(DEFAULT_PUBLIC_PAGE_BG_DARK)
-                setBgLightHex(DEFAULT_PUBLIC_PAGE_BG_LIGHT)
-              }}
-              className="inline-flex items-center justify-center gap-2 rounded-xl border border-neutral-900 bg-neutral-900 px-4 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-neutral-800"
+              onClick={handleRestoreAppearanceDefaults}
+              disabled={restoringAppearanceDefaults}
+              className="inline-flex items-center justify-center gap-2 rounded-xl border border-neutral-900 bg-neutral-900 px-4 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-neutral-800 disabled:opacity-60"
             >
-              <span aria-hidden>↺</span>
-              Restaurar colores por defecto
+              <span aria-hidden>
+                {restoringAppearanceDefaults ? '⏳' : appearanceJustRestored ? '✓' : '↺'}
+              </span>
+              {restoringAppearanceDefaults ? 'Restaurando...' : 'Restaurar colores por defecto'}
             </button>
             <p className="mt-2 text-xs text-neutral-500">
               Vuelve al estilo original: sin color de marca/gradiente y con fondo oscuro {DEFAULT_PUBLIC_PAGE_BG_DARK} / claro {DEFAULT_PUBLIC_PAGE_BG_LIGHT}.

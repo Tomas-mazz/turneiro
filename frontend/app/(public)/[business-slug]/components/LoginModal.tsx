@@ -75,18 +75,15 @@ export function LoginModal({
 
   if (!open) return null
 
-  const panelBg = isDarkTheme ? 'bg-neutral-800' : 'bg-white'
-  const panelBorder = isDarkTheme ? 'border-neutral-600' : 'border-neutral-200'
   const titleColor = isDarkTheme ? 'text-white' : 'text-neutral-900'
-  const labelColor = isDarkTheme ? 'text-neutral-300' : 'text-neutral-700'
+  const labelColor = isDarkTheme ? 'text-white/80' : 'text-neutral-700'
   const inputClass = isDarkTheme
-    ? 'w-full rounded-lg border border-neutral-600 bg-neutral-700/80 px-3 py-2.5 text-white placeholder-neutral-500 focus:border-neutral-500 focus:outline-none focus:ring-1 focus:ring-neutral-500'
-    : 'w-full rounded-lg border border-neutral-300 bg-white px-3 py-2.5 text-neutral-900 placeholder-neutral-400 focus:border-neutral-500 focus:outline-none focus:ring-1 focus:ring-neutral-500'
-  const dividerColor = isDarkTheme ? 'text-neutral-500' : 'text-neutral-400'
-  const linkColor = isDarkTheme ? 'text-neutral-300 hover:text-white' : 'text-neutral-600 hover:text-neutral-900'
+    ? 'w-full rounded-lg border border-white/20 bg-white/10 px-3 py-2.5 text-white placeholder:text-white/45 focus:border-white/30 focus:outline-none focus:ring-1 focus:ring-white/25'
+    : 'w-full rounded-lg border border-black/10 bg-white/70 px-3 py-2.5 text-neutral-900 placeholder:text-neutral-400 focus:border-black/20 focus:outline-none focus:ring-1 focus:ring-black/10'
+  const linkColor = isDarkTheme ? 'text-white/80 hover:text-white' : 'text-neutral-700 hover:text-neutral-900'
   const closeBtn = isDarkTheme
-    ? 'border-neutral-500 text-neutral-300 hover:bg-neutral-600 hover:text-white'
-    : 'border-neutral-400 text-neutral-600 hover:bg-neutral-200 hover:text-neutral-800'
+    ? 'text-white/85 hover:bg-white/12'
+    : 'text-neutral-700 hover:bg-black/5'
 
   return (
     <div
@@ -98,7 +95,7 @@ export function LoginModal({
     >
       <div
         ref={panelRef}
-        className={`w-full max-w-sm rounded-2xl border p-6 shadow-xl ${panelBg} ${panelBorder}`}
+        className="liquid-glass-panel w-full max-w-sm rounded-2xl p-6"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="mb-4 flex items-center justify-between">
@@ -108,7 +105,7 @@ export function LoginModal({
           <button
             type="button"
             onClick={onClose}
-            className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full border transition-colors ${closeBtn}`}
+            className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full transition-colors ${closeBtn}`}
             aria-label="Cerrar"
           >
             <span className="text-xl leading-none">×</span>
@@ -150,7 +147,7 @@ export function LoginModal({
           <button
             type="submit"
             disabled={loading}
-            className="w-full rounded-lg bg-white py-2.5 font-medium text-black hover:opacity-90 disabled:opacity-50"
+            className="w-full rounded-lg bg-white/90 py-2.5 font-medium text-black shadow-sm hover:bg-white disabled:opacity-50"
           >
             {loading ? 'Entrando...' : 'Iniciar sesión'}
           </button>
