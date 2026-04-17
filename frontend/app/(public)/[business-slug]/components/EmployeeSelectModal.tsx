@@ -88,7 +88,7 @@ export function EmployeeSelectModal({
         onClick={(e) => e.stopPropagation()}
       >
         <div className="mb-4 flex items-center justify-between">
-          <h2 id="employee-modal-title" className={`text-lg font-semibold ${titleColor}`}>
+          <h2 id="employee-modal-title" className={`text-xl font-semibold ${titleColor}`}>
             Horario {slotTime} — Elegí empleado
           </h2>
           <button
@@ -128,7 +128,7 @@ export function EmployeeSelectModal({
                         emp.name.charAt(0).toUpperCase()
                       )}
                     </div>
-                    <span className={`font-medium ${titleColor}`}>{emp.name}</span>
+                    <span className={`text-[15px] font-medium ${titleColor}`}>{emp.name}</span>
                   </button>
                 ) : (
                   <div
@@ -152,8 +152,8 @@ export function EmployeeSelectModal({
                       )}
                     </div>
                     <div className="flex flex-1 flex-col">
-                      <span className={`font-medium ${titleColor}`}>{emp.name}</span>
-                      <span className="text-sm text-[color:var(--booking-modal-fg-subtle)]">Sin turno disponible</span>
+                      <span className={`text-[15px] font-medium ${titleColor}`}>{emp.name}</span>
+                      <span className="text-base text-[color:var(--booking-modal-fg-subtle)]">Sin turno disponible</span>
                     </div>
                   </div>
                 )}
