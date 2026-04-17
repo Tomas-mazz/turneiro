@@ -78,6 +78,24 @@ export function createAuthenticatedClient(refreshToken: string): OAuth2Client {
 }
 
 /**
+ * Revoke a refresh/access token so Google invalidates it.
+ * Best-effort: callers should handle failures without blocking local disconnect.
+ */
+export async function revokeToken(token: string): Promise<void> {
+  const res = await fetch('https://oauth2.googleapis.com/revoke', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: new URLSearchParams({ token }),
+  })
+
+  // Google's revoke endpoint returns 200 even if token is already revoked in some cases,
+  // but if it's not ok we still treat it as best-effort and surface a generic error.
+  if (!res.ok) {
+    throw new Error('Failed to revoke token')
+  }
+}
+
+/**
  * Create a calendar event
  */
 export async function createCalendarEvent(

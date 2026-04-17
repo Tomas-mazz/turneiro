@@ -116,6 +116,17 @@ export async function disconnectCalendar(req: AuthRequest, res: Response) {
       return res.status(401).json({ error: 'No autenticado' })
     }
 
+    // Best-effort: revoke token at Google before removing it locally
+    const existing = await prisma.user.findUnique({
+      where: { id: req.user.userId },
+      select: { googleRefreshToken: true },
+    })
+    if (existing?.googleRefreshToken) {
+      googleCalendarService.revokeToken(existing.googleRefreshToken).catch((err) =>
+        console.error('revokeToken error:', err)
+      )
+    }
+
     await prisma.user.update({
       where: { id: req.user.userId },
       data: {
