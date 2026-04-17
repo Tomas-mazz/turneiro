@@ -44,8 +44,15 @@ export default function PrivacyPage() {
                 negocio.
               </li>
               <li>
-                <strong>Google:</strong> si iniciás sesión con Google, los datos que Google autorice
-                (p. ej. email, nombre).
+                <strong>Google (inicio de sesión):</strong> si iniciás sesión con Google, los datos
+                básicos del perfil que Google autorice (p. ej. email, nombre).
+              </li>
+              <li>
+                <strong>Google Calendar (opcional):</strong> si conectás tu calendario, guardamos un{" "}
+                <strong>token de actualización</strong> (refresh token) para mantener la conexión y
+                sincronizar turnos. También podemos almacenar identificadores técnicos como{" "}
+                <strong>calendarId</strong> y el <strong>eventId</strong> del evento creado para un
+                turno.
               </li>
               <li>
                 <strong>Reservas:</strong> turnos, servicios, horarios y datos necesarios para
@@ -61,13 +68,69 @@ export default function PrivacyPage() {
               3. Finalidad y conservación
             </h2>
             <p className="mt-2">
-              Gestionar cuentas, login (OAuth), turnos y comunicaciones del servicio. Conservación
-              mientras uses el servicio y según ley. Derechos: contacto arriba. Podés revocar acceso
-              Google desde tu cuenta Google.
+              Usamos los datos para gestionar cuentas, login (OAuth), turnos y comunicaciones del
+              servicio. Si conectás Google Calendar, usamos los permisos solicitados solo para{" "}
+              <strong>listar calendarios</strong> y <strong>crear/actualizar/eliminar</strong>{" "}
+              eventos asociados a turnos.
+            </p>
+            <ul className="mt-2 list-disc space-y-1 pl-5">
+              <li>
+                <strong>Retención general:</strong> conservamos la información de la cuenta y los
+                datos operativos mientras tu cuenta esté activa y por el tiempo necesario para
+                cumplir obligaciones legales o resolver disputas.
+              </li>
+              <li>
+                <strong>Google Calendar:</strong> el refresh token se conserva mientras mantengas la
+                conexión activa. Al desconectar, eliminamos el token y dejamos de acceder a tu
+                cuenta de Google a través de nuestra app.
+              </li>
+            </ul>
+          </section>
+          <section>
+            <h2 className="font-heading text-xl font-semibold text-gray-900">
+              4. Seguridad y protección de datos
+            </h2>
+            <p className="mt-2">
+              Aplicamos medidas razonables para proteger la información que procesamos, incluyendo:
+            </p>
+            <ul className="mt-2 list-disc space-y-1 pl-5">
+              <li>
+                <strong>Transmisión segura:</strong> cifrado en tránsito mediante HTTPS/TLS.
+              </li>
+              <li>
+                <strong>Contraseñas:</strong> se almacenan usando hashing seguro (no guardamos tu
+                contraseña en texto plano).
+              </li>
+              <li>
+                <strong>Acceso restringido:</strong> controles de acceso y principio de mínimo
+                privilegio para el personal y sistemas que operan el servicio.
+              </li>
+              <li>
+                <strong>Infraestructura:</strong> usamos proveedores de infraestructura bajo
+                acuerdos de confidencialidad y buenas prácticas de seguridad.
+              </li>
+            </ul>
+          </section>
+          <section>
+            <h2 className="font-heading text-xl font-semibold text-gray-900">
+              5. Eliminación de datos y revocación de acceso Google
+            </h2>
+            <p className="mt-2">
+              Podés desconectar Google Calendar desde la configuración de tu cuenta en Turneiro. Al
+              hacerlo, eliminamos el refresh token almacenado y dejamos de sincronizar eventos.
+              También podés revocar el acceso desde tu Cuenta de Google en la sección de acceso de
+              terceros.
+            </p>
+            <p className="mt-2">
+              Si querés solicitar la eliminación de tu cuenta y/o datos, escribinos a{" "}
+              <a href={`mailto:${CONTACT_EMAIL}`} className="text-gray-900 underline">
+                {CONTACT_EMAIL}
+              </a>
+              .
             </p>
           </section>
           <section>
-            <h2 className="font-heading text-xl font-semibold text-gray-900">4. Compartición</h2>
+            <h2 className="font-heading text-xl font-semibold text-gray-900">6. Compartición</h2>
             <p className="mt-2">
               Datos de reserva visibles para el negocio y quien reserva. Proveedores de
               infraestructura bajo confidencialidad. No vendemos datos para marketing de terceros.
