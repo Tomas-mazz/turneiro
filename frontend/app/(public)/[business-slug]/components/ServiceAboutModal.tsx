@@ -49,11 +49,11 @@ export function ServiceAboutModal({
           className="booking-liquid-glass flex max-h-[85vh] min-h-[260px] w-full flex-col overflow-hidden rounded-2xl md:max-w-3xl"
         >
           <div className={`flex items-center justify-between gap-3 border-b px-5 py-4 ${border}`}>
-            <h3 className={`text-base font-semibold md:text-lg ${titleColor}`}>{title}</h3>
+            <h3 className={`text-lg font-semibold md:text-xl ${titleColor}`}>{title}</h3>
             <button
               type="button"
               onClick={onClose}
-              className="rounded-lg border border-[color:var(--booking-modal-border)] px-3 py-1.5 text-sm font-medium text-[color:var(--booking-modal-fg-muted)] hover:bg-[color:var(--booking-modal-hover)]"
+              className="rounded-lg border border-[color:var(--booking-modal-border)] px-3 py-1.5 text-base font-medium text-[color:var(--booking-modal-fg-muted)] hover:bg-[color:var(--booking-modal-hover)]"
             >
               Cerrar
             </button>
@@ -67,10 +67,10 @@ export function ServiceAboutModal({
             {(shortDescription || description) && (
               <div className="mt-5">
                 {shortDescription ? (
-                  <p className={`text-sm font-medium ${textColor}`}>{shortDescription}</p>
+                  <p className={`text-base font-medium ${textColor}`}>{shortDescription}</p>
                 ) : null}
                 {description ? (
-                  <p className={`mt-2 whitespace-pre-wrap text-sm leading-relaxed ${textColor}`}>{description}</p>
+                  <p className={`mt-2 whitespace-pre-wrap text-base leading-relaxed ${textColor}`}>{description}</p>
                 ) : null}
               </div>
             )}
@@ -80,12 +80,12 @@ export function ServiceAboutModal({
                 <button
                   type="button"
                   onClick={onConfirm}
-                  className={`w-full rounded-xl px-4 py-3 text-sm font-semibold ${primaryCtaTextClass(primaryColor)}`}
+                  className={`w-full rounded-xl px-4 py-3 text-base font-semibold ${primaryCtaTextClass(primaryColor)}`}
                   style={{ backgroundColor: primaryColor }}
                 >
                   Continuar
                 </button>
-                <p className={`mt-2 text-center text-xs ${textColor}`}>
+                <p className={`mt-2 text-center text-sm ${textColor}`}>
                   Continuá para ir al calendario.
                 </p>
               </div>

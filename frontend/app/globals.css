@@ -70,6 +70,11 @@ h1, h2, h3, h4, h5, h6 {
   -webkit-backface-visibility: hidden;
 }
 
+/* Slight text separation on translucent glass. */
+.booking-glass-text {
+  text-shadow: 0 1px 1px rgba(0, 0, 0, 0.22);
+}
+
 @supports (backdrop-filter: blur(1px)) {
   .booking-liquid-glass {
     /* iOS-like: more “real glass” (less gray fill, more blur-driven translucency) */

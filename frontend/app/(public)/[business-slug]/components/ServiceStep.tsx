@@ -607,10 +607,10 @@ export function ServiceStep({
           <div
             ref={panelRef}
             onAnimationEnd={handleSlideDownEnd}
-            className={`booking-liquid-glass mx-auto w-full max-w-lg overflow-hidden rounded-2xl p-6 transition-colors duration-300 ease-out md:max-w-xl md:p-7 ${isClosing ? 'animate-slide-down' : 'animate-slide-up'}`}
+            className={`booking-liquid-glass booking-glass-text mx-auto w-full max-w-lg overflow-hidden rounded-2xl p-6 transition-colors duration-300 ease-out md:max-w-xl md:p-7 ${isClosing ? 'animate-slide-down' : 'animate-slide-up'}`}
           >
             <div className="mb-4 flex items-center justify-between">
-              <h2 id="cart-title" className={`text-lg font-semibold ${cartTitleColor}`}>
+              <h2 id="cart-title" className={`text-xl font-semibold ${cartTitleColor}`}>
                 Tu carrito
               </h2>
               <button
@@ -626,18 +626,18 @@ export function ServiceStep({
               {selectedServices.map((svc) => (
                 <div key={svc.id} className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
-                    <p className={`truncate text-base ${cartTextColor}`}>{svc.name}</p>
-                    <p className={`mt-0.5 text-xs ${cartTextColor}`}>{svc.duration} min</p>
+                    <p className={`truncate text-[15px] font-medium ${cartTextColor}`}>{svc.name}</p>
+                    <p className={`mt-0.5 text-sm ${cartTextColor}`}>{svc.duration} min</p>
                   </div>
                   <div className="flex items-center gap-2">
-                    <span className={`shrink-0 whitespace-nowrap text-base font-semibold ${cartTextColor}`}>
+                    <span className={`shrink-0 whitespace-nowrap text-[15px] font-semibold ${cartTextColor}`}>
                       $ {svc.price.toFixed(0)}
                     </span>
                     {allowMultiple && (
                       <button
                         type="button"
                         onClick={() => onSelectServices(selectedServices.filter((x) => x.id !== svc.id))}
-                        className="rounded-full border border-[color:var(--booking-cart-close-border)] px-2 py-1 text-xs font-semibold text-[color:var(--booking-cart-close-text)] hover:bg-[color:var(--booking-cart-close-hover)]"
+                        className="rounded-full border border-[color:var(--booking-cart-close-border)] px-2 py-1 text-sm font-semibold text-[color:var(--booking-cart-close-text)] hover:bg-[color:var(--booking-cart-close-hover)]"
                         aria-label={`Quitar ${svc.name}`}
                       >
                         Quitar
@@ -648,10 +648,10 @@ export function ServiceStep({
               ))}
             </div>
             <div className="mb-5 flex items-start justify-between gap-3 border-t border-[color:var(--booking-divide)] pt-4">
-              <span className={`min-w-0 flex-1 text-base ${cartTextColor}`}>
+              <span className={`min-w-0 flex-1 text-xl font-semibold ${cartTitleColor}`}>
                 Total ({totalDuration} min)
               </span>
-              <span className={`shrink-0 whitespace-nowrap text-lg font-semibold ${cartTextColor}`}>
+              <span className={`shrink-0 whitespace-nowrap text-xl font-semibold ${cartTextColor}`}>
                 $ {totalPrice.toFixed(0)}
               </span>
             </div>
@@ -674,17 +674,17 @@ export function ServiceStep({
       {confirmOpen && selectedServices.length > 1 && (
         <div className="fixed inset-0 z-[60] bg-black/45 backdrop-blur-sm">
           <div className="fixed inset-0 flex items-center justify-center p-4 md:p-6">
-            <div className="booking-liquid-glass w-full max-w-xl overflow-hidden rounded-2xl p-6 md:p-7">
+            <div className="booking-liquid-glass booking-glass-text w-full max-w-xl overflow-hidden rounded-2xl p-6 md:p-7">
               {(() => {
                 const svc = selectedServices[confirmIndex]
                 return (
                   <>
                     <div className="flex items-start justify-between gap-3">
                       <div>
-                        <h3 className={`text-base font-semibold md:text-lg ${cartTitleColor}`}>
+                        <h3 className={`text-lg font-semibold md:text-xl ${cartTitleColor}`}>
                           Confirmar servicio
                         </h3>
-                        <p className={`mt-1 text-sm ${cartTextColor}`}>
+                        <p className={`mt-1 text-base ${cartTextColor}`}>
                           {confirmIndex + 1}/{selectedServices.length}
                         </p>
                       </div>
