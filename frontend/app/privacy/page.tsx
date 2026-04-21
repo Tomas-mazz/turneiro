@@ -20,7 +20,7 @@ export default function PrivacyPage() {
         <h1 className="font-heading mt-6 text-3xl font-bold text-gray-900">
           Política de privacidad
         </h1>
-        <p className="mt-2 text-sm text-gray-500">Última actualización: 2026-03-18</p>
+        <p className="mt-2 text-sm text-gray-500">Última actualización: 2026-04-21</p>
 
         <div className="prose prose-gray mt-8 max-w-none space-y-6 text-[15px] leading-relaxed">
           <section>
@@ -135,6 +135,24 @@ export default function PrivacyPage() {
               Datos de reserva visibles para el negocio y quien reserva. Proveedores de
               infraestructura bajo confidencialidad. No vendemos datos para marketing de terceros.
             </p>
+            <ul className="mt-2 list-disc space-y-1 pl-5">
+              <li>
+                <strong>Datos de usuarios de Google:</strong> si conectás Google Calendar, podemos
+                compartir con <strong>Google</strong> la información mínima necesaria para ejecutar
+                la sincronización solicitada por vos (por ejemplo, crear/actualizar/eliminar eventos
+                del calendario asociados a tus turnos) mediante las APIs y permisos que otorgues.
+              </li>
+              <li>
+                <strong>Proveedores (encargados):</strong> podemos compartir o transferir datos (incl.
+                los relacionados con Google Calendar) con proveedores de infraestructura necesarios
+                para operar el servicio (p. ej. hosting, base de datos, monitoreo), bajo obligaciones
+                de confidencialidad y seguridad.
+              </li>
+              <li>
+                <strong>No venta / no publicidad:</strong> no vendemos datos de usuarios de Google ni
+                los compartimos con terceros para publicidad o marketing.
+              </li>
+            </ul>
           </section>
           <p className="mt-8 rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
             <strong>Nota:</strong> plantilla orientativa; no sustituye asesoría legal.
