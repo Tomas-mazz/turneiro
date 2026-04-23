@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
-import { getBusinessSettings, updateBusinessSettings } from '@/lib/api'
+import { getBusinessSettings, getMyBusiness, updateBusinessSettings } from '@/lib/api'
 import {
   DEFAULT_PUBLIC_PAGE_BG_DARK,
   DEFAULT_PUBLIC_PAGE_BG_LIGHT,
@@ -22,6 +22,7 @@ const FONT_OPTIONS: { key: FontFamilyKey; label: string; cssVar: string }[] = [
 ]
 
 export default function AppearancePage() {
+  const [allowBrandingAdvanced, setAllowBrandingAdvanced] = useState<boolean | null>(null)
   const [fontFamily, setFontFamily] = useState<FontFamilyKey>('ROBOTO')
   const [bgDarkHex, setBgDarkHex] = useState(DEFAULT_PUBLIC_PAGE_BG_DARK)
   const [bgLightHex, setBgLightHex] = useState(DEFAULT_PUBLIC_PAGE_BG_LIGHT)
@@ -38,8 +39,11 @@ export default function AppearancePage() {
 
   useEffect(() => {
     setLoading(true)
-    getBusinessSettings()
-      .then((s) => {
+    Promise.all([getMyBusiness(), getBusinessSettings()])
+      .then(([b, s]) => {
+        const can = b.capabilities?.allowBrandingAdvanced !== false
+        setAllowBrandingAdvanced(can)
+
         const next = String((s as any).fontFamily ?? 'ROBOTO').toUpperCase()
         if (FONT_OPTIONS.some((x) => x.key === next)) {
           setFontFamily(next as FontFamilyKey)
@@ -50,15 +54,15 @@ export default function AppearancePage() {
         setBgLightHex(s.publicPageBackgroundLight ?? DEFAULT_PUBLIC_PAGE_BG_LIGHT)
         setPublicBrandColor(s.publicBrandColor ?? null)
         const rawIntensity = String(s.publicBrandIntensity ?? 'SOFT').toUpperCase()
-        setPublicBrandIntensity(rawIntensity === 'STRONG' ? 'STRONG' : rawIntensity === 'NORMAL' ? 'NORMAL' : 'SOFT')
+        setPublicBrandIntensity(
+          rawIntensity === 'STRONG' ? 'STRONG' : rawIntensity === 'NORMAL' ? 'NORMAL' : 'SOFT'
+        )
         setPublicUseGradient(!!s.publicUseGradient)
         const th = String(s.theme ?? 'DARK').toUpperCase()
         setPublicDefaultTheme(th === 'LIGHT' ? 'LIGHT' : 'DARK')
         setError(null)
       })
-      .catch(() => {
-        setError('No se pudo cargar la configuración.')
-      })
+      .catch(() => setError('No se pudo cargar la configuración.'))
       .finally(() => setLoading(false))
   }, [])
 
@@ -105,14 +109,17 @@ export default function AppearancePage() {
     setSaving(true)
     setJustSaved(false)
     try {
+      const allowAdvanced = allowBrandingAdvanced !== false
       const updated = await updateBusinessSettings({
         fontFamily,
         theme: publicDefaultTheme,
-        publicBrandColor,
-        publicBrandIntensity,
-        publicUseGradient,
-        publicPageBackgroundDark: bgDarkHex === DEFAULT_PUBLIC_PAGE_BG_DARK ? null : bgDarkHex,
-        publicPageBackgroundLight: bgLightHex === DEFAULT_PUBLIC_PAGE_BG_LIGHT ? null : bgLightHex,
+        ...(allowAdvanced && {
+          publicBrandColor,
+          publicBrandIntensity,
+          publicUseGradient,
+          publicPageBackgroundDark: bgDarkHex === DEFAULT_PUBLIC_PAGE_BG_DARK ? null : bgDarkHex,
+          publicPageBackgroundLight: bgLightHex === DEFAULT_PUBLIC_PAGE_BG_LIGHT ? null : bgLightHex,
+        }),
       })
       const next = String((updated as any).fontFamily ?? fontFamily).toUpperCase()
       if (FONT_OPTIONS.some((x) => x.key === next)) setFontFamily(next as FontFamilyKey)
@@ -205,36 +212,40 @@ export default function AppearancePage() {
               })}
             </div>
 
-            <PublicBrandingSection
-              brandColor={publicBrandColor}
-              intensity={publicBrandIntensity}
-              useGradient={publicUseGradient}
-              legacyDarkHex={bgDarkHex}
-              legacyLightHex={bgLightHex}
-              onBrandColor={setPublicBrandColor}
-              onIntensity={setPublicBrandIntensity}
-              onUseGradient={setPublicUseGradient}
-              onReset={() => {
-                setPublicBrandColor('#E24A8D')
-                setPublicBrandIntensity('SOFT')
-                setPublicUseGradient(true)
-              }}
-            />
+            {allowBrandingAdvanced === false ? null : (
+              <>
+                <PublicBrandingSection
+                  brandColor={publicBrandColor}
+                  intensity={publicBrandIntensity}
+                  useGradient={publicUseGradient}
+                  legacyDarkHex={bgDarkHex}
+                  legacyLightHex={bgLightHex}
+                  onBrandColor={setPublicBrandColor}
+                  onIntensity={setPublicBrandIntensity}
+                  onUseGradient={setPublicUseGradient}
+                  onReset={() => {
+                    setPublicBrandColor('#E24A8D')
+                    setPublicBrandIntensity('SOFT')
+                    setPublicUseGradient(true)
+                  }}
+                />
 
-            <div className="mt-4">
-              <button
-                type="button"
-                onClick={handleRestoreDefaults}
-                disabled={restoringDefaults}
-                className="inline-flex items-center justify-center gap-2 rounded-xl border border-neutral-900 bg-neutral-900 px-4 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-neutral-800 disabled:opacity-60"
-              >
-                <span aria-hidden>{restoringDefaults ? '⏳' : justRestored ? '✓' : '↺'}</span>
-                {restoringDefaults ? 'Restaurando...' : 'Restaurar colores por defecto'}
-              </button>
-              <p className="mt-2 text-xs text-neutral-500">
-                Vuelve al estilo original: sin color de marca/gradiente y con fondo oscuro {DEFAULT_PUBLIC_PAGE_BG_DARK} / claro {DEFAULT_PUBLIC_PAGE_BG_LIGHT}.
-              </p>
-            </div>
+                <div className="mt-4">
+                  <button
+                    type="button"
+                    onClick={handleRestoreDefaults}
+                    disabled={restoringDefaults}
+                    className="inline-flex items-center justify-center gap-2 rounded-xl border border-neutral-900 bg-neutral-900 px-4 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-neutral-800 disabled:opacity-60"
+                  >
+                    <span aria-hidden>{restoringDefaults ? '⏳' : justRestored ? '✓' : '↺'}</span>
+                    {restoringDefaults ? 'Restaurando...' : 'Restaurar colores por defecto'}
+                  </button>
+                  <p className="mt-2 text-xs text-neutral-500">
+                    Vuelve al estilo original: sin color de marca/gradiente y con fondo oscuro {DEFAULT_PUBLIC_PAGE_BG_DARK} / claro {DEFAULT_PUBLIC_PAGE_BG_LIGHT}.
+                  </p>
+                </div>
+              </>
+            )}
 
             <PublicDefaultThemeSection value={publicDefaultTheme} onChange={setPublicDefaultTheme} />
 

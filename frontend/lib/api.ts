@@ -48,7 +48,18 @@ api.interceptors.response.use(
   (error) => Promise.reject(error)
 )
 
-export type MyBusinessInfo = { name: string; slug: string; logo: string | null }
+export type IndustryCapabilities = {
+  allowSubServices: boolean
+  allowBrandingAdvanced: boolean
+}
+
+export type MyBusinessInfo = {
+  name: string
+  slug: string
+  logo: string | null
+  category: string
+  capabilities: IndustryCapabilities
+}
 
 export async function getMyBusiness(): Promise<MyBusinessInfo> {
   const { data } = await api.get<MyBusinessInfo>('/businesses/mine')

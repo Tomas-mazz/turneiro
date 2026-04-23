@@ -13,6 +13,7 @@ import {
 } from '../services/employees.service'
 import type { AuthRequest } from '../middleware/auth'
 import { getBusinessContextOrRespond } from '../lib/requestGuards'
+import { getBusinessCapabilities } from '../lib/industryCapabilities'
 
 /** Accepts `#RRGGBB` or `RRGGBB`. Undefined = omit, null/'' = clear to default. */
 function parseOptionalPublicPageBackgroundHex(
@@ -159,6 +160,7 @@ export async function updateBusinessSettings(req: AuthRequest, res: Response, ne
     const ctx = getBusinessContextOrRespond(req, res)
     if (!ctx) return
     const { businessId } = ctx
+    const caps = await getBusinessCapabilities(businessId)
     const {
       fontFamily,
       theme,
@@ -177,6 +179,19 @@ export async function updateBusinessSettings(req: AuthRequest, res: Response, ne
       publicBrandIntensity,
       publicUseGradient,
     } = req.body ?? {}
+
+    if (!caps.allowBrandingAdvanced) {
+      const attemptedBranding =
+        publicPageBackgroundDark !== undefined ||
+        publicPageBackgroundLight !== undefined ||
+        publicBrandColor !== undefined ||
+        publicBrandIntensity !== undefined ||
+        publicUseGradient !== undefined
+      if (attemptedBranding) {
+        res.status(403).json({ error: 'Este rubro no permite personalizar colores/branding avanzado.' })
+        return
+      }
+    }
 
     if (theme !== undefined && theme !== null && theme !== '') {
       const t = String(theme).toUpperCase()
