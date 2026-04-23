@@ -10,7 +10,7 @@ Read in this order:
 
 1. `docs/PROJECT_STATE.md` (this file)
 2. `docs/AI_RULES_FOR_CURSOR.md`
-3. `docs/CODING_RULES.md`
+3. `docs/PROJECT.md` (high-level hub + progress log)
 4. `docs/Tech_Stack.md`
 5. `docs/ROLES_PERMISSIONS.md`
 6. `docs/FEATURES_MVP.md`
@@ -19,7 +19,7 @@ Read in this order:
 9. `docs/ARCHITECTURE.md`
 
 Reference only (do not use for code decisions):  
-`docs/PROJECT_VISION.md`, `docs/IDEAS_FUTURE.md`, `docs/DESIGN_UX.md`, `docs/OPEN_QUESTIONS.md`, `docs/RESOLVED_AMBIGUITIES.md`.
+`docs/PROJECT_VISION.md`, `docs/IDEAS_FUTURE.md`, `docs/DESIGN_UX.md`, `docs/RESOLVED_AMBIGUITIES.md`.
 
 ---
 

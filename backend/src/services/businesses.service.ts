@@ -2,11 +2,14 @@ import bcrypt from 'bcryptjs'
 import { prisma } from '../lib/prisma'
 import type { Prisma } from '@prisma/client'
 import { ensureOwnerEmployee } from './ownerEmployee.service'
+import { getBusinessCapabilities, type IndustryCapabilities } from '../lib/industryCapabilities'
 
 export interface MyBusinessInfo {
   name: string
   slug: string
   logo: string | null
+  category: string
+  capabilities: IndustryCapabilities
 }
 
 /**
@@ -17,9 +20,11 @@ export async function getMyBusinessService(
 ): Promise<MyBusinessInfo | null> {
   const business = await prisma.business.findUnique({
     where: { id: businessId },
-    select: { name: true, slug: true, logo: true },
+    select: { name: true, slug: true, logo: true, category: true },
   })
-  return business
+  if (!business) return null
+  const capabilities = await getBusinessCapabilities(businessId)
+  return { ...business, capabilities }
 }
 
 /**
@@ -766,6 +771,7 @@ export type BusinessSettings = {
   publicPageBackgroundDark: string | null
   /** Null = use built-in default for public booking page (light theme). */
   publicPageBackgroundLight: string | null
+  capabilities?: IndustryCapabilities
 }
 
 export type UpdateBusinessSettingsInput = Partial<
@@ -805,6 +811,7 @@ export async function getBusinessSettingsService(
   ])
   const themeRaw = (businessRow?.theme ?? 'DARK').toUpperCase()
   const theme: 'DARK' | 'LIGHT' = themeRaw === 'LIGHT' ? 'LIGHT' : 'DARK'
+  const capabilities = await getBusinessCapabilities(businessId)
   return {
     fontFamily: settings?.fontFamily ?? 'ROBOTO',
     theme,
@@ -825,6 +832,7 @@ export async function getBusinessSettingsService(
     allowMultipleServices: settings?.allowMultipleServices ?? false,
     publicPageBackgroundDark: settings?.publicPageBackgroundDark ?? null,
     publicPageBackgroundLight: settings?.publicPageBackgroundLight ?? null,
+    capabilities,
   }
 }
 

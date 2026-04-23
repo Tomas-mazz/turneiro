@@ -5,6 +5,7 @@ import type { ServiceListItem } from '@/types'
 
 type Props = {
   visible: boolean
+  subServicesEnabled: boolean
   showServiceConfirmModal: boolean
   showServiceConfirmModalSaving: boolean
   onToggleShowConfirm: (next: boolean) => void
@@ -34,6 +35,7 @@ type Props = {
 
 export function ServicesSection({
   visible,
+  subServicesEnabled,
   showServiceConfirmModal,
   showServiceConfirmModalSaving,
   onToggleShowConfirm,
@@ -253,6 +255,7 @@ export function ServicesSection({
                   <button
                     type="button"
                     onClick={() => openSubServices(s.id)}
+                    disabled={!subServicesEnabled}
                     className="rounded-lg border border-neutral-300 bg-white px-3 py-2 text-xs font-medium text-neutral-700 hover:bg-neutral-50"
                   >
                     Subservicios
@@ -337,6 +340,7 @@ export function ServicesSection({
                           <button
                             type="button"
                             onClick={() => openSubServices(s.id)}
+                            disabled={!subServicesEnabled}
                             className="rounded border border-neutral-300 bg-white px-2 py-1 text-[11px] font-medium text-neutral-700 hover:bg-neutral-100"
                           >
                             Subservicios

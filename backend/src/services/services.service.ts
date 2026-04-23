@@ -6,6 +6,7 @@ import type {
   CreateSubServiceAdminInput,
   UpdateSubServiceAdminInput,
 } from '../lib/schemas'
+import { assertBusinessCapability } from '../lib/industryCapabilities'
 
 export interface ServiceListItem {
   id: string
@@ -228,6 +229,11 @@ export async function getSubServicesForBusiness(
   serviceId: string,
   businessId: string
 ): Promise<SubServiceListItem[]> {
+  await assertBusinessCapability(
+    businessId,
+    'allowSubServices',
+    'Este rubro no permite subservicios.'
+  )
   const parent = await prisma.service.findFirst({
     where: { id: serviceId, businessId },
     select: { id: true },
@@ -281,6 +287,11 @@ export async function createSubServiceForBusiness(
   businessId: string,
   data: CreateSubServiceAdminInput
 ): Promise<SubServiceListItem> {
+  await assertBusinessCapability(
+    businessId,
+    'allowSubServices',
+    'Este rubro no permite subservicios.'
+  )
   const parent = await prisma.service.findFirst({
     where: { id: serviceId, businessId },
     select: { id: true },
@@ -331,6 +342,11 @@ export async function updateSubServiceForBusiness(
   businessId: string,
   data: UpdateSubServiceAdminInput
 ): Promise<SubServiceListItem> {
+  await assertBusinessCapability(
+    businessId,
+    'allowSubServices',
+    'Este rubro no permite subservicios.'
+  )
   const existing = await prisma.subService.findFirst({
     where: { id: subServiceId, service: { businessId } },
     select: { id: true },
@@ -357,6 +373,11 @@ export async function deleteSubServiceForBusiness(
   subServiceId: string,
   businessId: string
 ): Promise<void> {
+  await assertBusinessCapability(
+    businessId,
+    'allowSubServices',
+    'Este rubro no permite subservicios.'
+  )
   const existing = await prisma.subService.findFirst({
     where: { id: subServiceId, service: { businessId } },
     select: { id: true },

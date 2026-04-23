@@ -12,6 +12,7 @@ import {
   updateSubServiceForBusiness,
   deleteSubServiceForBusiness,
 } from '../services/services.service'
+import { IndustryCapabilityError } from '../lib/industryCapabilities'
 import {
   updateServiceSchema,
   createServiceAdminSchema,
@@ -137,6 +138,9 @@ export async function getSubServices(req: AuthRequest, res: Response, next: Next
     const subServices = await getSubServicesForBusiness(serviceId, businessId)
     return res.json(subServices)
   } catch (err) {
+    if (err instanceof IndustryCapabilityError) {
+      return res.status(403).json({ error: err.message })
+    }
     if (err instanceof ServiceNotFoundError) {
       return res.status(404).json({ error: err.message })
     }
@@ -172,6 +176,9 @@ export async function createSubService(
     const created = await createSubServiceForBusiness(serviceId, businessId, parsed.data)
     return res.status(201).json(created)
   } catch (err) {
+    if (err instanceof IndustryCapabilityError) {
+      return res.status(403).json({ error: err.message })
+    }
     if (err instanceof ServiceNotFoundError) {
       return res.status(404).json({ error: err.message })
     }
@@ -207,6 +214,9 @@ export async function updateSubService(
     const updated = await updateSubServiceForBusiness(subServiceId, businessId, parsed.data)
     return res.json(updated)
   } catch (err) {
+    if (err instanceof IndustryCapabilityError) {
+      return res.status(403).json({ error: err.message })
+    }
     if (err instanceof SubServiceNotFoundError) {
       return res.status(404).json({ error: err.message })
     }
@@ -235,6 +245,9 @@ export async function deleteSubService(
     await deleteSubServiceForBusiness(subServiceId, businessId)
     return res.status(204).send()
   } catch (err) {
+    if (err instanceof IndustryCapabilityError) {
+      return res.status(403).json({ error: err.message })
+    }
     if (err instanceof SubServiceNotFoundError) {
       return res.status(404).json({ error: err.message })
     }

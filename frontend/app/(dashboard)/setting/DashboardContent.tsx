@@ -65,6 +65,7 @@ const GOOGLE_CALENDAR_URL = 'https://calendar.google.com'
 type DashboardSection = 'all' | 'services' | 'payments' | 'blocking' | 'hours' | 'employees' | 'cancel'
 type PaymentMode = 'REQUIRED' | 'OPTIONAL' | 'CONFIRM_ONLY'
 type FontFamilyKey = 'ROBOTO' | 'MONTSERRAT' | 'INTER' | 'POPPINS' | 'NUNITO' | 'PLAYFAIR'
+type IndustryCapabilities = { allowSubServices: boolean; allowBrandingAdvanced: boolean }
 
 const FONT_OPTIONS: { key: FontFamilyKey; label: string; cssVar: string; sample: string }[] = [
   { key: 'ROBOTO', label: 'Roboto', cssVar: 'var(--font-roboto)', sample: 'Aa Bb Cc' },
@@ -78,6 +79,7 @@ const FONT_OPTIONS: { key: FontFamilyKey; label: string; cssVar: string; sample:
 export function DashboardContent({ section = 'all' }: { section?: DashboardSection }) {
   const [businessTitle, setBusinessTitle] = useState<string | null>(null)
   const [businessSlug, setBusinessSlug] = useState<string | null>(null)
+  const [capabilities, setCapabilities] = useState<IndustryCapabilities | null>(null)
   const [services, setServices] = useState<ServiceListItem[]>([])
   const [loadingServices, setLoadingServices] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -205,6 +207,7 @@ export function DashboardContent({ section = 'all' }: { section?: DashboardSecti
       .then((b) => {
         setBusinessTitle(`${b.name} - Configuración`)
         setBusinessSlug(b.slug)
+        setCapabilities((b as any).capabilities ?? null)
       })
       .catch(() => setBusinessTitle('Configuración'))
   }, [])
@@ -217,6 +220,10 @@ export function DashboardContent({ section = 'all' }: { section?: DashboardSecti
     getServices()
       .then(async (svc) => {
         setServices(svc)
+        if (capabilities && capabilities.allowSubServices === false) {
+          setSubServicesByService({})
+          return
+        }
         const entries: Record<string, SubServiceAdminItem[]> = {}
         await Promise.all(
           svc.map(async (s) => {
@@ -232,7 +239,7 @@ export function DashboardContent({ section = 'all' }: { section?: DashboardSecti
       })
       .catch((err) => setError(err.response?.data?.error || 'Error al cargar servicios'))
       .finally(() => setLoadingServices(false))
-  }, [userRole, actsAsOwner])
+  }, [userRole, actsAsOwner, capabilities])
 
   useEffect(() => {
     if (!actsAsOwner) return
@@ -774,14 +781,17 @@ export function DashboardContent({ section = 'all' }: { section?: DashboardSecti
     setSavingFont(true)
     setFontJustSaved(false)
     try {
+      const allowAdvanced = capabilities?.allowBrandingAdvanced !== false
       const updated = await updateBusinessSettings({
         fontFamily,
         theme: publicDefaultTheme,
-        publicBrandColor,
-        publicBrandIntensity,
-        publicUseGradient,
-        publicPageBackgroundDark: bgDarkHex === DEFAULT_PUBLIC_PAGE_BG_DARK ? null : bgDarkHex,
-        publicPageBackgroundLight: bgLightHex === DEFAULT_PUBLIC_PAGE_BG_LIGHT ? null : bgLightHex,
+        ...(allowAdvanced && {
+          publicBrandColor,
+          publicBrandIntensity,
+          publicUseGradient,
+          publicPageBackgroundDark: bgDarkHex === DEFAULT_PUBLIC_PAGE_BG_DARK ? null : bgDarkHex,
+          publicPageBackgroundLight: bgLightHex === DEFAULT_PUBLIC_PAGE_BG_LIGHT ? null : bgLightHex,
+        }),
       })
       const next = String((updated as any).fontFamily ?? fontFamily).toUpperCase()
       if (FONT_OPTIONS.some((x) => x.key === next)) {
@@ -1163,38 +1173,42 @@ export function DashboardContent({ section = 'all' }: { section?: DashboardSecti
             })}
           </div>
 
-          <PublicBrandingSection
-            brandColor={publicBrandColor}
-            intensity={publicBrandIntensity}
-            useGradient={publicUseGradient}
-            legacyDarkHex={bgDarkHex}
-            legacyLightHex={bgLightHex}
-            onBrandColor={setPublicBrandColor}
-            onIntensity={setPublicBrandIntensity}
-            onUseGradient={setPublicUseGradient}
-            onReset={() => {
-              setPublicBrandColor('#E24A8D')
-              setPublicBrandIntensity('SOFT')
-              setPublicUseGradient(true)
-            }}
-          />
+          {capabilities?.allowBrandingAdvanced === false ? null : (
+            <>
+              <PublicBrandingSection
+                brandColor={publicBrandColor}
+                intensity={publicBrandIntensity}
+                useGradient={publicUseGradient}
+                legacyDarkHex={bgDarkHex}
+                legacyLightHex={bgLightHex}
+                onBrandColor={setPublicBrandColor}
+                onIntensity={setPublicBrandIntensity}
+                onUseGradient={setPublicUseGradient}
+                onReset={() => {
+                  setPublicBrandColor('#E24A8D')
+                  setPublicBrandIntensity('SOFT')
+                  setPublicUseGradient(true)
+                }}
+              />
 
-          <div className="mt-4">
-            <button
-              type="button"
-              onClick={handleRestoreAppearanceDefaults}
-              disabled={restoringAppearanceDefaults}
-              className="inline-flex items-center justify-center gap-2 rounded-xl border border-neutral-900 bg-neutral-900 px-4 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-neutral-800 disabled:opacity-60"
-            >
-              <span aria-hidden>
-                {restoringAppearanceDefaults ? '⏳' : appearanceJustRestored ? '✓' : '↺'}
-              </span>
-              {restoringAppearanceDefaults ? 'Restaurando...' : 'Restaurar colores por defecto'}
-            </button>
-            <p className="mt-2 text-xs text-neutral-500">
-              Vuelve al estilo original: sin color de marca/gradiente y con fondo oscuro {DEFAULT_PUBLIC_PAGE_BG_DARK} / claro {DEFAULT_PUBLIC_PAGE_BG_LIGHT}.
-            </p>
-          </div>
+              <div className="mt-4">
+                <button
+                  type="button"
+                  onClick={handleRestoreAppearanceDefaults}
+                  disabled={restoringAppearanceDefaults}
+                  className="inline-flex items-center justify-center gap-2 rounded-xl border border-neutral-900 bg-neutral-900 px-4 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-neutral-800 disabled:opacity-60"
+                >
+                  <span aria-hidden>
+                    {restoringAppearanceDefaults ? '⏳' : appearanceJustRestored ? '✓' : '↺'}
+                  </span>
+                  {restoringAppearanceDefaults ? 'Restaurando...' : 'Restaurar colores por defecto'}
+                </button>
+                <p className="mt-2 text-xs text-neutral-500">
+                  Vuelve al estilo original: sin color de marca/gradiente y con fondo oscuro {DEFAULT_PUBLIC_PAGE_BG_DARK} / claro {DEFAULT_PUBLIC_PAGE_BG_LIGHT}.
+                </p>
+              </div>
+            </>
+          )}
 
           <PublicDefaultThemeSection value={publicDefaultTheme} onChange={setPublicDefaultTheme} />
 
@@ -1216,6 +1230,7 @@ export function DashboardContent({ section = 'all' }: { section?: DashboardSecti
 
       <ServicesSection
         visible={actsAsOwner && (section === 'all' || section === 'services')}
+        subServicesEnabled={capabilities?.allowSubServices !== false}
         showServiceConfirmModal={showServiceConfirmModal}
         showServiceConfirmModalSaving={showServiceConfirmModalSaving}
         onToggleShowConfirm={async (next) => {
@@ -1266,7 +1281,10 @@ export function DashboardContent({ section = 'all' }: { section?: DashboardSecti
         setEditingDuration={setEditingDuration}
         openDescriptions={(id) => setServiceDescriptionsModalId(id)}
         openImages={(id) => setServiceImagesModalId(id)}
-        openSubServices={(id) => setSubServicesModalId(id)}
+        openSubServices={(id) => {
+          if (capabilities?.allowSubServices === false) return
+          setSubServicesModalId(id)
+        }}
       />
 
       <HoursSection
