@@ -13,6 +13,7 @@ import type {
   AdminEmployeeListItem,
   OwnerEmployeeListItem,
   SubServiceAdminItem,
+  ServiceAddOnAdminItem,
   SellerBusinessDetail,
   SellerBusinessListItem,
   CreateSellerBusinessBody,
@@ -51,6 +52,7 @@ api.interceptors.response.use(
 export type IndustryCapabilities = {
   allowSubServices: boolean
   allowBrandingAdvanced: boolean
+  allowServiceAddOns: boolean
 }
 
 export type MyBusinessInfo = {
@@ -134,6 +136,83 @@ export async function updateSubService(
 
 export async function deleteSubService(subServiceId: string): Promise<void> {
   await api.delete(`/services/subservices/${subServiceId}`)
+}
+
+export type CreateServiceAddOnBody = {
+  name: string
+  price: number
+  isActive?: boolean
+  serviceIds: string[]
+  subServiceIds: string[]
+}
+
+export type UpdateServiceAddOnBody = {
+  name?: string
+  price?: number
+  isActive?: boolean
+  serviceIds?: string[]
+  subServiceIds?: string[]
+}
+
+export async function getServiceAddOns(): Promise<ServiceAddOnAdminItem[]> {
+  const { data } = await api.get<ServiceAddOnAdminItem[]>('/services/add-ons')
+  return data
+}
+
+export async function createServiceAddOn(body: CreateServiceAddOnBody): Promise<ServiceAddOnAdminItem> {
+  const { data } = await api.post<ServiceAddOnAdminItem>('/services/add-ons', body)
+  return data
+}
+
+export async function updateServiceAddOn(
+  id: string,
+  body: UpdateServiceAddOnBody
+): Promise<ServiceAddOnAdminItem> {
+  const { data } = await api.patch<ServiceAddOnAdminItem>(`/services/add-ons/${id}`, body)
+  return data
+}
+
+export async function deleteServiceAddOn(id: string): Promise<void> {
+  await api.delete(`/services/add-ons/${id}`)
+}
+
+export async function getAdminBusinessServiceAddOns(
+  businessId: string
+): Promise<ServiceAddOnAdminItem[]> {
+  const { data } = await api.get<ServiceAddOnAdminItem[]>(
+    `/admin/businesses/${businessId}/service-add-ons`
+  )
+  return data
+}
+
+export async function createAdminBusinessServiceAddOn(
+  businessId: string,
+  body: CreateServiceAddOnBody
+): Promise<ServiceAddOnAdminItem> {
+  const { data } = await api.post<ServiceAddOnAdminItem>(
+    `/admin/businesses/${businessId}/service-add-ons`,
+    body
+  )
+  return data
+}
+
+export async function updateAdminBusinessServiceAddOn(
+  businessId: string,
+  addOnId: string,
+  body: UpdateServiceAddOnBody
+): Promise<ServiceAddOnAdminItem> {
+  const { data } = await api.patch<ServiceAddOnAdminItem>(
+    `/admin/businesses/${businessId}/service-add-ons/${addOnId}`,
+    body
+  )
+  return data
+}
+
+export async function deleteAdminBusinessServiceAddOn(
+  businessId: string,
+  addOnId: string
+): Promise<void> {
+  await api.delete(`/admin/businesses/${businessId}/service-add-ons/${addOnId}`)
 }
 
 export async function getAppointments(): Promise<AppointmentListItem[]> {

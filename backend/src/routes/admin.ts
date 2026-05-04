@@ -37,6 +37,10 @@ import {
   createEmployee,
   updateEmployee,
   deleteEmployee,
+  getBusinessServiceAddOns,
+  createBusinessServiceAddOn,
+  updateBusinessServiceAddOn,
+  deleteBusinessServiceAddOn,
 } from '../controllers/admin.controller'
 import { createSeller, deleteSeller, getSellerDetail, listSellers } from '../controllers/sellersAdmin.controller'
 
@@ -59,6 +63,25 @@ router.patch(
 router.delete('/businesses/:id', requireAdmin, requireAdminBusinessId, deleteBusiness)
 
 router.get('/businesses/:id/services', requireAdmin, requireAdminBusinessId, getBusinessServices)
+router.get(
+  '/businesses/:id/service-add-ons',
+  requireAdmin,
+  requireAdminBusinessId,
+  getBusinessServiceAddOns
+)
+router.post('/businesses/:id/service-add-ons', requireAdmin, requireAdminBusinessId, createBusinessServiceAddOn)
+router.patch(
+  '/businesses/:id/service-add-ons/:addOnId',
+  requireAdmin,
+  requireAdminBusinessId,
+  updateBusinessServiceAddOn
+)
+router.delete(
+  '/businesses/:id/service-add-ons/:addOnId',
+  requireAdmin,
+  requireAdminBusinessId,
+  deleteBusinessServiceAddOn
+)
 router.post(
   '/businesses/:id/services',
   requireAdmin,

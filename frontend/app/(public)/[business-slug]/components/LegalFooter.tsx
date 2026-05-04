@@ -17,14 +17,14 @@ export function LegalFooter({ className = '' }: LegalFooterProps) {
         href="https://www.turneiro.com/privacy"
         className="underline underline-offset-4 transition-colors hover:text-[color:var(--booking-fg,#171717)]"
       >
-        Privacy Policy
+        Política de privacidad
       </Link>
       <span aria-hidden="true">·</span>
       <Link
         href="https://www.turneiro.com/terms"
         className="underline underline-offset-4 transition-colors hover:text-[color:var(--booking-fg,#171717)]"
       >
-        Terms of Service
+        Términos del servicio
       </Link>
     </footer>
   )

@@ -22,6 +22,7 @@ import {
   uploadAdminFile,
 } from '@/lib/api'
 import { ImagesModal } from '@/components/ImagesModal'
+import { ServiceAddOnsSection } from '@/components/ServiceAddOnsSection'
 import type {
   AdminBusinessDetail,
   UpdateBusinessBody,
@@ -1435,6 +1436,17 @@ export default function AdminBusinessSetupPage() {
               </div>
             )
           })()}
+
+          {business &&
+            id &&
+            (business.category === 'wellness' || business.category === 'salon') && (
+              <ServiceAddOnsSection
+                visible
+                client={{ kind: 'admin', businessId: id }}
+                services={services}
+                subServicesByService={subServicesByService}
+              />
+            )}
 
           <div className="mt-6 flex flex-wrap gap-3">
             <button

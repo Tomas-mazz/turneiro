@@ -240,7 +240,9 @@ export function DateStep({
                   !canSelect
                     ? 'cursor-default bg-[color:var(--booking-card-bg)] text-[color:var(--booking-fg-subtle)] opacity-70'
                     : isSelected
-                      ? 'border-2 border-[color:var(--booking-fg)] bg-[color:var(--booking-card-bg)] text-[color:var(--booking-fg)] shadow-sm'
+                      ? isDarkTheme
+                        ? 'border-2 border-white bg-white text-black shadow-sm'
+                        : 'border-2 border-black bg-black text-white shadow-sm'
                       : 'border border-[color:var(--booking-border)] bg-[color:var(--booking-control-bg)] text-[color:var(--booking-fg)] hover:bg-[color:var(--booking-control-hover)]'
                 }`}
               >

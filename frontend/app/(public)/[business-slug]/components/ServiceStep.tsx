@@ -4,10 +4,13 @@ import { useState, useEffect, useRef } from 'react'
 import Image from 'next/image'
 import type { AuthUser } from '@/lib/auth'
 import { primaryCtaTextClass } from '@/lib/booking'
+import { api } from '@/lib/api'
 import type { Business, ServiceOption } from '../types'
+import { serviceOptionTotalPrice } from '../utils'
 import { BookingLayout } from './BookingLayout'
 import { BookingStepper } from './BookingStepper'
 import { ServiceAboutModal } from './ServiceAboutModal'
+import { BookingAddOnsModal, type BookingAddOnItem } from './BookingAddOnsModal'
 // Confirm flow now happens inside ServiceAboutModal when enabled.
 
 const DAY_NAMES = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado']
@@ -17,6 +20,8 @@ const DAY_ORDER = [1, 2, 3, 4, 5, 6, 0]
 
 type ServiceStepProps = {
   business: Business
+  businessSlug: string
+  allowServiceAddOns?: boolean
   selectedServices: ServiceOption[]
   onSelectServices: (next: ServiceOption[]) => void
   onContinue: () => void
@@ -33,8 +38,17 @@ type ServiceStepProps = {
   onLogout?: () => void
 }
 
+type AddOnModalState = {
+  pending: ServiceOption
+  items: BookingAddOnItem[]
+  /** When adding in multi-select mode, prepend these rows before the pending one. */
+  baseBeforeAppend: ServiceOption[] | null
+}
+
 export function ServiceStep({
   business,
+  businessSlug,
+  allowServiceAddOns = false,
   selectedServices,
   onSelectServices,
   onContinue,
@@ -84,6 +98,7 @@ export function ServiceStep({
   const [aboutOpen, setAboutOpen] = useState(false)
   const [confirmOpen, setConfirmOpen] = useState(false)
   const [confirmIndex, setConfirmIndex] = useState(0)
+  const [addOnModal, setAddOnModal] = useState<AddOnModalState | null>(null)
   const [aboutTarget, setAboutTarget] = useState<{
       title: string
       images: string[]
@@ -104,8 +119,48 @@ export function ServiceStep({
   const mustConfirmBeforeCalendar = !!business.settings?.showServiceConfirmModal
   const allowMultiple = !!business.settings?.allowMultipleServices
 
-  const totalPrice = selectedServices.reduce((acc, s) => acc + s.price, 0)
+  const totalPrice = selectedServices.reduce((acc, s) => acc + serviceOptionTotalPrice(s), 0)
   const totalDuration = selectedServices.reduce((acc, s) => acc + s.duration, 0)
+
+  const fetchApplicableAddOns = async (selectionId: string): Promise<BookingAddOnItem[]> => {
+    if (!allowServiceAddOns || !businessSlug) return []
+    try {
+      const { data } = await api.get<BookingAddOnItem[]>(
+        `/businesses/${encodeURIComponent(businessSlug)}/add-ons`,
+        { params: { selectionId } }
+      )
+      return Array.isArray(data) ? data : []
+    } catch {
+      return []
+    }
+  }
+
+  const commitPendingWithAddOns = (pending: ServiceOption, addOns: BookingAddOnItem[] | undefined) => {
+    const next: ServiceOption = { ...pending }
+    if (addOns && addOns.length > 0) {
+      next.addOns = addOns.map((a) => ({ id: a.id, name: a.name, price: a.price }))
+    } else {
+      delete next.addOns
+    }
+    return next
+  }
+
+  const finalizeSelectionWithOptionalAddOns = async (sel: ServiceOption, mode: 'single' | 'multi-add') => {
+    const list = await fetchApplicableAddOns(sel.id)
+    if (list.length > 0) {
+      setAddOnModal({
+        pending: sel,
+        items: list,
+        baseBeforeAppend: mode === 'multi-add' ? [...selectedServices] : null,
+      })
+      return
+    }
+    if (mode === 'single') {
+      onSelectServices([commitPendingWithAddOns(sel, undefined)])
+    } else {
+      onSelectServices([...selectedServices, commitPendingWithAddOns(sel, undefined)])
+    }
+  }
 
   useEffect(() => {
     if (selectedServices.length > 0) setIsClosing(false)
@@ -215,6 +270,36 @@ export function ServiceStep({
         }}
         onConfirm={handleAboutConfirm}
       />
+      {addOnModal && (
+        <BookingAddOnsModal
+          open
+          items={addOnModal.items}
+          primaryColor={primaryColor}
+          pageBackgroundColor={pageBackgroundColor}
+          isDarkTheme={isDarkTheme}
+          onClose={() => {
+            const row = commitPendingWithAddOns(addOnModal.pending, undefined)
+            if (addOnModal.baseBeforeAppend === null) onSelectServices([row])
+            else onSelectServices([...addOnModal.baseBeforeAppend, row])
+            setAddOnModal(null)
+          }}
+          onWithoutAddOns={() => {
+            const row = commitPendingWithAddOns(addOnModal.pending, undefined)
+            if (addOnModal.baseBeforeAppend === null) onSelectServices([row])
+            else onSelectServices([...addOnModal.baseBeforeAppend, row])
+            setAddOnModal(null)
+          }}
+          onConfirm={(selected) => {
+            const row = commitPendingWithAddOns(
+              addOnModal.pending,
+              selected.length > 0 ? selected : undefined
+            )
+            if (addOnModal.baseBeforeAppend === null) onSelectServices([row])
+            else onSelectServices([...addOnModal.baseBeforeAppend, row])
+            setAddOnModal(null)
+          }}
+        />
+      )}
       <BookingStepper step="service" showPaymentStep={showPaymentStep} />
       <div className="flex max-w-4xl flex-col gap-8 md:max-w-4xl md:flex-row md:gap-10 lg:max-w-6xl lg:gap-12">
         {/* Left: services list */}
@@ -256,9 +341,13 @@ export function ServiceStep({
                         const sel: ServiceOption = { id: s.id, name: s.name, price: s.price, duration: s.duration }
                         if (allowMultiple) {
                           const exists = selectedServices.some((x) => x.id === sel.id && !x.parentServiceId)
-                          onSelectServices(exists ? selectedServices.filter((x) => x.id !== sel.id) : [...selectedServices, sel])
+                          if (exists) {
+                            onSelectServices(selectedServices.filter((x) => x.id !== sel.id))
+                          } else {
+                            void finalizeSelectionWithOptionalAddOns(sel, 'multi-add')
+                          }
                         } else {
-                          onSelectServices([sel])
+                          void finalizeSelectionWithOptionalAddOns(sel, 'single')
                         }
                       }
                     }}
@@ -387,13 +476,17 @@ export function ServiceStep({
                                     const exists = selectedServices.some(
                                       (x) => x.id === sel.id && x.parentServiceId === sel.parentServiceId
                                     )
-                                    onSelectServices(
-                                      exists
-                                        ? selectedServices.filter((x) => x.id !== sel.id)
-                                        : [...selectedServices, sel]
-                                    )
+                                    if (exists) {
+                                      onSelectServices(
+                                        selectedServices.filter(
+                                          (x) => !(x.id === sel.id && x.parentServiceId === sel.parentServiceId)
+                                        )
+                                      )
+                                    } else {
+                                      void finalizeSelectionWithOptionalAddOns(sel, 'multi-add')
+                                    }
                                   } else {
-                                    onSelectServices([sel])
+                                    void finalizeSelectionWithOptionalAddOns(sel, 'single')
                                   }
                                 }}
                                 className={`flex w-full items-start gap-3 py-2 pr-4 text-left text-sm md:text-base ${serviceRowHover}`}
@@ -597,7 +690,7 @@ export function ServiceStep({
       </div>
 
       {/* Cart bottom sheet — no overlay, side and bottom margins like reference */}
-      {selectedServices.length > 0 && !aboutOpen && (
+      {selectedServices.length > 0 && !aboutOpen && !addOnModal && !confirmOpen && (
         <div
           className="fixed bottom-0 left-0 right-0 z-50 px-4 pb-6 md:px-6 md:pb-8 lg:px-10"
           role="dialog"
@@ -624,19 +717,41 @@ export function ServiceStep({
             </div>
             <div className="mb-4 space-y-2">
               {selectedServices.map((svc) => (
-                <div key={svc.id} className="flex items-start justify-between gap-3">
+                <div
+                  key={`${svc.id}:${svc.parentServiceId ?? 'root'}`}
+                  className="flex items-start justify-between gap-3"
+                >
                   <div className="min-w-0">
                     <p className={`truncate text-[15px] font-medium ${cartTextColor}`}>{svc.name}</p>
                     <p className={`mt-0.5 text-sm ${cartTextColor}`}>{svc.duration} min</p>
+                    {svc.addOns && svc.addOns.length > 0 && (
+                      <ul className={`mt-1 space-y-0.5 text-xs ${cartTextColor}`}>
+                        {svc.addOns.map((a) => (
+                          <li key={a.id}>
+                            + {a.name} ($ {a.price.toFixed(0)})
+                          </li>
+                        ))}
+                      </ul>
+                    )}
                   </div>
                   <div className="flex items-center gap-2">
                     <span className={`shrink-0 whitespace-nowrap text-[15px] font-semibold ${cartTextColor}`}>
-                      $ {svc.price.toFixed(0)}
+                      $ {serviceOptionTotalPrice(svc).toFixed(0)}
                     </span>
                     {allowMultiple && (
                       <button
                         type="button"
-                        onClick={() => onSelectServices(selectedServices.filter((x) => x.id !== svc.id))}
+                        onClick={() =>
+                          onSelectServices(
+                            selectedServices.filter(
+                              (x) =>
+                                !(
+                                  x.id === svc.id &&
+                                  (x.parentServiceId ?? '') === (svc.parentServiceId ?? '')
+                                )
+                            )
+                          )
+                        }
                         className="rounded-full border border-[color:var(--booking-cart-close-border)] px-2 py-1 text-sm font-semibold text-[color:var(--booking-cart-close-text)] hover:bg-[color:var(--booking-cart-close-hover)]"
                         aria-label={`Quitar ${svc.name}`}
                       >
@@ -671,7 +786,7 @@ export function ServiceStep({
         </div>
       )}
 
-      {confirmOpen && selectedServices.length > 1 && (
+      {confirmOpen && !addOnModal && selectedServices.length > 1 && (
         <div className="fixed inset-0 z-[60] bg-black/45 backdrop-blur-sm">
           <div className="fixed inset-0 flex items-center justify-center p-4 md:p-6">
             <div className="booking-liquid-glass booking-glass-text w-full max-w-xl overflow-hidden rounded-2xl p-6 md:p-7">
@@ -704,7 +819,7 @@ export function ServiceStep({
                           <p className={`mt-1 text-sm ${cartTextColor}`}>{svc?.duration ?? 0} min</p>
                         </div>
                         <span className={`shrink-0 text-base font-semibold ${cartTextColor}`}>
-                          $ {(svc?.price ?? 0).toFixed(0)}
+                          $ {svc ? serviceOptionTotalPrice(svc).toFixed(0) : '0'}
                         </span>
                       </div>
 
