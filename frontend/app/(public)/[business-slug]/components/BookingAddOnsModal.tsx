@@ -55,7 +55,7 @@ export function BookingAddOnsModal({
 
   return (
     <div
-      className="fixed inset-0 z-[80] flex items-end justify-center sm:items-center sm:p-4"
+      className="fixed inset-0 z-[80] flex items-center justify-center px-4 py-6 sm:px-6 sm:py-8"
       role="dialog"
       aria-modal="true"
       aria-labelledby="booking-addons-title"
@@ -67,15 +67,17 @@ export function BookingAddOnsModal({
         onClick={onClose}
       />
       <div
-        className={`relative z-[81] w-full max-w-lg rounded-t-2xl border ${border} p-5 shadow-xl sm:rounded-2xl sm:p-6`}
+        className={`relative z-[81] flex max-h-[min(88vh,640px)] w-full max-w-md flex-col overflow-hidden rounded-2xl border ${border} p-5 shadow-xl sm:max-w-lg sm:p-6`}
         style={{ backgroundColor: pageBackgroundColor }}
       >
-        <h2 id="booking-addons-title" className={`text-lg font-semibold ${fg}`}>
-          {title}
-        </h2>
-        <p className={`mt-1 text-sm ${muted}`}>Podés elegir varios o continuar sin adicionales.</p>
+        <div className="shrink-0">
+          <h2 id="booking-addons-title" className={`text-lg font-semibold ${fg}`}>
+            {title}
+          </h2>
+          <p className={`mt-1 text-sm ${muted}`}>Podés elegir varios o continuar sin adicionales.</p>
+        </div>
 
-        <ul className={`mt-4 max-h-[45vh] space-y-2 overflow-y-auto border-t ${border} pt-3`}>
+        <ul className={`mt-4 min-h-0 flex-1 space-y-2 overflow-y-auto border-t ${border} pt-3`}>
           {items.map((item) => {
             const checked = picked.has(item.id)
             return (
@@ -103,13 +105,14 @@ export function BookingAddOnsModal({
           })}
         </ul>
 
-        {selectedRows.length > 0 && (
-          <p className={`mt-3 text-sm ${muted}`}>
-            Adicionales: <span className="font-semibold text-[color:var(--booking-fg)]">$ {extraTotal.toFixed(0)}</span>
-          </p>
-        )}
+        <div className="mt-4 shrink-0 space-y-3">
+          {selectedRows.length > 0 && (
+            <p className={`text-sm ${muted}`}>
+              Adicionales: <span className="font-semibold text-[color:var(--booking-fg)]">$ {extraTotal.toFixed(0)}</span>
+            </p>
+          )}
 
-        <div className="mt-5 flex flex-col items-stretch gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
+          <div className="flex flex-col items-stretch gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
           <button
             type="button"
             onClick={onWithoutAddOns}
@@ -126,6 +129,7 @@ export function BookingAddOnsModal({
             Continuar
             {selectedRows.length > 0 ? ` ($ ${extraTotal.toFixed(0)})` : ''}
           </button>
+          </div>
         </div>
       </div>
     </div>
