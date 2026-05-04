@@ -1,3 +1,11 @@
+import type { ServiceOption } from './types'
+
+/** Base service/subservicio price plus optional adicionales. */
+export function serviceOptionTotalPrice(s: ServiceOption): number {
+  const extras = (s.addOns ?? []).reduce((acc, a) => acc + (Number.isFinite(a.price) ? a.price : 0), 0)
+  return (Number.isFinite(s.price) ? s.price : 0) + extras
+}
+
 /** Default timezone for the booking page (Argentina) */
 export const BOOKING_TIMEZONE = 'America/Argentina/Buenos_Aires'
 

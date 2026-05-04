@@ -41,6 +41,7 @@ import { ServiceDescriptionsModal } from './components/modals/ServiceDescription
 import { SubServicesModal } from './components/modals/SubServicesModal'
 import { CancelAppointmentModal } from './components/modals/CancelAppointmentModal'
 import { ServicesSection } from './components/sections/ServicesSection'
+import { ServiceAddOnsSection } from '@/components/ServiceAddOnsSection'
 import { HoursSection } from './components/sections/HoursSection'
 import { BlockingSection } from './components/sections/BlockingSection'
 import { CancelSection } from './components/sections/CancelSection'
@@ -65,7 +66,11 @@ const GOOGLE_CALENDAR_URL = 'https://calendar.google.com'
 type DashboardSection = 'all' | 'services' | 'payments' | 'blocking' | 'hours' | 'employees' | 'cancel'
 type PaymentMode = 'REQUIRED' | 'OPTIONAL' | 'CONFIRM_ONLY'
 type FontFamilyKey = 'ROBOTO' | 'MONTSERRAT' | 'INTER' | 'POPPINS' | 'NUNITO' | 'PLAYFAIR'
-type IndustryCapabilities = { allowSubServices: boolean; allowBrandingAdvanced: boolean }
+type IndustryCapabilities = {
+  allowSubServices: boolean
+  allowBrandingAdvanced: boolean
+  allowServiceAddOns: boolean
+}
 
 const FONT_OPTIONS: { key: FontFamilyKey; label: string; cssVar: string; sample: string }[] = [
   { key: 'ROBOTO', label: 'Roboto', cssVar: 'var(--font-roboto)', sample: 'Aa Bb Cc' },
@@ -1285,6 +1290,17 @@ export function DashboardContent({ section = 'all' }: { section?: DashboardSecti
           if (capabilities?.allowSubServices === false) return
           setSubServicesModalId(id)
         }}
+      />
+
+      <ServiceAddOnsSection
+        visible={
+          actsAsOwner &&
+          capabilities?.allowServiceAddOns === true &&
+          (section === 'all' || section === 'services')
+        }
+        client={{ kind: 'owner' }}
+        services={services}
+        subServicesByService={subServicesByService}
       />
 
       <HoursSection

@@ -18,6 +18,13 @@ import {
   SubServiceNotFoundError,
 } from '../services/services.service'
 import {
+  createServiceAddOnForBusiness,
+  deleteServiceAddOnForBusiness,
+  listServiceAddOnsForBusinessAdmin,
+  updateServiceAddOnForBusiness,
+  ServiceAddOnNotFoundError,
+} from '../services/serviceAddons.service'
+import {
   getWorkingHoursForBusiness,
   upsertWorkingHoursForBusiness,
 } from '../services/workingHours.service'
@@ -53,9 +60,12 @@ import {
   updateServiceAdminSchema,
   createSubServiceAdminSchema,
   updateSubServiceAdminSchema,
+  createServiceAddOnSchema,
+  updateServiceAddOnSchema,
 } from '../lib/schemas'
 import type { AuthRequest } from '../middleware/auth'
 import { getAdminBusinessIdOrRespond } from '../lib/requestGuards'
+import { IndustryCapabilityError } from '../lib/industryCapabilities'
 import { ZodError } from 'zod'
 
 export async function getBusinesses(_req: Request, res: Response) {
@@ -578,6 +588,83 @@ export async function adminUpdateAppointmentStatus(
   } catch (err) {
     if (err instanceof CancellationNotAllowedError) {
       return res.status(400).json({ error: err.message })
+    }
+    next(err)
+  }
+}
+
+export async function getBusinessServiceAddOns(req: AuthRequest, res: Response, next: NextFunction) {
+  const businessId = getAdminBusinessIdOrRespond(req, res)
+  if (businessId === undefined) return
+  try {
+    const items = await listServiceAddOnsForBusinessAdmin(businessId)
+    res.json(items)
+  } catch (err) {
+    next(err)
+  }
+}
+
+export async function createBusinessServiceAddOn(req: AuthRequest, res: Response, next: NextFunction) {
+  const businessId = getAdminBusinessIdOrRespond(req, res)
+  if (businessId === undefined) return
+  try {
+    const parsed = createServiceAddOnSchema.safeParse(req.body)
+    if (!parsed.success) {
+      return res.status(400).json({
+        error: 'Error de validación',
+        details: (parsed.error as ZodError).errors,
+      })
+    }
+    const created = await createServiceAddOnForBusiness(businessId, parsed.data)
+    res.status(201).json(created)
+  } catch (err) {
+    if (err instanceof IndustryCapabilityError) {
+      return res.status(403).json({ error: err.message })
+    }
+    next(err)
+  }
+}
+
+export async function updateBusinessServiceAddOn(req: AuthRequest, res: Response, next: NextFunction) {
+  const businessId = getAdminBusinessIdOrRespond(req, res)
+  if (businessId === undefined) return
+  try {
+    const id = req.params.addOnId
+    if (!id) return res.status(400).json({ error: 'ID obligatorio' })
+    const parsed = updateServiceAddOnSchema.safeParse(req.body)
+    if (!parsed.success) {
+      return res.status(400).json({
+        error: 'Error de validación',
+        details: (parsed.error as ZodError).errors,
+      })
+    }
+    const updated = await updateServiceAddOnForBusiness(businessId, id, parsed.data)
+    res.json(updated)
+  } catch (err) {
+    if (err instanceof IndustryCapabilityError) {
+      return res.status(403).json({ error: err.message })
+    }
+    if (err instanceof ServiceAddOnNotFoundError) {
+      return res.status(404).json({ error: err.message })
+    }
+    next(err)
+  }
+}
+
+export async function deleteBusinessServiceAddOn(req: AuthRequest, res: Response, next: NextFunction) {
+  const businessId = getAdminBusinessIdOrRespond(req, res)
+  if (businessId === undefined) return
+  try {
+    const id = req.params.addOnId
+    if (!id) return res.status(400).json({ error: 'ID obligatorio' })
+    await deleteServiceAddOnForBusiness(businessId, id)
+    res.status(204).send()
+  } catch (err) {
+    if (err instanceof IndustryCapabilityError) {
+      return res.status(403).json({ error: err.message })
+    }
+    if (err instanceof ServiceAddOnNotFoundError) {
+      return res.status(404).json({ error: err.message })
     }
     next(err)
   }

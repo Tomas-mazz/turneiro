@@ -22,6 +22,8 @@ export const createAppointmentSchema = z.object({
   // When true, appointment is created but confirmation side-effects (email/calendar)
   // are deferred until payment is confirmed.
   deferConfirmationUntilPayment: z.boolean().optional(),
+  /** Optional extras; only allowed for single-service bookings and wellness/salón businesses. */
+  addOnIds: z.array(z.string().min(1)).optional(),
 }).refine((data) => {
   const hasSingle = typeof data.serviceId === 'string' && data.serviceId.trim().length > 0
   const hasMany = Array.isArray(data.serviceIds) && data.serviceIds.length > 0
@@ -116,6 +118,35 @@ export const updateSubServiceAdminSchema = z.object({
 
 export type CreateSubServiceAdminInput = z.infer<typeof createSubServiceAdminSchema>
 export type UpdateSubServiceAdminInput = z.infer<typeof updateSubServiceAdminSchema>
+
+export const createServiceAddOnSchema = z.object({
+  name: z.string().min(1, 'El nombre es obligatorio').max(200),
+  price: z.number().nonnegative('El precio no puede ser negativo'),
+  isActive: z.boolean().optional().default(true),
+  serviceIds: z.array(z.string().min(1)).default([]),
+  subServiceIds: z.array(z.string().min(1)).default([]),
+})
+
+export const updateServiceAddOnSchema = z
+  .object({
+    name: z.string().min(1).max(200).optional(),
+    price: z.number().nonnegative().optional(),
+    isActive: z.boolean().optional(),
+    serviceIds: z.array(z.string().min(1)).optional(),
+    subServiceIds: z.array(z.string().min(1)).optional(),
+  })
+  .refine(
+    (data) =>
+      data.name !== undefined ||
+      data.price !== undefined ||
+      data.isActive !== undefined ||
+      data.serviceIds !== undefined ||
+      data.subServiceIds !== undefined,
+    { message: 'Debe enviar al menos un campo para actualizar' }
+  )
+
+export type CreateServiceAddOnInput = z.infer<typeof createServiceAddOnSchema>
+export type UpdateServiceAddOnInput = z.infer<typeof updateServiceAddOnSchema>
 
 export type OwnerCancelAppointmentInput = z.infer<typeof ownerCancelAppointmentSchema>
 

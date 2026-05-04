@@ -1,6 +1,7 @@
 import { Router } from 'express'
 import {
   getBusinessBySlug,
+  getPublicServiceAddOns,
   getMyBusiness,
   getMyProfile,
   updateMyProfile,
@@ -65,6 +66,7 @@ router.patch(
 )
 router.delete('/employees/:id', requireOwnerOrAdminActing, requireBusinessContext, deleteOwnerEmployee)
 
+router.get('/:slug/add-ons', getPublicServiceAddOns)
 router.get('/:slug', getBusinessBySlug)
 
 export default router

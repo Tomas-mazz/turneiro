@@ -1,4 +1,5 @@
 import { Request, Response, NextFunction } from 'express'
+import { prisma } from '../lib/prisma'
 import {
   getBusinessBySlugService,
   getMyBusinessService,
@@ -14,6 +15,7 @@ import {
 import type { AuthRequest } from '../middleware/auth'
 import { getBusinessContextOrRespond } from '../lib/requestGuards'
 import { getBusinessCapabilities } from '../lib/industryCapabilities'
+import { listApplicableAddOnsForSelection } from '../services/serviceAddons.service'
 
 /** Accepts `#RRGGBB` or `RRGGBB`. Undefined = omit, null/'' = clear to default. */
 function parseOptionalPublicPageBackgroundHex(
@@ -60,7 +62,35 @@ export async function getBusinessBySlug(req: Request, res: Response, next: NextF
       res.status(404).json({ error: 'Negocio no encontrado' })
       return
     }
-    res.json(business)
+    const capabilities = await getBusinessCapabilities(business.id)
+    res.json({ ...business, capabilities })
+  } catch (err) {
+    next(err)
+  }
+}
+
+export async function getPublicServiceAddOns(req: Request, res: Response, next: NextFunction) {
+  try {
+    const slug = req.params.slug
+    const selectionId = typeof req.query.selectionId === 'string' ? req.query.selectionId.trim() : ''
+    if (!slug) {
+      res.status(400).json({ error: 'El slug es obligatorio' })
+      return
+    }
+    if (!selectionId) {
+      res.status(400).json({ error: 'selectionId es obligatorio' })
+      return
+    }
+    const business = await prisma.business.findUnique({
+      where: { slug },
+      select: { id: true },
+    })
+    if (!business) {
+      res.status(404).json({ error: 'Negocio no encontrado' })
+      return
+    }
+    const items = await listApplicableAddOnsForSelection(business.id, selectionId)
+    res.json(items)
   } catch (err) {
     next(err)
   }

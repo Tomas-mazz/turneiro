@@ -12,7 +12,7 @@ import {
   clearAdminActingShopSlug,
 } from '@/lib/auth'
 import type { Business, Step, ServiceOption, CreatedAppointment } from './types'
-import { formatDateKey, getNowInArgentina } from './utils'
+import { formatDateKey, getNowInArgentina, serviceOptionTotalPrice } from './utils'
 import {
   BookingHero,
   BookingDone,
@@ -363,6 +363,14 @@ export default function BusinessBookingPage() {
     clientPhone,
   ])
 
+  // Adicionales solo aplican a una línea de servicio por turno (API actual).
+  useEffect(() => {
+    if (selectedServices.length <= 1) return
+    const hasAddOns = selectedServices.some((s) => s.addOns && s.addOns.length > 0)
+    if (!hasAddOns) return
+    setSelectedServices((prev) => prev.map((s) => ({ ...s, addOns: undefined })))
+  }, [selectedServices.length])
+
   // Background for service and date steps (dark or light theme)
   useEffect(() => {
     if (step !== 'service' && step !== 'date') return
@@ -507,6 +515,9 @@ export default function BusinessBookingPage() {
         ...(selectedServices.length === 1
           ? { serviceId: selectedServices[0].id }
           : { serviceIds: selectedServices.map((s) => s.id) }),
+        ...(selectedServices.length === 1 && selectedServices[0].addOns?.length
+          ? { addOnIds: selectedServices[0].addOns.map((a) => a.id) }
+          : {}),
         date: selectedDate,
         slotTime: selectedSlot,
         clientName: clientName.trim(),
@@ -746,6 +757,8 @@ export default function BusinessBookingPage() {
       {step === 'service' && (
         <ServiceStep
           business={business}
+          businessSlug={slug}
+          allowServiceAddOns={business.capabilities?.allowServiceAddOns === true}
           selectedServices={selectedServices}
           onSelectServices={setSelectedServices}
           onContinue={() => goToStep('date')}
@@ -773,7 +786,7 @@ export default function BusinessBookingPage() {
           selectedService={{
             id: selectedServices.map((s) => s.id).join(','),
             name: selectedServices.map((s) => s.name).join(' + '),
-            price: selectedServices.reduce((acc, s) => acc + s.price, 0),
+            price: selectedServices.reduce((acc, s) => acc + serviceOptionTotalPrice(s), 0),
             duration: selectedServices.reduce((acc, s) => acc + s.duration, 0),
           }}
           employees={business.employees ?? []}
@@ -820,7 +833,7 @@ export default function BusinessBookingPage() {
           selectedService={{
             id: selectedServices.map((s) => s.id).join(','),
             name: selectedServices.map((s) => s.name).join(' + '),
-            price: selectedServices.reduce((acc, s) => acc + s.price, 0),
+            price: selectedServices.reduce((acc, s) => acc + serviceOptionTotalPrice(s), 0),
             duration: selectedServices.reduce((acc, s) => acc + s.duration, 0),
           }}
           selectedDate={selectedDate}
@@ -883,7 +896,7 @@ export default function BusinessBookingPage() {
             selectedSlot={selectedSlot}
             paymentType={business.settings?.paymentType ?? null}
             depositPercentage={business.settings?.depositPercentage ?? null}
-            servicePrice={selectedServices.reduce((acc, s) => acc + s.price, 0)}
+            servicePrice={selectedServices.reduce((acc, s) => acc + serviceOptionTotalPrice(s), 0)}
             paymentAmount={paymentAmount}
             paymentError={paymentError}
             mercadoPagoPreferenceId={mercadoPagoPreferenceId}

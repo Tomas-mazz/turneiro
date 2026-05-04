@@ -5,6 +5,12 @@ export type Employee = {
   isOwner: boolean
 }
 
+export type IndustryCapabilitiesPublic = {
+  allowSubServices: boolean
+  allowBrandingAdvanced: boolean
+  allowServiceAddOns: boolean
+}
+
 export type Business = {
   id: string
   name: string
@@ -40,6 +46,7 @@ export type Business = {
   }[]
   workingHours: { dayOfWeek: number; startTime: string; endTime: string; isClosed: boolean }[]
   employees: Employee[]
+  capabilities?: IndustryCapabilitiesPublic
   settings: {
     fontFamily?: string
     paymentRequired: boolean
@@ -66,6 +73,8 @@ export type ServiceOption = {
   duration: number
   parentServiceId?: string
   parentServiceName?: string
+  /** Selected adicionales (wellness/salón); IDs sent on booking. */
+  addOns?: { id: string; name: string; price: number }[]
 }
 
 export type CreatedAppointment = {

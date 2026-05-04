@@ -28,6 +28,15 @@ export interface SubServiceAdminItem {
   images?: string[]
 }
 
+export interface ServiceAddOnAdminItem {
+  id: string
+  name: string
+  price: number
+  isActive: boolean
+  serviceIds: string[]
+  subServiceIds: string[]
+}
+
 export interface AppointmentListItem {
   id: string
   startTime: string

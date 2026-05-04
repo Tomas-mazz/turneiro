@@ -5,6 +5,8 @@ export type IndustryCapabilities = {
   allowSubServices: boolean
   /** Whether advanced public-page branding controls are enabled (brand color, intensity, gradient, backgrounds). */
   allowBrandingAdvanced: boolean
+  /** Optional paid extras (adicionales) scoped to services/subservices; wellness/salón only for now. */
+  allowServiceAddOns: boolean
 }
 
 export class IndustryCapabilityError extends Error {
@@ -33,13 +35,23 @@ export function capabilitiesForCategory(category: string | null | undefined): In
     return {
       allowSubServices: false,
       allowBrandingAdvanced: false,
+      allowServiceAddOns: false,
     }
   }
 
-  // Default: keep current behavior (manicura stays exactly as-is).
+  if (c === 'wellness' || c === 'salon') {
+    return {
+      allowSubServices: true,
+      allowBrandingAdvanced: true,
+      allowServiceAddOns: true,
+    }
+  }
+
+  // Default: keep current behavior (manicura / estética genérica stays as-is for subservices + branding).
   return {
     allowSubServices: true,
     allowBrandingAdvanced: true,
+    allowServiceAddOns: false,
   }
 }
 

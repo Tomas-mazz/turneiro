@@ -251,6 +251,7 @@ export default function SellerNewBusinessPage() {
             >
               <option value="barbershop">Barbería</option>
               <option value="salon">Salón</option>
+              <option value="wellness">Wellness / estética</option>
               <option value="spa">Spa</option>
               <option value="other">Otro</option>
             </select>

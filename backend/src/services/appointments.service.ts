@@ -16,6 +16,7 @@ import {
   PreloadedOwner,
 } from './email.service'
 import { buildPaymentSummaryLines } from '../lib/paymentSummary'
+import { resolveAddOnLinesForAppointment } from './serviceAddons.service'
 import { enqueueAppointmentJobs, enqueueDeleteCalendarEvent, isQueueEnabled } from './queue.service'
 import { fromZonedTime } from 'date-fns-tz'
 
@@ -520,8 +521,31 @@ export async function createAppointmentService(data: CreateAppointmentInput) {
     })
   }
 
-  const finalName = resolved.map((x) => x.displayName).join(' + ')
-  const finalPrice = resolved.reduce((acc, x) => acc + (Number.isFinite(x.price) ? x.price : 0), 0)
+  const rawAddOnIds = Array.isArray((data as { addOnIds?: unknown }).addOnIds)
+    ? (data as { addOnIds: string[] }).addOnIds
+    : []
+  const addOnIds = [...new Set(rawAddOnIds.filter((x) => typeof x === 'string' && x.trim().length > 0))]
+
+  let addOnLines: Awaited<ReturnType<typeof resolveAddOnLinesForAppointment>> = []
+  if (addOnIds.length > 0) {
+    if (requestedIds.length !== 1) {
+      throw new SlotUnavailableError('Los adicionales solo aplican cuando elegís un solo servicio')
+    }
+    try {
+      addOnLines = await resolveAddOnLinesForAppointment(business.id, requestedIds[0], addOnIds)
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : 'Adicionales inválidos'
+      throw new SlotUnavailableError(msg)
+    }
+  }
+
+  const addOnsTotal = addOnLines.reduce((acc, l) => acc + (Number.isFinite(l.priceSnapshot) ? l.priceSnapshot : 0), 0)
+  const addOnLabel =
+    addOnLines.length > 0 ? ` + ${addOnLines.map((l) => l.nameSnapshot).join(' + ')}` : ''
+
+  const finalName = resolved.map((x) => x.displayName).join(' + ') + addOnLabel
+  const finalPrice =
+    resolved.reduce((acc, x) => acc + (Number.isFinite(x.price) ? x.price : 0), 0) + addOnsTotal
   const finalDuration = resolved.reduce((acc, x) => acc + (Number.isFinite(x.duration) ? x.duration : 0), 0)
   const appointmentServiceId = resolved.length === 1 ? resolved[0].baseServiceId : null
 
@@ -545,33 +569,46 @@ export async function createAppointmentService(data: CreateAppointmentInput) {
 
   const cancellationToken = crypto.randomBytes(32).toString('hex')
 
-  const appointment = await prisma.appointment.create({
-    data: {
-      businessId: business.id,
-      serviceId: appointmentServiceId,
-      employeeId: employeeId ?? null,
-      startTime,
-      endTime,
-      serviceName: finalName,
-      price: finalPrice,
-      paymentStatus: 'PENDING',
-      paymentHoldExpiresAt: data.deferConfirmationUntilPayment
-        ? new Date(Date.now() + PAYMENT_HOLD_MINUTES * 60 * 1000)
-        : null,
-      clientName: data.clientName,
-      clientEmail: data.clientEmail,
-      clientPhone: data.clientPhone,
-      status: 'UPCOMING',
-      cancellationToken,
-    },
-    include: {
-      business: true,
-      employee: {
-        include: {
-          user: true,
+  const appointment = await prisma.$transaction(async (tx) => {
+    const created = await tx.appointment.create({
+      data: {
+        businessId: business.id,
+        serviceId: appointmentServiceId,
+        employeeId: employeeId ?? null,
+        startTime,
+        endTime,
+        serviceName: finalName,
+        price: finalPrice,
+        paymentStatus: 'PENDING',
+        paymentHoldExpiresAt: data.deferConfirmationUntilPayment
+          ? new Date(Date.now() + PAYMENT_HOLD_MINUTES * 60 * 1000)
+          : null,
+        clientName: data.clientName,
+        clientEmail: data.clientEmail,
+        clientPhone: data.clientPhone,
+        status: 'UPCOMING',
+        cancellationToken,
+      },
+      include: {
+        business: true,
+        employee: {
+          include: {
+            user: true,
+          },
         },
       },
-    },
+    })
+    if (addOnLines.length > 0) {
+      await tx.appointmentAddOn.createMany({
+        data: addOnLines.map((line) => ({
+          appointmentId: created.id,
+          serviceAddOnId: line.serviceAddOnId,
+          nameSnapshot: line.nameSnapshot,
+          priceSnapshot: line.priceSnapshot,
+        })),
+      })
+    }
+    return created
   })
 
   // Preload owner once to share across async tasks (avoids multiple DB queries)
