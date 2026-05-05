@@ -65,8 +65,6 @@ export function ServicesSection({
   openImages,
   openSubServices,
 }: Props) {
-  if (!visible) return null
-
   const [openPanels, setOpenPanels] = useState<Record<string, boolean>>({
     durations: false,
     create: false,
@@ -89,6 +87,8 @@ export function ServicesSection({
     })
     return list
   }, [employees])
+
+  if (!visible) return null
 
   const SwitchRow = ({
     title,
