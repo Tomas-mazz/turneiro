@@ -42,6 +42,10 @@ import {
   updateBusinessServiceAddOn,
   deleteBusinessServiceAddOn,
 } from '../controllers/admin.controller'
+import {
+  adminListEmployeeServiceDurations,
+  adminUpsertEmployeeServiceDurations,
+} from '../controllers/adminEmployeeServiceDurations.controller'
 import { createSeller, deleteSeller, getSellerDetail, listSellers } from '../controllers/sellersAdmin.controller'
 
 const router = Router()
@@ -142,5 +146,18 @@ router.get('/businesses/:id/employees', requireAdmin, requireAdminBusinessId, ge
 router.post('/businesses/:id/employees', requireAdmin, requireAdminBusinessId, createEmployee)
 router.patch('/employees/:id', requireAdmin, updateEmployee)
 router.delete('/employees/:id', requireAdmin, deleteEmployee)
+
+router.get(
+  '/businesses/:id/employees/:employeeId/service-durations',
+  requireAdmin,
+  requireAdminBusinessId,
+  adminListEmployeeServiceDurations
+)
+router.put(
+  '/businesses/:id/employees/:employeeId/service-durations',
+  requireAdmin,
+  requireAdminBusinessId,
+  adminUpsertEmployeeServiceDurations
+)
 
 export default router

@@ -177,6 +177,14 @@ export interface OwnerEmployeeListItem {
   ownerCalendarColorId: string | null
 }
 
+export type EmployeeServiceDurationItem = {
+  id: string
+  employeeId: string
+  serviceId: string | null
+  subServiceId: string | null
+  duration: number
+}
+
 // Seller (platform) - reduced business management
 export interface SellerBusinessListItem {
   id: string

@@ -122,6 +122,20 @@ export function ServiceStep({
   const totalPrice = selectedServices.reduce((acc, s) => acc + serviceOptionTotalPrice(s), 0)
   const totalDuration = selectedServices.reduce((acc, s) => acc + s.duration, 0)
 
+  const formatEstimatedDuration = (x: {
+    duration: number
+    estimatedDurationMin?: number
+    estimatedDurationMax?: number
+  }): string => {
+    const min = x.estimatedDurationMin
+    const max = x.estimatedDurationMax
+    if (typeof min === 'number' && typeof max === 'number' && min > 0 && max > 0) {
+      if (min === max) return `${min} min`
+      return `Estimado: ${min}–${max} min`
+    }
+    return `${x.duration} min`
+  }
+
   const fetchApplicableAddOns = async (selectionId: string): Promise<BookingAddOnItem[]> => {
     if (!allowServiceAddOns || !businessSlug) return []
     try {
@@ -370,7 +384,7 @@ export function ServiceStep({
                       {/* If the service has subservices, we don't show duration/price here */}
                       {!hasSubServices && (
                         <p className={`mt-1 text-sm md:text-base ${serviceMetaColor}`}>
-                          {s.duration} min
+                          {formatEstimatedDuration(s)}
                         </p>
                       )}
                       {(serviceShort || serviceHasMoreDetails) && (
@@ -504,7 +518,7 @@ export function ServiceStep({
                                     <span className={`min-w-0 truncate ${serviceNameColor}`}>{sub.name}</span>
                                   </div>
                                   <p className={`mt-0.5 text-xs md:text-sm ${serviceMetaColor}`}>
-                                    {sub.duration} min
+                                    {formatEstimatedDuration(sub)}
                                   </p>
                                   {(subShort || subHasMoreDetails) && (
                                     <div className={`mt-1 text-[11px] md:text-xs ${serviceMetaColor}`}>

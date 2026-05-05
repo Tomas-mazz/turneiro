@@ -31,6 +31,8 @@ export type Business = {
     name: string
     price: number
     duration: number
+    estimatedDurationMin?: number
+    estimatedDurationMax?: number
     shortDescription?: string | null
     description?: string | null
     images?: string[]
@@ -39,6 +41,8 @@ export type Business = {
       name: string
       price: number
       duration: number
+      estimatedDurationMin?: number
+      estimatedDurationMax?: number
       shortDescription?: string | null
       description?: string | null
       images?: string[]

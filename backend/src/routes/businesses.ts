@@ -26,6 +26,10 @@ import {
   updateOwnerCalendarColor,
   updateOwnerEmployee,
 } from '../controllers/ownerEmployees.controller'
+import {
+  listOwnerEmployeeServiceDurations,
+  upsertOwnerEmployeeServiceDurations,
+} from '../controllers/employeeServiceDurations.controller'
 
 const router = Router()
 
@@ -65,6 +69,20 @@ router.patch(
   updateOwnerEmployee
 )
 router.delete('/employees/:id', requireOwnerOrAdminActing, requireBusinessContext, deleteOwnerEmployee)
+
+// Owner dashboard: per-employee service duration overrides
+router.get(
+  '/employees/:id/service-durations',
+  requireOwnerOrAdminActing,
+  requireBusinessContext,
+  listOwnerEmployeeServiceDurations
+)
+router.put(
+  '/employees/:id/service-durations',
+  requireOwnerOrAdminActing,
+  requireBusinessContext,
+  upsertOwnerEmployeeServiceDurations
+)
 
 router.get('/:slug/add-ons', getPublicServiceAddOns)
 router.get('/:slug', getBusinessBySlug)

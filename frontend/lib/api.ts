@@ -14,6 +14,7 @@ import type {
   OwnerEmployeeListItem,
   SubServiceAdminItem,
   ServiceAddOnAdminItem,
+  EmployeeServiceDurationItem,
   SellerBusinessDetail,
   SellerBusinessListItem,
   CreateSellerBusinessBody,
@@ -339,6 +340,31 @@ export async function updateOwnerEmployee(
 
 export async function deleteOwnerEmployee(employeeId: string): Promise<void> {
   await api.delete(`/businesses/employees/${employeeId}`)
+}
+
+export async function getOwnerEmployeeServiceDurations(
+  employeeId: string
+): Promise<EmployeeServiceDurationItem[]> {
+  const { data } = await api.get<EmployeeServiceDurationItem[]>(
+    `/businesses/employees/${employeeId}/service-durations`
+  )
+  return data
+}
+
+export async function upsertOwnerEmployeeServiceDurations(
+  employeeId: string,
+  body: {
+    items: Array<
+      | { serviceId: string; subServiceId?: never; duration: number | null }
+      | { serviceId?: never; subServiceId: string; duration: number | null }
+    >
+  }
+): Promise<{ ok: true }> {
+  const { data } = await api.put<{ ok: true }>(
+    `/businesses/employees/${employeeId}/service-durations`,
+    body
+  )
+  return data
 }
 
 export async function getAdminBusinesses(): Promise<AdminBusinessListItem[]> {
