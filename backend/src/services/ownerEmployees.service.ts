@@ -58,10 +58,7 @@ export async function listOwnerEmployeesService(params: {
     },
   })
 
-  // Do not show the owner "employee" in this list. Owners manage staff only here.
-  const staffOnly = employees.filter((e) => !e.isOwner)
-
-  return staffOnly.map((e) => ({
+  return employees.map((e) => ({
     id: e.id,
     name: e.name,
     photoUrl: e.photoUrl ?? null,

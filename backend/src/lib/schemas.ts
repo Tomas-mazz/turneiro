@@ -485,6 +485,25 @@ export const updateOwnerEmployeeSchema = z
 export type CreateOwnerEmployeeInput = z.infer<typeof createOwnerEmployeeSchema>
 export type UpdateOwnerEmployeeInput = z.infer<typeof updateOwnerEmployeeSchema>
 
+// Per-employee service durations (OWNER/ADMIN acting as shop)
+const employeeServiceDurationItemSchema = z
+  .object({
+    serviceId: z.string().cuid().optional(),
+    subServiceId: z.string().cuid().optional(),
+    duration: z.number().int().min(5, 'Duración mínima 5 min').max(600, 'Duración máxima 600 min').nullable(),
+  })
+  .refine((x) => {
+    const hasService = typeof x.serviceId === 'string' && x.serviceId.length > 0
+    const hasSub = typeof x.subServiceId === 'string' && x.subServiceId.length > 0
+    return hasService !== hasSub
+  }, { message: 'Debe enviar serviceId o subServiceId (solo uno)' })
+
+export const upsertEmployeeServiceDurationsSchema = z.object({
+  items: z.array(employeeServiceDurationItemSchema).max(500),
+})
+
+export type UpsertEmployeeServiceDurationsInput = z.infer<typeof upsertEmployeeServiceDurationsSchema>
+
 export const updateOwnerCalendarColorSchema = z.object({
   ownerCalendarColorId: optionalColorId,
 })

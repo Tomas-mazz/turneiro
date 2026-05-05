@@ -46,6 +46,7 @@ import { HoursSection } from './components/sections/HoursSection'
 import { BlockingSection } from './components/sections/BlockingSection'
 import { CancelSection } from './components/sections/CancelSection'
 import { EmployeesSection } from './components/sections/EmployeesSection'
+import { EmployeeServiceDurationsModal } from './components/modals/EmployeeServiceDurationsModal'
 import { PublicBrandingSection } from './components/PublicBrandingSection'
 import { PublicDefaultThemeSection } from './components/PublicDefaultThemeSection'
 import {
@@ -198,6 +199,8 @@ export function DashboardContent({ section = 'all' }: { section?: DashboardSecti
       }>
     >
   >({})
+
+  const [serviceDurationsEmployee, setServiceDurationsEmployee] = useState<OwnerEmployeeListItem | null>(null)
 
   useEffect(() => {
     setUserRole(getAuthUser()?.role ?? null)
@@ -352,7 +355,7 @@ export function DashboardContent({ section = 'all' }: { section?: DashboardSecti
 
   useEffect(() => {
     if (!actsAsOwner) return
-    if (!(section === 'all' || section === 'employees')) return
+    if (!(section === 'all' || section === 'employees' || section === 'services')) return
     setLoadingEmployees(true)
     Promise.all([getOwnerEmployees(), getOwnerCalendarColor()])
       .then(([list, ownerColor]) => {
@@ -1272,6 +1275,8 @@ export function DashboardContent({ section = 'all' }: { section?: DashboardSecti
         }}
         loadingServices={loadingServices}
         services={services}
+        employees={employees}
+        onOpenServiceDurations={(emp) => setServiceDurationsEmployee(emp)}
         newService={newService}
         setNewService={setNewService}
         creatingService={creatingService}
@@ -1386,6 +1391,14 @@ export function DashboardContent({ section = 'all' }: { section?: DashboardSecti
           const { url } = await uploadAdminFile(file)
           return url
         }}
+      />
+
+      <EmployeeServiceDurationsModal
+        open={!!serviceDurationsEmployee}
+        employee={serviceDurationsEmployee}
+        services={services}
+        subServicesByService={subServicesByService}
+        onClose={() => setServiceDurationsEmployee(null)}
       />
 
       <CancelSection

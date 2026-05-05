@@ -1,5 +1,6 @@
 import { prisma } from '../lib/prisma'
 import { toZonedTime } from 'date-fns-tz'
+import { resolveSelectionDurations } from './selectionDurations.service'
 
 const ARGENTINA_TIMEZONE = 'America/Argentina/Buenos_Aires'
 
@@ -94,29 +95,14 @@ export async function getAvailabilityService(
   const requestedIds = Array.isArray(serviceIdOrIds) ? serviceIdOrIds : [serviceIdOrIds]
   if (requestedIds.length === 0) return []
 
-  // Determine duration: ids can be either Service or SubService ids.
-  // Prefer SubService when it exists, otherwise fall back to Service.
-  let duration = 0
-  for (const id of requestedIds) {
-    const subService = await prisma.subService.findFirst({
-      where: {
-        id,
-        isActive: true,
-        service: { businessId: business.id },
-      },
-      select: { duration: true },
-    })
-    if (subService) {
-      duration += subService.duration
-      continue
-    }
-    const service = await prisma.service.findFirst({
-      where: { id, isActive: true, businessId: business.id },
-      select: { duration: true },
-    })
-    if (!service) return []
-    duration += service.duration
-  }
+  const resolved = await resolveSelectionDurations({
+    businessId: business.id,
+    selectionIds: requestedIds,
+    employeeId,
+    returnEmptyOnMissing: true,
+  })
+  if (resolved.length === 0) return []
+  const duration = resolved.reduce((acc, x) => acc + (Number.isFinite(x.duration) ? x.duration : 0), 0)
 
   const dayOfWeek = date.getDay()
   const working = business.workingHours.find((wh) => wh.dayOfWeek === dayOfWeek)

@@ -4,6 +4,7 @@ const PAYMENT_HOLD_MINUTES = 5
 import { Prisma } from '@prisma/client'
 import { prisma } from '../lib/prisma'
 import { getAvailabilityService } from './availability.service'
+import { resolveSelectionDurations } from './selectionDurations.service'
 import type { CreateAppointmentInput } from '../lib/schemas'
 import * as mercadopagoService from './mercadopago.service'
 import * as googleCalendarService from './google-calendar.service'
@@ -478,6 +479,7 @@ export async function createAppointmentService(data: CreateAppointmentInput) {
   // Each id can refer to either a Service or a SubService.
   // Prefer SubService when it exists so that price/duration come from the variant.
   type ResolvedItem = {
+    id: string
     kind: 'SERVICE' | 'SUBSERVICE'
     baseServiceId: string
     displayName: string
@@ -497,6 +499,7 @@ export async function createAppointmentService(data: CreateAppointmentInput) {
     })
     if (sub) {
       resolved.push({
+        id: sub.id,
         kind: 'SUBSERVICE',
         baseServiceId: sub.service.id,
         displayName: `${sub.service.name} - ${sub.name}`,
@@ -513,12 +516,28 @@ export async function createAppointmentService(data: CreateAppointmentInput) {
       throw new SlotUnavailableError('Servicio no encontrado')
     }
     resolved.push({
+      id: svc.id,
       kind: 'SERVICE',
       baseServiceId: svc.id,
       displayName: svc.name,
       price: svc.price,
       duration: svc.duration,
     })
+  }
+
+  const employeeId = data.employeeId ?? undefined
+  if (employeeId) {
+    const durationRows = await resolveSelectionDurations({
+      businessId: business.id,
+      selectionIds: requestedIds,
+      employeeId,
+      returnEmptyOnMissing: false,
+    })
+    const byId = new Map(durationRows.map((r) => [r.id, r.duration]))
+    for (const item of resolved) {
+      const override = byId.get(item.id)
+      if (override != null && Number.isFinite(override)) item.duration = override
+    }
   }
 
   const rawAddOnIds = Array.isArray((data as { addOnIds?: unknown }).addOnIds)
@@ -546,11 +565,13 @@ export async function createAppointmentService(data: CreateAppointmentInput) {
   const finalName = resolved.map((x) => x.displayName).join(' + ') + addOnLabel
   const finalPrice =
     resolved.reduce((acc, x) => acc + (Number.isFinite(x.price) ? x.price : 0), 0) + addOnsTotal
-  const finalDuration = resolved.reduce((acc, x) => acc + (Number.isFinite(x.duration) ? x.duration : 0), 0)
+  const finalDuration = resolved.reduce(
+    (acc, x) => acc + (Number.isFinite(x.duration) ? x.duration : 0),
+    0
+  )
   const appointmentServiceId = resolved.length === 1 ? resolved[0].baseServiceId : null
 
   const dateForAvailability = new Date(data.date + 'T12:00:00')
-  const employeeId = data.employeeId ?? undefined
   const slots = await getAvailabilityService(
     data.businessSlug,
     requestedIds,
@@ -848,7 +869,7 @@ export async function getAppointmentsService(
     ],
   } satisfies Prisma.AppointmentWhereInput
   if (employeeId != null && employeeId !== '') {
-    ;(where as Prisma.AppointmentWhereInput).employeeId = employeeId
+    (where as Prisma.AppointmentWhereInput).employeeId = employeeId
   }
   const appointments = await prisma.appointment.findMany({
     where,
@@ -893,7 +914,7 @@ export async function getAppointmentsByPhoneService(
     ],
   } satisfies Prisma.AppointmentWhereInput
   if (staffEmployeeId != null && staffEmployeeId !== '') {
-    ;(where as Prisma.AppointmentWhereInput).employeeId = staffEmployeeId
+    (where as Prisma.AppointmentWhereInput).employeeId = staffEmployeeId
   }
   const appointments = await prisma.appointment.findMany({
     where,

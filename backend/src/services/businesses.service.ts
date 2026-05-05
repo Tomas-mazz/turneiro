@@ -3,6 +3,7 @@ import { prisma } from '../lib/prisma'
 import type { Prisma } from '@prisma/client'
 import { ensureOwnerEmployee } from './ownerEmployee.service'
 import { getBusinessCapabilities, type IndustryCapabilities } from '../lib/industryCapabilities'
+import { attachPublicEstimatedDurations } from './publicEstimatedDurations.service'
 
 export interface MyBusinessInfo {
   name: string
@@ -99,7 +100,9 @@ export async function getBusinessBySlugService(slug: string) {
     },
   })
 
-  return business
+  if (!business) return business
+  // UI-only estimated duration range per service/subservice (min/max across employees)
+  return await attachPublicEstimatedDurations(business as any)
 }
 
 export interface AdminBusinessListItem {

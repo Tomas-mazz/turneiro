@@ -1,7 +1,8 @@
 'use client'
 
 import type React from 'react'
-import type { ServiceListItem } from '@/types'
+import { useMemo, useState } from 'react'
+import type { OwnerEmployeeListItem, ServiceListItem } from '@/types'
 
 type Props = {
   visible: boolean
@@ -14,6 +15,8 @@ type Props = {
   onToggleAllowMultipleServices: (next: boolean) => void
   loadingServices: boolean
   services: ServiceListItem[]
+  employees: OwnerEmployeeListItem[]
+  onOpenServiceDurations: (emp: OwnerEmployeeListItem) => void
   newService: { name: string; price: string; duration: string; isActive: boolean }
   setNewService: React.Dispatch<
     React.SetStateAction<{ name: string; price: string; duration: string; isActive: boolean }>
@@ -44,6 +47,8 @@ export function ServicesSection({
   onToggleAllowMultipleServices,
   loadingServices,
   services,
+  employees,
+  onOpenServiceDurations,
   newService,
   setNewService,
   creatingService,
@@ -61,6 +66,29 @@ export function ServicesSection({
   openSubServices,
 }: Props) {
   if (!visible) return null
+
+  const [openPanels, setOpenPanels] = useState<Record<string, boolean>>({
+    durations: false,
+    create: false,
+    list: true,
+  })
+
+  const togglePanel = (key: keyof typeof openPanels) => {
+    setOpenPanels((p) => ({ ...p, [key]: !p[key] }))
+  }
+
+  const isDurationsOpen = openPanels.durations
+  const isCreateOpen = openPanels.create
+  const isListOpen = openPanels.list
+
+  const ownerFirstEmployees = useMemo(() => {
+    const list = [...employees]
+    list.sort((a, b) => {
+      if (a.isOwner === b.isOwner) return a.name.localeCompare(b.name)
+      return a.isOwner ? -1 : 1
+    })
+    return list
+  }, [employees])
 
   const SwitchRow = ({
     title,
@@ -127,188 +155,270 @@ export function ServicesSection({
         />
       </div>
 
+      <div className="mt-4 rounded-lg border border-neutral-200 bg-white p-4 shadow-sm">
+        <button
+          type="button"
+          onClick={() => togglePanel('durations')}
+          className="flex w-full items-center justify-between gap-3 text-left"
+          aria-expanded={isDurationsOpen}
+        >
+          <div>
+            <h3 className="text-sm font-semibold text-neutral-900">Duración por empleado</h3>
+            <p className="mt-1 text-xs text-neutral-600">
+              Ajustá cuánto tarda cada empleado (incluyendo el dueño) en cada servicio/subservicio.
+            </p>
+          </div>
+          <span className="text-sm font-medium text-neutral-700">{isDurationsOpen ? 'Cerrar' : 'Abrir'} ▾</span>
+        </button>
+
+        {isDurationsOpen && (
+          <div className="mt-3 space-y-2">
+            <p className="text-xs text-neutral-600">
+              Esto afecta disponibilidad y fin del turno, pero el cliente ve un estimado.
+            </p>
+            {employees.length === 0 ? (
+              <p className="text-sm text-neutral-500">No hay empleados todavía.</p>
+            ) : services.length === 0 ? (
+              <p className="text-sm text-neutral-500">Primero creá un servicio.</p>
+            ) : (
+              ownerFirstEmployees.map((emp) => (
+                <div
+                  key={emp.id}
+                  className="flex flex-col gap-2 rounded-lg border border-neutral-200 p-3 sm:flex-row sm:items-center sm:justify-between"
+                >
+                  <div className="min-w-0">
+                    <div className="truncate text-sm font-medium text-neutral-900">
+                      {emp.name} {emp.isOwner ? '(Dueño)' : ''}
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => onOpenServiceDurations(emp)}
+                    className="rounded-lg border border-neutral-200 bg-white px-4 py-2 text-sm font-medium text-neutral-800 hover:bg-neutral-50"
+                  >
+                    Configurar duraciones
+                  </button>
+                </div>
+              ))
+            )}
+          </div>
+        )}
+      </div>
+
       {loadingServices ? (
         <p className="mt-2 text-sm text-neutral-500">Cargando servicios...</p>
       ) : services.length === 0 ? (
         <p className="mt-2 text-sm text-neutral-500">No hay servicios. Podés crearlos desde aquí.</p>
       ) : (
         <>
-          <form
-            onSubmit={onAddService}
-            className="mt-4 mb-4 flex flex-wrap items-end gap-3 rounded-lg border border-neutral-200 bg-white p-4 shadow-sm"
-          >
-            <div className="w-40">
-              <label htmlFor="newServiceNameDashboard" className="mb-1 block text-xs text-neutral-600">
-                Nombre *
-              </label>
-              <input
-                id="newServiceNameDashboard"
-                type="text"
-                required
-                value={newService.name}
-                onChange={(e) => setNewService((p) => ({ ...p, name: e.target.value }))}
-                placeholder="ej. Corte"
-                className="w-full rounded-lg border border-neutral-300 px-3 py-2 text-sm"
-              />
-            </div>
-            <div className="w-24">
-              <label htmlFor="newServicePriceDashboard" className="mb-1 block text-xs text-neutral-600">
-                Precio *
-              </label>
-              <input
-                id="newServicePriceDashboard"
-                type="number"
-                required
-                min={0}
-                step={0.01}
-                value={newService.price}
-                onChange={(e) => setNewService((p) => ({ ...p, price: e.target.value }))}
-                placeholder="500"
-                className="w-full rounded-lg border border-neutral-300 px-3 py-2 text-sm"
-              />
-            </div>
-            <div className="w-24">
-              <label htmlFor="newServiceDurationDashboard" className="mb-1 block text-xs text-neutral-600">
-                Duración (min) *
-              </label>
-              <input
-                id="newServiceDurationDashboard"
-                type="number"
-                required
-                min={15}
-                max={120}
-                value={newService.duration}
-                onChange={(e) => setNewService((p) => ({ ...p, duration: e.target.value }))}
-                className="w-full rounded-lg border border-neutral-300 px-3 py-2 text-sm"
-              />
-            </div>
-            <label className="flex items-center gap-2">
-              <input
-                type="checkbox"
-                checked={newService.isActive}
-                onChange={(e) => setNewService((p) => ({ ...p, isActive: e.target.checked }))}
-                className="rounded border-neutral-300"
-              />
-              <span className="text-xs text-neutral-600">Activo</span>
-            </label>
+          <div className="mt-4 rounded-lg border border-neutral-200 bg-white p-4 shadow-sm">
             <button
-              type="submit"
-              disabled={creatingService}
-              className="rounded-lg bg-neutral-900 px-4 py-2 text-sm font-medium text-white hover:bg-neutral-800 disabled:opacity-50"
+              type="button"
+              onClick={() => togglePanel('create')}
+              className="flex w-full items-center justify-between gap-3 text-left"
+              aria-expanded={isCreateOpen}
             >
-              {creatingService ? 'Agregando...' : 'Agregar servicio'}
+              <div>
+                <h3 className="text-sm font-semibold text-neutral-900">Agregar servicio</h3>
+                <p className="mt-1 text-xs text-neutral-600">Creá un servicio nuevo con precio y duración base.</p>
+              </div>
+              <span className="text-sm font-medium text-neutral-700">{isCreateOpen ? 'Cerrar' : 'Abrir'} ▾</span>
             </button>
-          </form>
 
-          {/* Mobile */}
-          <div className="mt-4 space-y-4 md:hidden">
-            {services.map((s) => (
-              <div key={s.id} className="rounded-lg border border-neutral-200 bg-white p-4 shadow-sm">
-                <div className="mb-3">
-                  <label className="mb-1 block text-xs font-medium text-neutral-500">Nombre del servicio</label>
+            {isCreateOpen && (
+              <form onSubmit={onAddService} className="mt-4 flex flex-wrap items-end gap-3">
+                <div className="w-40">
+                  <label htmlFor="newServiceNameDashboard" className="mb-1 block text-xs text-neutral-600">
+                    Nombre *
+                  </label>
                   <input
+                    id="newServiceNameDashboard"
                     type="text"
-                    defaultValue={s.name}
-                    onChange={(e) => setEditingServiceName((prev) => ({ ...prev, [s.id]: e.target.value }))}
-                    className="w-full rounded border border-neutral-300 px-3 py-2 text-sm"
+                    required
+                    value={newService.name}
+                    onChange={(e) => setNewService((p) => ({ ...p, name: e.target.value }))}
+                    placeholder="ej. Corte"
+                    className="w-full rounded-lg border border-neutral-300 px-3 py-2 text-sm"
                   />
                 </div>
-                <div className="grid grid-cols-2 gap-3 sm:gap-4">
-                  <div>
-                    <label className="mb-1 block text-xs font-medium text-neutral-500">Precio ($)</label>
-                    <input
-                      type="number"
-                      min="0"
-                      step="0.01"
-                      className="w-full rounded border border-neutral-300 px-3 py-2 text-sm"
-                      defaultValue={s.price}
-                      onChange={(e) => setEditingPrice((prev) => ({ ...prev, [s.id]: e.target.value }))}
-                    />
-                  </div>
-                  <div>
-                    <label className="mb-1 block text-xs font-medium text-neutral-500">Duración (min)</label>
-                    <input
-                      type="number"
-                      min="15"
-                      max="120"
-                      className="w-full rounded border border-neutral-300 px-3 py-2 text-sm"
-                      defaultValue={s.duration}
-                      onChange={(e) => setEditingDuration((prev) => ({ ...prev, [s.id]: e.target.value }))}
-                    />
-                  </div>
+                <div className="w-24">
+                  <label htmlFor="newServicePriceDashboard" className="mb-1 block text-xs text-neutral-600">
+                    Precio *
+                  </label>
+                  <input
+                    id="newServicePriceDashboard"
+                    type="number"
+                    required
+                    min={0}
+                    step={0.01}
+                    value={newService.price}
+                    onChange={(e) => setNewService((p) => ({ ...p, price: e.target.value }))}
+                    placeholder="500"
+                    className="w-full rounded-lg border border-neutral-300 px-3 py-2 text-sm"
+                  />
                 </div>
-                <div className="mt-3 flex flex-wrap gap-2">
-                  <button
-                    type="button"
-                    onClick={() => openDescriptions(s.id)}
-                    className="rounded-lg border border-neutral-300 bg-white px-3 py-2 text-xs font-medium text-neutral-700 hover:bg-neutral-50"
-                  >
-                    Descripciones
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => openImages(s.id)}
-                    className="rounded-lg border border-neutral-300 bg-white px-3 py-2 text-xs font-medium text-neutral-700 hover:bg-neutral-50"
-                  >
-                    Imágenes
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => openSubServices(s.id)}
-                    disabled={!subServicesEnabled}
-                    className="rounded-lg border border-neutral-300 bg-white px-3 py-2 text-xs font-medium text-neutral-700 hover:bg-neutral-50"
-                  >
-                    Subservicios
-                  </button>
+                <div className="w-24">
+                  <label htmlFor="newServiceDurationDashboard" className="mb-1 block text-xs text-neutral-600">
+                    Duración (min) *
+                  </label>
+                  <input
+                    id="newServiceDurationDashboard"
+                    type="number"
+                    required
+                    min={15}
+                    max={120}
+                    value={newService.duration}
+                    onChange={(e) => setNewService((p) => ({ ...p, duration: e.target.value }))}
+                    className="w-full rounded-lg border border-neutral-300 px-3 py-2 text-sm"
+                  />
                 </div>
-                <div className="mt-3 flex items-center justify-between gap-3">
-                  <button
-                    type="button"
-                    onClick={() => onToggleServiceActive(s)}
-                    className={`rounded-lg border px-3 py-1.5 text-xs font-medium ${
-                      s.isActive ? 'border-emerald-200 bg-emerald-50 text-emerald-800' : 'border-neutral-300 bg-neutral-100 text-neutral-700'
-                    }`}
-                  >
-                    {s.isActive ? 'Activo' : 'Inactivo'}
-                  </button>
-                  <button
-                    type="button"
-                    disabled={savingId === s.id}
-                    onClick={() => onSaveService(s)}
-                    className={`inline-block rounded-lg border px-4 py-2 text-sm font-medium ${
-                      justSavedId === s.id
-                        ? 'border-emerald-300 bg-emerald-100 text-emerald-800'
-                        : savingId === s.id
-                          ? 'border-emerald-200 bg-emerald-50 text-emerald-800 opacity-70'
-                          : 'border-emerald-200 bg-emerald-50 text-emerald-800 hover:bg-emerald-100 disabled:opacity-50'
-                    }`}
-                  >
-                    {savingId === s.id ? 'Guardando...' : justSavedId === s.id ? 'Guardado ✓' : 'Guardar'}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => onDeleteService(s.id)}
-                    className="rounded-lg border border-red-200 bg-red-50 px-3 py-1.5 text-xs font-medium text-red-700 hover:bg-red-100"
-                  >
-                    Eliminar
-                  </button>
-                </div>
-              </div>
-            ))}
+                <label className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    checked={newService.isActive}
+                    onChange={(e) => setNewService((p) => ({ ...p, isActive: e.target.checked }))}
+                    className="rounded border-neutral-300"
+                  />
+                  <span className="text-xs text-neutral-600">Activo</span>
+                </label>
+                <button
+                  type="submit"
+                  disabled={creatingService}
+                  className="rounded-lg bg-neutral-900 px-4 py-2 text-sm font-medium text-white hover:bg-neutral-800 disabled:opacity-50"
+                >
+                  {creatingService ? 'Agregando...' : 'Agregar servicio'}
+                </button>
+              </form>
+            )}
           </div>
 
-          {/* Desktop */}
-          <div className="mt-4 hidden md:block md:overflow-x-auto md:rounded-lg md:border md:border-neutral-200">
-            <table className="min-w-full divide-y divide-neutral-200 text-left text-sm">
-              <thead className="bg-neutral-50">
-                <tr>
-                  <th className="px-4 py-3 font-medium text-neutral-700">Servicio</th>
-                  <th className="px-4 py-3 font-medium text-neutral-700">Precio ($)</th>
-                  <th className="px-4 py-3 font-medium text-neutral-700">Duración (min)</th>
-                  <th className="px-4 py-3 font-medium text-neutral-700">Estado</th>
-                  <th className="px-4 py-3 font-medium text-neutral-700">Acciones</th>
-                </tr>
-              </thead>
+          <div className="mt-4 rounded-lg border border-neutral-200 bg-white p-4 shadow-sm">
+            <button
+              type="button"
+              onClick={() => togglePanel('list')}
+              className="flex w-full items-center justify-between gap-3 text-left"
+              aria-expanded={isListOpen}
+            >
+              <div>
+                <h3 className="text-sm font-semibold text-neutral-900">Tus servicios</h3>
+                <p className="mt-1 text-xs text-neutral-600">Editá precio/duración base, estado, imágenes y subservicios.</p>
+              </div>
+              <span className="text-sm font-medium text-neutral-700">{isListOpen ? 'Cerrar' : 'Abrir'} ▾</span>
+            </button>
+
+            {isListOpen && (
+              <>
+                {/* Mobile */}
+                <div className="mt-4 space-y-4 md:hidden">
+                  {services.map((s) => (
+                    <div key={s.id} className="rounded-lg border border-neutral-200 bg-white p-4 shadow-sm">
+                      <div className="mb-3">
+                        <label className="mb-1 block text-xs font-medium text-neutral-500">Nombre del servicio</label>
+                        <input
+                          type="text"
+                          defaultValue={s.name}
+                          onChange={(e) => setEditingServiceName((prev) => ({ ...prev, [s.id]: e.target.value }))}
+                          className="w-full rounded border border-neutral-300 px-3 py-2 text-sm"
+                        />
+                      </div>
+                      <div className="grid grid-cols-2 gap-3 sm:gap-4">
+                        <div>
+                          <label className="mb-1 block text-xs font-medium text-neutral-500">Precio ($)</label>
+                          <input
+                            type="number"
+                            min="0"
+                            step="0.01"
+                            className="w-full rounded border border-neutral-300 px-3 py-2 text-sm"
+                            defaultValue={s.price}
+                            onChange={(e) => setEditingPrice((prev) => ({ ...prev, [s.id]: e.target.value }))}
+                          />
+                        </div>
+                        <div>
+                          <label className="mb-1 block text-xs font-medium text-neutral-500">Duración (min)</label>
+                          <input
+                            type="number"
+                            min="15"
+                            max="120"
+                            className="w-full rounded border border-neutral-300 px-3 py-2 text-sm"
+                            defaultValue={s.duration}
+                            onChange={(e) => setEditingDuration((prev) => ({ ...prev, [s.id]: e.target.value }))}
+                          />
+                        </div>
+                      </div>
+                      <div className="mt-3 flex flex-wrap gap-2">
+                        <button
+                          type="button"
+                          onClick={() => openDescriptions(s.id)}
+                          className="rounded-lg border border-neutral-300 bg-white px-3 py-2 text-xs font-medium text-neutral-700 hover:bg-neutral-50"
+                        >
+                          Descripciones
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => openImages(s.id)}
+                          className="rounded-lg border border-neutral-300 bg-white px-3 py-2 text-xs font-medium text-neutral-700 hover:bg-neutral-50"
+                        >
+                          Imágenes
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => openSubServices(s.id)}
+                          disabled={!subServicesEnabled}
+                          className="rounded-lg border border-neutral-300 bg-white px-3 py-2 text-xs font-medium text-neutral-700 hover:bg-neutral-50"
+                        >
+                          Subservicios
+                        </button>
+                      </div>
+                      <div className="mt-3 flex items-center justify-between gap-3">
+                        <button
+                          type="button"
+                          onClick={() => onToggleServiceActive(s)}
+                          className={`rounded-lg border px-3 py-1.5 text-xs font-medium ${
+                            s.isActive
+                              ? 'border-emerald-200 bg-emerald-50 text-emerald-800'
+                              : 'border-neutral-300 bg-neutral-100 text-neutral-700'
+                          }`}
+                        >
+                          {s.isActive ? 'Activo' : 'Inactivo'}
+                        </button>
+                        <button
+                          type="button"
+                          disabled={savingId === s.id}
+                          onClick={() => onSaveService(s)}
+                          className={`inline-block rounded-lg border px-4 py-2 text-sm font-medium ${
+                            justSavedId === s.id
+                              ? 'border-emerald-300 bg-emerald-100 text-emerald-800'
+                              : savingId === s.id
+                                ? 'border-emerald-200 bg-emerald-50 text-emerald-800 opacity-70'
+                                : 'border-emerald-200 bg-emerald-50 text-emerald-800 hover:bg-emerald-100 disabled:opacity-50'
+                          }`}
+                        >
+                          {savingId === s.id ? 'Guardando...' : justSavedId === s.id ? 'Guardado ✓' : 'Guardar'}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => onDeleteService(s.id)}
+                          className="rounded-lg border border-red-200 bg-red-50 px-3 py-1.5 text-xs font-medium text-red-700 hover:bg-red-100"
+                        >
+                          Eliminar
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Desktop */}
+                <div className="mt-4 hidden md:block md:overflow-x-auto md:rounded-lg md:border md:border-neutral-200">
+                  <table className="min-w-full divide-y divide-neutral-200 text-left text-sm">
+                    <thead className="bg-neutral-50">
+                      <tr>
+                        <th className="px-4 py-3 font-medium text-neutral-700">Servicio</th>
+                        <th className="px-4 py-3 font-medium text-neutral-700">Precio ($)</th>
+                        <th className="px-4 py-3 font-medium text-neutral-700">Duración (min)</th>
+                        <th className="px-4 py-3 font-medium text-neutral-700">Estado</th>
+                        <th className="px-4 py-3 font-medium text-neutral-700">Acciones</th>
+                      </tr>
+                    </thead>
               <tbody className="divide-y divide-neutral-200 bg-white">
                 {services.map((s) => (
                   <tr key={s.id}>
@@ -407,7 +517,10 @@ export function ServicesSection({
                   </tr>
                 ))}
               </tbody>
-            </table>
+                  </table>
+                </div>
+              </>
+            )}
           </div>
         </>
       )}

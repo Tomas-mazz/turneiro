@@ -69,9 +69,32 @@ model Employee {
   // In the future, appointments and blocked slots can be scoped per employee
   appointments Appointment[]
   blockedSlots BlockedSlot[]
+  serviceDurations EmployeeServiceDuration[]
 
   @@index([businessId])
   @@index([userId])
+}
+
+/// Optional per-employee override duration for a Service or SubService.
+/// If no override exists, booking uses the base duration from Service/SubService.
+model EmployeeServiceDuration {
+  id          String   @id @default(cuid())
+  employeeId  String
+  serviceId   String?
+  subServiceId String?
+  duration    Int // minutes
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  employee   Employee   @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  service    Service?   @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+  subService SubService? @relation(fields: [subServiceId], references: [id], onDelete: Cascade)
+
+  @@index([employeeId])
+  @@index([serviceId])
+  @@index([subServiceId])
+  @@unique([employeeId, serviceId])
+  @@unique([employeeId, subServiceId])
 }
 
 // User model - authentication for business owners/staff and end clients (USER)
@@ -115,6 +138,7 @@ model Service {
   appointments Appointment[]
   subServices  SubService[]
   addOnScopes  ServiceAddOnService[]
+  employeeDurations EmployeeServiceDuration[]
 
   @@index([businessId])
 }
@@ -136,6 +160,7 @@ model SubService {
   // Relations
   service     Service                  @relation(fields: [serviceId], references: [id], onDelete: Cascade)
   addOnScopes ServiceAddOnSubService[]
+  employeeDurations EmployeeServiceDuration[]
 
   @@index([serviceId])
 }
