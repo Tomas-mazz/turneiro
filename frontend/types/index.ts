@@ -185,6 +185,13 @@ export type EmployeeServiceDurationItem = {
   duration: number
 }
 
+export type EmployeeServiceRestrictionItem = {
+  id: string
+  employeeId: string
+  serviceId: string | null
+  subServiceId: string | null
+}
+
 // Seller (platform) - reduced business management
 export interface SellerBusinessListItem {
   id: string

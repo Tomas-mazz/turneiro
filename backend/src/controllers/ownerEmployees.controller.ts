@@ -24,7 +24,7 @@ export async function listOwnerEmployees(
 
     const list = await listOwnerEmployeesService({
       businessId,
-      ownerUserId: userId,
+      ownerUserId: r.user?.role === 'OWNER' ? userId : undefined,
       ownerName: r.user?.email ?? null,
     })
     res.json(list)
@@ -41,7 +41,7 @@ export async function getOwnerCalendarColor(req: unknown, res: Response, next: N
     if (!userId) return res.status(401).json({ error: 'No autenticado' })
     const payload = await getOwnerCalendarColorService({
       businessId,
-      ownerUserId: userId,
+      ownerUserId: r.user?.role === 'OWNER' ? userId : undefined,
       ownerName: r.user?.email ?? null,
     })
     res.json(payload)
@@ -59,7 +59,7 @@ export async function updateOwnerCalendarColor(req: unknown, res: Response, next
     const body = r.body as { ownerCalendarColorId?: string | null }
     const updated = await updateOwnerCalendarColorService({
       businessId,
-      ownerUserId: userId,
+      ownerUserId: r.user?.role === 'OWNER' ? userId : undefined,
       ownerName: r.user?.email ?? null,
       ownerCalendarColorId: body.ownerCalendarColorId ?? null,
     })

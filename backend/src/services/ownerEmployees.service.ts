@@ -34,13 +34,13 @@ export class OwnerEmployeeOperationNotAllowedError extends Error {
 
 export async function listOwnerEmployeesService(params: {
   businessId: string
-  ownerUserId: string
+  ownerUserId?: string
   ownerName?: string | null
 }): Promise<OwnerEmployeeListItem[]> {
   const { businessId, ownerUserId, ownerName } = params
   await prisma.$transaction(async (tx) => {
     await ensureOwnerEmployee(tx, businessId, {
-      ownerUserId,
+      ...(ownerUserId ? { ownerUserId } : {}),
       fallbackName: ownerName ?? undefined,
     })
   })
@@ -70,13 +70,13 @@ export async function listOwnerEmployeesService(params: {
 
 export async function getOwnerCalendarColorService(params: {
   businessId: string
-  ownerUserId: string
+  ownerUserId?: string
   ownerName?: string | null
 }): Promise<{ ownerCalendarColorId: string | null }> {
   const { businessId, ownerUserId, ownerName } = params
   await prisma.$transaction(async (tx) => {
     await ensureOwnerEmployee(tx, businessId, {
-      ownerUserId,
+      ...(ownerUserId ? { ownerUserId } : {}),
       fallbackName: ownerName ?? undefined,
     })
   })
@@ -90,14 +90,14 @@ export async function getOwnerCalendarColorService(params: {
 
 export async function updateOwnerCalendarColorService(params: {
   businessId: string
-  ownerUserId: string
+  ownerUserId?: string
   ownerName?: string | null
   ownerCalendarColorId: string | null
 }): Promise<{ ownerCalendarColorId: string | null }> {
   const { businessId, ownerUserId, ownerName, ownerCalendarColorId } = params
   await prisma.$transaction(async (tx) => {
     await ensureOwnerEmployee(tx, businessId, {
-      ownerUserId,
+      ...(ownerUserId ? { ownerUserId } : {}),
       fallbackName: ownerName ?? undefined,
     })
 

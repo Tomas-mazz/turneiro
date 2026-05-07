@@ -46,6 +46,10 @@ import {
   adminListEmployeeServiceDurations,
   adminUpsertEmployeeServiceDurations,
 } from '../controllers/adminEmployeeServiceDurations.controller'
+import {
+  adminListEmployeeServiceRestrictions,
+  adminReplaceEmployeeServiceRestrictions,
+} from '../controllers/adminEmployeeServiceRestrictions.controller'
 import { createSeller, deleteSeller, getSellerDetail, listSellers } from '../controllers/sellersAdmin.controller'
 
 const router = Router()
@@ -158,6 +162,19 @@ router.put(
   requireAdmin,
   requireAdminBusinessId,
   adminUpsertEmployeeServiceDurations
+)
+
+router.get(
+  '/businesses/:id/employees/:employeeId/service-restrictions',
+  requireAdmin,
+  requireAdminBusinessId,
+  adminListEmployeeServiceRestrictions
+)
+router.put(
+  '/businesses/:id/employees/:employeeId/service-restrictions',
+  requireAdmin,
+  requireAdminBusinessId,
+  adminReplaceEmployeeServiceRestrictions
 )
 
 export default router

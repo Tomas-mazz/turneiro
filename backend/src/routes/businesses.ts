@@ -30,6 +30,10 @@ import {
   listOwnerEmployeeServiceDurations,
   upsertOwnerEmployeeServiceDurations,
 } from '../controllers/employeeServiceDurations.controller'
+import {
+  listOwnerEmployeeServiceRestrictions,
+  replaceOwnerEmployeeServiceRestrictions,
+} from '../controllers/employeeServiceRestrictions.controller'
 
 const router = Router()
 
@@ -82,6 +86,20 @@ router.put(
   requireOwnerOrAdminActing,
   requireBusinessContext,
   upsertOwnerEmployeeServiceDurations
+)
+
+// Owner dashboard: per-employee service restrictions (disable selections)
+router.get(
+  '/employees/:id/service-restrictions',
+  requireOwnerOrAdminActing,
+  requireBusinessContext,
+  listOwnerEmployeeServiceRestrictions
+)
+router.put(
+  '/employees/:id/service-restrictions',
+  requireOwnerOrAdminActing,
+  requireBusinessContext,
+  replaceOwnerEmployeeServiceRestrictions
 )
 
 router.get('/:slug/add-ons', getPublicServiceAddOns)

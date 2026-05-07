@@ -57,6 +57,8 @@ export default function BusinessBookingPage() {
   /** When there are employees, slots per employeeId; backend scopes availability per employee. */
   const [slotsByEmployee, setSlotsByEmployee] = useState<Record<string, string[]>>({})
   const [slotsLoading, setSlotsLoading] = useState(false)
+  const [eligibleEmployeeIds, setEligibleEmployeeIds] = useState<string[] | null>(null)
+  const [eligibleEmployeesLoading, setEligibleEmployeesLoading] = useState(false)
   const [selectedSlot, setSelectedSlot] = useState<string | null>(null)
   const [selectedEmployeeId, setSelectedEmployeeId] = useState<string | null>(null)
   const [clientName, setClientName] = useState('')
@@ -447,9 +449,50 @@ export default function BusinessBookingPage() {
       .catch(() => setWeekAvailability({}))
   }, [step, business, selectedServices, slug, calendarMonth])
 
+  // Filter employees: only those who can perform ALL selected services/subservices.
+  useEffect(() => {
+    if (step !== 'date' || !business) return
+    const allEmployees = business.employees ?? []
+    if (allEmployees.length === 0) {
+      setEligibleEmployeeIds(null)
+      return
+    }
+    if (selectedServices.length === 0) {
+      setEligibleEmployeeIds(allEmployees.map((e) => e.id))
+      return
+    }
+    setEligibleEmployeesLoading(true)
+    api
+      .get<{ employeeIds: string[] }>('/availability/eligible-employees', {
+        params: {
+          businessSlug: slug,
+          serviceIds: selectedServices.map((s) => s.id).join(','),
+        },
+      })
+      .then((res) => {
+        setEligibleEmployeeIds(Array.isArray(res.data.employeeIds) ? res.data.employeeIds : [])
+      })
+      .catch(() => setEligibleEmployeeIds([]))
+      .finally(() => setEligibleEmployeesLoading(false))
+  }, [step, business, selectedServices, slug])
+
   useEffect(() => {
     if (!selectedDate || selectedServices.length === 0) return
-    const employees = business?.employees ?? []
+    const businessEmployees = business?.employees ?? []
+    const businessHasEmployees = businessEmployees.length > 0
+    if (businessHasEmployees && Array.isArray(eligibleEmployeeIds) && eligibleEmployeeIds.length === 0) {
+      // Behavior 1: no eligible employees for this combo → no slots.
+      setSlots([])
+      setSlotsByEmployee({})
+      setSlotsLoading(false)
+      setSelectedSlot(null)
+      setSelectedEmployeeId(null)
+      return
+    }
+    const employees =
+      businessEmployees.length > 0 && eligibleEmployeeIds
+        ? businessEmployees.filter((e) => eligibleEmployeeIds.includes(e.id))
+        : businessEmployees
     setSlotsLoading(true)
     setSelectedSlot(null)
     setSelectedEmployeeId(null)
@@ -496,7 +539,7 @@ export default function BusinessBookingPage() {
         .catch(() => setSlots([]))
         .finally(() => setSlotsLoading(false))
     }
-  }, [selectedDate, selectedServices, slug, business?.employees])
+  }, [selectedDate, selectedServices, slug, business?.employees, eligibleEmployeeIds])
 
   const createAppointment = (opts: { deferConfirmationUntilPayment: boolean; onSuccess: () => void }) => {
     if (!business || selectedServices.length === 0 || !selectedDate || !selectedSlot) return
@@ -779,6 +822,21 @@ export default function BusinessBookingPage() {
       )}
 
       {step === 'date' && selectedServices.length > 0 && (
+        (() => {
+          const businessEmployees = business.employees ?? []
+          const businessHasEmployees = businessEmployees.length > 0
+          const eligibleEmployees =
+            businessHasEmployees && eligibleEmployeeIds
+              ? businessEmployees.filter((e) => eligibleEmployeeIds.includes(e.id))
+              : businessEmployees
+          const noEligibleEmployeesMessage =
+            businessHasEmployees &&
+            !eligibleEmployeesLoading &&
+            Array.isArray(eligibleEmployeeIds) &&
+            eligibleEmployeeIds.length === 0
+              ? 'Ningún empleado realiza todos los servicios seleccionados. Podés volver y ajustar la selección.'
+              : null
+          return (
         <DateStep
           businessName={business.name}
           logo={business.logo}
@@ -789,7 +847,9 @@ export default function BusinessBookingPage() {
             price: selectedServices.reduce((acc, s) => acc + serviceOptionTotalPrice(s), 0),
             duration: selectedServices.reduce((acc, s) => acc + s.duration, 0),
           }}
-          employees={business.employees ?? []}
+          employees={eligibleEmployees}
+          businessHasEmployees={businessHasEmployees}
+          noEligibleEmployeesMessage={noEligibleEmployeesMessage}
           calendarMonth={calendarMonth}
           onCalendarMonth={setCalendarMonth}
           weekAvailability={weekAvailability}
@@ -823,6 +883,8 @@ export default function BusinessBookingPage() {
           user={user}
           onLogout={handleLogout}
         />
+          )
+        })()
       )}
 
       {step === 'form' && selectedServices.length > 0 && selectedDate && selectedSlot && (

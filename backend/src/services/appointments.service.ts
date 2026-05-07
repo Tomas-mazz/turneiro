@@ -5,6 +5,7 @@ import { Prisma } from '@prisma/client'
 import { prisma } from '../lib/prisma'
 import { getAvailabilityService } from './availability.service'
 import { resolveSelectionDurations } from './selectionDurations.service'
+import { employeeCanPerformSelections } from './employeeServiceRestrictions.service'
 import type { CreateAppointmentInput } from '../lib/schemas'
 import * as mercadopagoService from './mercadopago.service'
 import * as googleCalendarService from './google-calendar.service'
@@ -527,6 +528,15 @@ export async function createAppointmentService(data: CreateAppointmentInput) {
 
   const employeeId = data.employeeId ?? undefined
   if (employeeId) {
+    const can = await employeeCanPerformSelections({
+      businessId: business.id,
+      employeeId,
+      selectionIds: requestedIds,
+      returnFalseOnMissing: false,
+    })
+    if (!can) {
+      throw new SlotUnavailableError('Este empleado no realiza uno o más de los servicios seleccionados')
+    }
     const durationRows = await resolveSelectionDurations({
       businessId: business.id,
       selectionIds: requestedIds,

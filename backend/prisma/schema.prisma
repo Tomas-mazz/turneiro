@@ -70,9 +70,32 @@ model Employee {
   appointments Appointment[]
   blockedSlots BlockedSlot[]
   serviceDurations EmployeeServiceDuration[]
+  serviceRestrictions EmployeeServiceRestriction[]
 
   @@index([businessId])
   @@index([userId])
+}
+
+/// Per-employee exclusion for a Service or SubService.
+/// If a row exists, the employee cannot be booked for that selection.
+/// Absence means "allowed" (default compatible behavior).
+model EmployeeServiceRestriction {
+  id           String   @id @default(cuid())
+  employeeId   String
+  serviceId    String?
+  subServiceId String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  employee   Employee    @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  service    Service?    @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+  subService SubService? @relation(fields: [subServiceId], references: [id], onDelete: Cascade)
+
+  @@index([employeeId])
+  @@index([serviceId])
+  @@index([subServiceId])
+  @@unique([employeeId, serviceId])
+  @@unique([employeeId, subServiceId])
 }
 
 /// Optional per-employee override duration for a Service or SubService.
@@ -139,6 +162,7 @@ model Service {
   subServices  SubService[]
   addOnScopes  ServiceAddOnService[]
   employeeDurations EmployeeServiceDuration[]
+  employeeRestrictions EmployeeServiceRestriction[]
 
   @@index([businessId])
 }
@@ -161,6 +185,7 @@ model SubService {
   service     Service                  @relation(fields: [serviceId], references: [id], onDelete: Cascade)
   addOnScopes ServiceAddOnSubService[]
   employeeDurations EmployeeServiceDuration[]
+  employeeRestrictions EmployeeServiceRestriction[]
 
   @@index([serviceId])
 }
