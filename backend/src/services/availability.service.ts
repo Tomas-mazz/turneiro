@@ -1,6 +1,7 @@
 import { prisma } from '../lib/prisma'
 import { toZonedTime } from 'date-fns-tz'
 import { resolveSelectionDurations } from './selectionDurations.service'
+import { employeeCanPerformSelections } from './employeeServiceRestrictions.service'
 
 const ARGENTINA_TIMEZONE = 'America/Argentina/Buenos_Aires'
 
@@ -94,6 +95,16 @@ export async function getAvailabilityService(
 
   const requestedIds = Array.isArray(serviceIdOrIds) ? serviceIdOrIds : [serviceIdOrIds]
   if (requestedIds.length === 0) return []
+
+  if (employeeId) {
+    const can = await employeeCanPerformSelections({
+      businessId: business.id,
+      employeeId,
+      selectionIds: requestedIds,
+      returnFalseOnMissing: true,
+    })
+    if (!can) return []
+  }
 
   const resolved = await resolveSelectionDurations({
     businessId: business.id,

@@ -47,6 +47,7 @@ import { BlockingSection } from './components/sections/BlockingSection'
 import { CancelSection } from './components/sections/CancelSection'
 import { EmployeesSection } from './components/sections/EmployeesSection'
 import { EmployeeServiceDurationsModal } from './components/modals/EmployeeServiceDurationsModal'
+import { EmployeeServiceRestrictionsModal } from './components/modals/EmployeeServiceRestrictionsModal'
 import { PublicBrandingSection } from './components/PublicBrandingSection'
 import { PublicDefaultThemeSection } from './components/PublicDefaultThemeSection'
 import {
@@ -201,6 +202,7 @@ export function DashboardContent({ section = 'all' }: { section?: DashboardSecti
   >({})
 
   const [serviceDurationsEmployee, setServiceDurationsEmployee] = useState<OwnerEmployeeListItem | null>(null)
+  const [serviceRestrictionsEmployee, setServiceRestrictionsEmployee] = useState<OwnerEmployeeListItem | null>(null)
 
   useEffect(() => {
     setUserRole(getAuthUser()?.role ?? null)
@@ -1277,6 +1279,7 @@ export function DashboardContent({ section = 'all' }: { section?: DashboardSecti
         services={services}
         employees={employees}
         onOpenServiceDurations={(emp) => setServiceDurationsEmployee(emp)}
+        onOpenServiceRestrictions={(emp) => setServiceRestrictionsEmployee(emp)}
         newService={newService}
         setNewService={setNewService}
         creatingService={creatingService}
@@ -1399,6 +1402,14 @@ export function DashboardContent({ section = 'all' }: { section?: DashboardSecti
         services={services}
         subServicesByService={subServicesByService}
         onClose={() => setServiceDurationsEmployee(null)}
+      />
+
+      <EmployeeServiceRestrictionsModal
+        open={!!serviceRestrictionsEmployee}
+        employee={serviceRestrictionsEmployee}
+        services={services}
+        subServicesByService={subServicesByService}
+        onClose={() => setServiceRestrictionsEmployee(null)}
       />
 
       <CancelSection

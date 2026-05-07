@@ -27,6 +27,10 @@ type DateStepProps = {
   fontFamily?: string | null
   selectedService: ServiceOption
   employees: Employee[]
+  /** True when the business has employees, even if current selection yields none eligible. */
+  businessHasEmployees: boolean
+  /** Optional message to show when no eligible employees can perform the selection combo. */
+  noEligibleEmployeesMessage?: string | null
   calendarMonth: Date
   onCalendarMonth: (updater: (d: Date) => Date) => void
   weekAvailability: Record<string, boolean>
@@ -67,6 +71,8 @@ export function DateStep({
   fontFamily = 'ROBOTO',
   selectedService,
   employees,
+  businessHasEmployees,
+  noEligibleEmployeesMessage = null,
   calendarMonth,
   onCalendarMonth,
   weekAvailability,
@@ -258,6 +264,23 @@ export function DateStep({
             )
           })}
         </div>
+
+        {/* Behavior 1: when business has employees but none can do the combo */}
+        {businessHasEmployees && employees.length === 0 && noEligibleEmployeesMessage ? (
+          <div className={`rounded-xl border border-[color:var(--booking-card-border)] bg-[color:var(--booking-card-bg)] p-5 text-sm ${subText}`}>
+            <p className="font-semibold text-[color:var(--booking-fg)]">No hay empleados para esta combinación</p>
+            <p className="mt-1">{noEligibleEmployeesMessage}</p>
+            <div className="mt-4">
+              <button
+                type="button"
+                onClick={onGoToServices}
+                className={`rounded-lg px-4 py-2 text-sm font-medium ${actionBtnClass}`}
+              >
+                Volver a servicios
+              </button>
+            </div>
+          </div>
+        ) : null}
 
         {/* Employees (or single "Horarios") with slots for selected date */}
         {!selectedDate ? (

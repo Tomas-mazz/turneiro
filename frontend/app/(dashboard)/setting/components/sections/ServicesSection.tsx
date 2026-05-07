@@ -17,6 +17,7 @@ type Props = {
   services: ServiceListItem[]
   employees: OwnerEmployeeListItem[]
   onOpenServiceDurations: (emp: OwnerEmployeeListItem) => void
+  onOpenServiceRestrictions: (emp: OwnerEmployeeListItem) => void
   newService: { name: string; price: string; duration: string; isActive: boolean }
   setNewService: React.Dispatch<
     React.SetStateAction<{ name: string; price: string; duration: string; isActive: boolean }>
@@ -49,6 +50,7 @@ export function ServicesSection({
   services,
   employees,
   onOpenServiceDurations,
+  onOpenServiceRestrictions,
   newService,
   setNewService,
   creatingService,
@@ -67,6 +69,7 @@ export function ServicesSection({
 }: Props) {
   const [openPanels, setOpenPanels] = useState<Record<string, boolean>>({
     durations: false,
+    restrictions: false,
     create: false,
     list: true,
   })
@@ -76,6 +79,7 @@ export function ServicesSection({
   }
 
   const isDurationsOpen = openPanels.durations
+  const isRestrictionsOpen = openPanels.restrictions
   const isCreateOpen = openPanels.create
   const isListOpen = openPanels.list
 
@@ -197,6 +201,53 @@ export function ServicesSection({
                     className="rounded-lg border border-neutral-200 bg-white px-4 py-2 text-sm font-medium text-neutral-800 hover:bg-neutral-50"
                   >
                     Configurar duraciones
+                  </button>
+                </div>
+              ))
+            )}
+          </div>
+        )}
+      </div>
+
+      <div className="mt-4 rounded-lg border border-neutral-200 bg-white p-4 shadow-sm">
+        <button
+          type="button"
+          onClick={() => togglePanel('restrictions')}
+          className="flex w-full items-center justify-between gap-3 text-left"
+          aria-expanded={isRestrictionsOpen}
+        >
+          <div>
+            <h3 className="text-sm font-semibold text-neutral-900">Servicios por empleado</h3>
+            <p className="mt-1 text-xs text-neutral-600">
+              Elegí qué servicios/subservicios realiza cada empleado (si no lo hace, no aparecerá al reservar).
+            </p>
+          </div>
+          <span className="text-sm font-medium text-neutral-700">{isRestrictionsOpen ? 'Cerrar' : 'Abrir'} ▾</span>
+        </button>
+
+        {isRestrictionsOpen && (
+          <div className="mt-3 space-y-2">
+            {employees.length === 0 ? (
+              <p className="text-sm text-neutral-500">No hay empleados todavía.</p>
+            ) : services.length === 0 ? (
+              <p className="text-sm text-neutral-500">Primero creá un servicio.</p>
+            ) : (
+              ownerFirstEmployees.map((emp) => (
+                <div
+                  key={emp.id}
+                  className="flex flex-col gap-2 rounded-lg border border-neutral-200 p-3 sm:flex-row sm:items-center sm:justify-between"
+                >
+                  <div className="min-w-0">
+                    <div className="truncate text-sm font-medium text-neutral-900">
+                      {emp.name} {emp.isOwner ? '(Dueño)' : ''}
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => onOpenServiceRestrictions(emp)}
+                    className="rounded-lg border border-neutral-200 bg-white px-4 py-2 text-sm font-medium text-neutral-800 hover:bg-neutral-50"
+                  >
+                    Configurar servicios
                   </button>
                 </div>
               ))

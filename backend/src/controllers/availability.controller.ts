@@ -1,5 +1,7 @@
 import { Request, Response, NextFunction } from 'express'
 import { getAvailabilityService, getWeekAvailabilityService } from '../services/availability.service'
+import { prisma } from '../lib/prisma'
+import { resolveSelectionDurations } from '../services/selectionDurations.service'
 
 const DATE_REGEX = /^\d{4}-\d{2}-\d{2}$/
 
@@ -87,6 +89,81 @@ export async function getWeekAvailability(req: Request, res: Response, next: Nex
       startDate
     )
     res.json({ week })
+  } catch (err) {
+    next(err)
+  }
+}
+
+export async function getEligibleEmployees(req: Request, res: Response, next: NextFunction) {
+  try {
+    const { businessSlug, serviceId, serviceIds } = req.query as {
+      businessSlug?: string
+      serviceId?: string
+      serviceIds?: string
+    }
+    const hasSingle = !!serviceId?.trim()
+    const hasMany = !!serviceIds?.trim()
+    if (!businessSlug?.trim() || !(hasSingle || hasMany)) {
+      res.status(400).json({
+        error: 'Faltan parámetros: businessSlug, serviceId/serviceIds',
+      })
+      return
+    }
+    const business = await prisma.business.findUnique({
+      where: { slug: businessSlug.trim() },
+      select: { id: true },
+    })
+    if (!business) {
+      res.status(404).json({ error: 'Negocio no encontrado' })
+      return
+    }
+    const requestedIds = hasMany
+      ? serviceIds!
+          .split(',')
+          .map((s) => s.trim())
+          .filter(Boolean)
+      : null
+    const selectionIds = requestedIds && requestedIds.length > 0 ? requestedIds : [serviceId!.trim()]
+    if (selectionIds.length === 0) {
+      res.json({ employeeIds: [] })
+      return
+    }
+
+    const employees = await prisma.employee.findMany({
+      where: { businessId: business.id },
+      select: { id: true },
+    })
+    if (employees.length === 0) {
+      res.json({ employeeIds: [] })
+      return
+    }
+
+    // Validate selections belong to this business and classify ids.
+    const resolved = await resolveSelectionDurations({
+      businessId: business.id,
+      selectionIds,
+      returnEmptyOnMissing: true,
+    })
+    if (resolved.length !== [...new Set(selectionIds.filter(Boolean))].length) {
+      res.json({ employeeIds: [] })
+      return
+    }
+    const selectedServiceIds = resolved.filter((r) => r.kind === 'SERVICE').map((r) => r.id)
+    const subServiceIds = resolved.filter((r) => r.kind === 'SUBSERVICE').map((r) => r.id)
+
+    const restrictedRows = await prisma.employeeServiceRestriction.findMany({
+      where: {
+        employeeId: { in: employees.map((e) => e.id) },
+        OR: [
+          selectedServiceIds.length > 0 ? { serviceId: { in: selectedServiceIds } } : undefined,
+          subServiceIds.length > 0 ? { subServiceId: { in: subServiceIds } } : undefined,
+        ].filter(Boolean) as any,
+      },
+      select: { employeeId: true },
+    })
+    const restrictedEmployeeIds = new Set(restrictedRows.map((r: { employeeId: string }) => r.employeeId))
+    const eligible = employees.map((e) => e.id).filter((id) => !restrictedEmployeeIds.has(id))
+    res.json({ employeeIds: eligible })
   } catch (err) {
     next(err)
   }

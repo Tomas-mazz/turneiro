@@ -15,6 +15,7 @@ import type {
   SubServiceAdminItem,
   ServiceAddOnAdminItem,
   EmployeeServiceDurationItem,
+  EmployeeServiceRestrictionItem,
   SellerBusinessDetail,
   SellerBusinessListItem,
   CreateSellerBusinessBody,
@@ -362,6 +363,31 @@ export async function upsertOwnerEmployeeServiceDurations(
 ): Promise<{ ok: true }> {
   const { data } = await api.put<{ ok: true }>(
     `/businesses/employees/${employeeId}/service-durations`,
+    body
+  )
+  return data
+}
+
+export async function getOwnerEmployeeServiceRestrictions(
+  employeeId: string
+): Promise<EmployeeServiceRestrictionItem[]> {
+  const { data } = await api.get<EmployeeServiceRestrictionItem[]>(
+    `/businesses/employees/${employeeId}/service-restrictions`
+  )
+  return data
+}
+
+export async function replaceOwnerEmployeeServiceRestrictions(
+  employeeId: string,
+  body: {
+    disabled: Array<
+      | { serviceId: string; subServiceId?: never }
+      | { serviceId?: never; subServiceId: string }
+    >
+  }
+): Promise<{ ok: true }> {
+  const { data } = await api.put<{ ok: true }>(
+    `/businesses/employees/${employeeId}/service-restrictions`,
     body
   )
   return data

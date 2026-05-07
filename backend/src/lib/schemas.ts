@@ -504,6 +504,26 @@ export const upsertEmployeeServiceDurationsSchema = z.object({
 
 export type UpsertEmployeeServiceDurationsInput = z.infer<typeof upsertEmployeeServiceDurationsSchema>
 
+// Per-employee service restrictions (disabled selections only)
+const employeeServiceRestrictionItemSchema = z
+  .object({
+    serviceId: z.string().cuid().optional(),
+    subServiceId: z.string().cuid().optional(),
+  })
+  .refine((x) => {
+    const hasService = typeof x.serviceId === 'string' && x.serviceId.length > 0
+    const hasSub = typeof x.subServiceId === 'string' && x.subServiceId.length > 0
+    return hasService !== hasSub
+  }, { message: 'Debe enviar serviceId o subServiceId (solo uno)' })
+
+export const replaceEmployeeServiceRestrictionsSchema = z.object({
+  disabled: z.array(employeeServiceRestrictionItemSchema).max(2000),
+})
+
+export type ReplaceEmployeeServiceRestrictionsInput = z.infer<
+  typeof replaceEmployeeServiceRestrictionsSchema
+>
+
 export const updateOwnerCalendarColorSchema = z.object({
   ownerCalendarColorId: optionalColorId,
 })
