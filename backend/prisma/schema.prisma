@@ -358,6 +358,10 @@ model BusinessSettings {
   depositPercentage                Float? // If paymentType is PERCENTAGE
   mercadoPagoPublicKey             String?
   mercadoPagoAccessToken           String?
+  mercadoPagoRefreshToken          String?
+  mercadoPagoTokenExpiresAt        DateTime?
+  mercadoPagoUserId                String?
+  mercadoPagoConnectedAt           DateTime?
   mercadoPagoWebhookSecret         String?
   requireRegistrationBeforePayment Boolean  @default(true)
   freeCancellationWindow           Int? // Hours before appointment (e.g., 24)

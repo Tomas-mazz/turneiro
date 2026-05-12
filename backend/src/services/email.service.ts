@@ -36,18 +36,18 @@ function getTransporter(): Transporter | null {
 async function sendMailWithRetry(
   mailOptions: nodemailer.SendMailOptions,
   maxRetries = 3
-): Promise<void> {
+): Promise<{ sent: boolean; skippedReason?: 'smtp_not_configured' }> {
   const transport = getTransporter()
   if (!transport) {
     console.warn('SMTP not configured; skipping email')
-    return
+    return { sent: false, skippedReason: 'smtp_not_configured' }
   }
 
   let lastError: Error | null = null
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
     try {
       await transport.sendMail(mailOptions)
-      return
+      return { sent: true }
     } catch (err: unknown) {
       lastError = err instanceof Error ? err : new Error(String(err))
       console.warn(`Email send attempt ${attempt} failed:`, lastError.message)
@@ -365,13 +365,20 @@ async function sendAppointmentConfirmationEmailForAppointment(appointment: unkno
   const subject = `Confirmación de tu turno - ${apt.business.name}`
 
   try {
-    await sendMailWithRetry({
+    const result = await sendMailWithRetry({
       from: `"${fromName}" <${fromEmail}>`,
       to: apt.clientEmail,
       subject,
       html,
     })
-    console.log('✅ Confirmation email sent for appointment', apt.id)
+    if (result.sent) {
+      console.log('✅ Confirmation email sent for appointment', apt.id)
+    } else {
+      console.warn(
+        '⚠️ Confirmation email skipped for appointment (SMTP not configured)',
+        apt.id
+      )
+    }
   } catch (err) {
     console.error('Failed to send confirmation email for appointment', apt.id, err)
   }
@@ -564,14 +571,20 @@ async function sendAppointmentReminderEmailForAppointment(appointment: unknown):
       return
     }
 
-    await sendMailWithRetry({
+    const result = await sendMailWithRetry({
       from: `"${fromName}" <${fromEmail}>`,
       to: apt.clientEmail,
       subject,
       html,
     })
-
-    console.log('✅ Reminder email sent for appointment', apt.id)
+    if (result.sent) {
+      console.log('✅ Reminder email sent for appointment', apt.id)
+    } else {
+      console.warn(
+        '⚠️ Reminder email skipped for appointment (SMTP not configured)',
+        apt.id
+      )
+    }
   } catch (err) {
     // If sending fails, release the claim so retries can send again.
     await prisma.$executeRaw`
@@ -855,13 +868,20 @@ async function sendEmployeeAppointmentNotificationForAppointment(
   const subject = `Nuevo turno asignado - ${apt.business.name}`
 
   try {
-    await sendMailWithRetry({
+    const result = await sendMailWithRetry({
       from: `"${fromName}" <${fromEmail}>`,
       to: targetEmail,
       subject,
       html,
     })
-    console.log('✅ Employee notification email sent for appointment', apt.id)
+    if (result.sent) {
+      console.log('✅ Employee notification email sent for appointment', apt.id)
+    } else {
+      console.warn(
+        '⚠️ Employee notification email skipped for appointment (SMTP not configured)',
+        apt.id
+      )
+    }
   } catch (err) {
     console.error('Failed to send employee notification email for appointment', apt.id, err)
   }
@@ -1057,13 +1077,20 @@ export async function sendCancellationEmailToClient(appointmentId: string, reaso
   const subject = `Tu turno fue cancelado - ${appointment.business.name}`
 
   try {
-    await sendMailWithRetry({
+    const result = await sendMailWithRetry({
       from: `"${fromName}" <${fromEmail}>`,
       to: appointment.clientEmail,
       subject,
       html,
     })
-    console.log('✅ Cancellation email sent to client for appointment', appointmentId)
+    if (result.sent) {
+      console.log('✅ Cancellation email sent to client for appointment', appointmentId)
+    } else {
+      console.warn(
+        '⚠️ Cancellation email to client skipped (SMTP not configured) for appointment',
+        appointmentId
+      )
+    }
   } catch (err) {
     console.error('Failed to send cancellation email to client for appointment', appointmentId, err)
   }
@@ -1232,13 +1259,20 @@ export async function sendCancellationEmailToEmployee(appointmentId: string): Pr
   const subject = `Un cliente canceló su turno - ${appointment.business.name}`
 
   try {
-    await sendMailWithRetry({
+    const result = await sendMailWithRetry({
       from: `"${fromName}" <${fromEmail}>`,
       to: targetEmail,
       subject,
       html,
     })
-    console.log('✅ Cancellation email sent to employee for appointment', appointmentId)
+    if (result.sent) {
+      console.log('✅ Cancellation email sent to employee for appointment', appointmentId)
+    } else {
+      console.warn(
+        '⚠️ Cancellation email to employee skipped (SMTP not configured) for appointment',
+        appointmentId
+      )
+    }
   } catch (err) {
     console.error('Failed to send cancellation email to employee for appointment', appointmentId, err)
   }

@@ -1,6 +1,7 @@
 import { Request, Response } from 'express'
 import { prisma } from '../lib/prisma'
 import * as mercadopagoService from '../services/mercadopago.service'
+import { getValidMercadoPagoAccessTokenForBusiness } from '../services/mercadopago-oauth.service'
 import { finalizeAppointmentAfterPaymentService } from '../services/appointments.service'
 
 type MercadoPagoPaymentLike = {
@@ -122,7 +123,12 @@ export async function createPaymentIntent(req: Request, res: Response) {
         error: 'Configuración de pago no encontrada para este negocio',
       })
     }
-    if (!settings.mercadoPagoAccessToken) {
+    const accessToken = await getValidMercadoPagoAccessTokenForBusiness(
+      appointment.businessId,
+      settings
+    )
+
+    if (!accessToken) {
       return res.status(400).json({
         error: 'Este negocio no configuró Mercado Pago todavía',
       })
@@ -162,7 +168,7 @@ export async function createPaymentIntent(req: Request, res: Response) {
         paymentAmount,
         `${appointment.serviceName} - ${appointment.business.name}`,
         metadata,
-        { accessToken: settings.mercadoPagoAccessToken }
+        { accessToken }
       )
 
     // Update appointment with payment info
@@ -266,12 +272,21 @@ export async function confirmPayment(req: Request, res: Response) {
       where: { id: appointmentId },
       include: { business: { include: { settings: true } } },
     })
-    const accessToken = withSettings?.business.settings?.mercadoPagoAccessToken
+    const accessToken = withSettings
+      ? await getValidMercadoPagoAccessTokenForBusiness(
+          withSettings.businessId,
+          withSettings.business.settings
+        )
+      : null
 
     let paymentVerified = false
     let paymentStatus: string | undefined
 
     if (aptPaymentProvider === 'MERCADOPAGO') {
+      if (!accessToken) {
+        return res.status(400).json({ error: 'Mercado Pago no está configurado para este negocio' })
+      }
+
       if (mercadoPagoPaymentId && /^\d+$/.test(mercadoPagoPaymentId)) {
         const payment = (await mercadopagoService.getPayment(mercadoPagoPaymentId, {
           accessToken,
