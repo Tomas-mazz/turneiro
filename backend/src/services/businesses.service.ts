@@ -767,6 +767,10 @@ export type BusinessSettings = {
   depositPercentage: number | null
   mercadoPagoPublicKey: string | null
   hasMercadoPagoAccessToken: boolean
+  mercadoPagoConnectionType: 'OAUTH' | 'MANUAL' | null
+  mercadoPagoAccountId: string | null
+  mercadoPagoConnectedAt: Date | null
+  mercadoPagoTokenExpiresAt: Date | null
   mercadoPagoWebhookSecret: string | null
   showServiceConfirmModal: boolean
   allowMultipleServices: boolean
@@ -800,6 +804,10 @@ export async function getBusinessSettingsService(
         depositPercentage: true,
         mercadoPagoPublicKey: true,
         mercadoPagoAccessToken: true,
+        mercadoPagoRefreshToken: true,
+        mercadoPagoUserId: true,
+        mercadoPagoConnectedAt: true,
+        mercadoPagoTokenExpiresAt: true,
         mercadoPagoWebhookSecret: true,
         showServiceConfirmModal: true,
         allowMultipleServices: true,
@@ -830,6 +838,14 @@ export async function getBusinessSettingsService(
     depositPercentage: settings?.depositPercentage ?? null,
     mercadoPagoPublicKey: settings?.mercadoPagoPublicKey ?? null,
     hasMercadoPagoAccessToken: !!settings?.mercadoPagoAccessToken,
+    mercadoPagoConnectionType: settings?.mercadoPagoRefreshToken
+      ? 'OAUTH'
+      : settings?.mercadoPagoAccessToken
+        ? 'MANUAL'
+        : null,
+    mercadoPagoAccountId: settings?.mercadoPagoUserId ?? null,
+    mercadoPagoConnectedAt: settings?.mercadoPagoConnectedAt ?? null,
+    mercadoPagoTokenExpiresAt: settings?.mercadoPagoTokenExpiresAt ?? null,
     mercadoPagoWebhookSecret: settings?.mercadoPagoWebhookSecret ?? null,
     showServiceConfirmModal: settings?.showServiceConfirmModal ?? false,
     allowMultipleServices: settings?.allowMultipleServices ?? false,
@@ -855,6 +871,10 @@ export async function updateBusinessSettingsService(
       paymentType: true,
       depositPercentage: true,
       allowMultipleServices: true,
+      mercadoPagoRefreshToken: true,
+      mercadoPagoUserId: true,
+      mercadoPagoConnectedAt: true,
+      mercadoPagoTokenExpiresAt: true,
     },
   })
   const fontFamily =
@@ -934,6 +954,10 @@ export async function updateBusinessSettingsService(
       }),
       ...(input.mercadoPagoAccessToken !== undefined && {
         mercadoPagoAccessToken: input.mercadoPagoAccessToken?.trim() || null,
+        mercadoPagoRefreshToken: null,
+        mercadoPagoTokenExpiresAt: null,
+        mercadoPagoUserId: null,
+        mercadoPagoConnectedAt: null,
       }),
       ...(input.showServiceConfirmModal !== undefined && {
         showServiceConfirmModal: input.showServiceConfirmModal,
@@ -959,6 +983,10 @@ export async function updateBusinessSettingsService(
       depositPercentage: true,
       mercadoPagoPublicKey: true,
       mercadoPagoAccessToken: true,
+      mercadoPagoRefreshToken: true,
+      mercadoPagoUserId: true,
+      mercadoPagoConnectedAt: true,
+      mercadoPagoTokenExpiresAt: true,
       mercadoPagoWebhookSecret: true,
       showServiceConfirmModal: true,
       allowMultipleServices: true,
@@ -999,6 +1027,14 @@ export async function updateBusinessSettingsService(
     depositPercentage: updated.depositPercentage ?? null,
     mercadoPagoPublicKey: updated.mercadoPagoPublicKey ?? null,
     hasMercadoPagoAccessToken: !!updated.mercadoPagoAccessToken,
+    mercadoPagoConnectionType: updated.mercadoPagoRefreshToken
+      ? 'OAUTH'
+      : updated.mercadoPagoAccessToken
+        ? 'MANUAL'
+        : null,
+    mercadoPagoAccountId: updated.mercadoPagoUserId ?? null,
+    mercadoPagoConnectedAt: updated.mercadoPagoConnectedAt ?? null,
+    mercadoPagoTokenExpiresAt: updated.mercadoPagoTokenExpiresAt ?? null,
     mercadoPagoWebhookSecret: updated.mercadoPagoWebhookSecret ?? null,
     showServiceConfirmModal: updated.showServiceConfirmModal,
     allowMultipleServices: updated.allowMultipleServices ?? false,

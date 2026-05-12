@@ -825,6 +825,10 @@ export type BusinessSettings = {
   depositPercentage: number | null
   mercadoPagoPublicKey: string | null
   hasMercadoPagoAccessToken: boolean
+  mercadoPagoConnectionType: 'OAUTH' | 'MANUAL' | null
+  mercadoPagoAccountId: string | null
+  mercadoPagoConnectedAt: string | null
+  mercadoPagoTokenExpiresAt: string | null
   mercadoPagoWebhookSecret: string | null
   showServiceConfirmModal: boolean
   allowMultipleServices: boolean
@@ -841,5 +845,30 @@ export async function updateBusinessSettings(
   body: Partial<BusinessSettings> & { mercadoPagoAccessToken?: string | null }
 ): Promise<BusinessSettings> {
   const { data } = await api.patch<BusinessSettings>('/businesses/settings', body)
+  return data
+}
+
+export type MercadoPagoOAuthStatus = {
+  connected: boolean
+  connectionType: 'OAUTH' | 'MANUAL' | null
+  accountId: string | null
+  connectedAt: string | null
+  tokenExpiresAt: string | null
+}
+
+export async function getMercadoPagoOAuthAuthUrl(returnUrl: string): Promise<{ authUrl: string }> {
+  const { data } = await api.get<{ authUrl: string }>('/mercadopago/oauth/auth', {
+    params: { returnUrl },
+  })
+  return data
+}
+
+export async function getMercadoPagoOAuthStatus(): Promise<MercadoPagoOAuthStatus> {
+  const { data } = await api.get<MercadoPagoOAuthStatus>('/mercadopago/oauth/status')
+  return data
+}
+
+export async function disconnectMercadoPagoOAuth(): Promise<{ success: boolean }> {
+  const { data } = await api.post<{ success: boolean }>('/mercadopago/oauth/disconnect')
   return data
 }

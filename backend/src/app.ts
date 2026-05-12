@@ -70,6 +70,7 @@ import appointmentsRoutes from './routes/appointments'
 import servicesRoutes from './routes/services'
 import authRoutes from './routes/auth'
 import paymentsRoutes from './routes/payments'
+import mercadoPagoRoutes from './routes/mercadopago'
 import googleCalendarRoutes from './routes/google-calendar'
 import blockedSlotsRoutes from './routes/blockedSlots'
 import workingHoursRoutes from './routes/workingHours'
@@ -88,6 +89,7 @@ app.use('/api/appointments', appointmentsRoutes)
 app.use('/api/services', servicesRoutes)
 app.use('/api/auth', authRoutes)
 app.use('/api/payments', paymentsRoutes)
+app.use('/api/mercadopago', mercadoPagoRoutes)
 app.use('/api/google-calendar', googleCalendarRoutes)
 app.use('/api/blocked-slots', blockedSlotsRoutes)
 app.use('/api/working-hours', workingHoursRoutes)

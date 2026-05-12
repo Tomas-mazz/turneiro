@@ -1,6 +1,7 @@
 import { Request, Response } from 'express'
 import { prisma } from '../lib/prisma'
 import * as mercadopagoService from '../services/mercadopago.service'
+import { listValidMercadoPagoAccessTokens } from '../services/mercadopago-oauth.service'
 import { finalizeAppointmentAfterPaymentService } from '../services/appointments.service'
 
 type MercadoPagoPaymentLike = {
@@ -152,18 +153,7 @@ export async function mercadopagoWebhook(req: Request, res: Response) {
         return res.json({ received: true, ignored: 'missing_payment_id' })
       }
 
-      const tokenRows = await prisma.businessSettings.findMany({
-        where: { mercadoPagoAccessToken: { not: null } },
-        select: { mercadoPagoAccessToken: true },
-      })
-      const candidateTokens = Array.from(
-        new Set(
-          [
-            process.env.MERCADOPAGO_ACCESS_TOKEN ?? null,
-            ...tokenRows.map((r) => r.mercadoPagoAccessToken),
-          ].filter((t): t is string => !!t && t.trim().length > 0)
-        )
-      )
+      const candidateTokens = await listValidMercadoPagoAccessTokens()
 
       let payment: MercadoPagoPaymentLike | null = null
       for (const token of candidateTokens) {

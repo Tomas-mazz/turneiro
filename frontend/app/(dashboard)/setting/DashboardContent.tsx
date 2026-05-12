@@ -29,6 +29,8 @@ import {
   updateWorkingHours,
   getBusinessSettings,
   updateBusinessSettings,
+  getMercadoPagoOAuthAuthUrl,
+  disconnectMercadoPagoOAuth,
   getOwnerEmployees,
   getOwnerCalendarColor,
   createOwnerEmployee,
@@ -83,7 +85,19 @@ const FONT_OPTIONS: { key: FontFamilyKey; label: string; cssVar: string; sample:
   { key: 'PLAYFAIR', label: 'Playfair', cssVar: 'var(--font-playfair)', sample: 'Aa Bb Cc' },
 ]
 
+function formatConnectionDate(value: string | null): string | null {
+  if (!value) return null
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return null
+  return date.toLocaleDateString('es-AR', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+  })
+}
+
 export function DashboardContent({ section = 'all' }: { section?: DashboardSection }) {
+  const searchParams = useSearchParams()
   const [businessTitle, setBusinessTitle] = useState<string | null>(null)
   const [businessSlug, setBusinessSlug] = useState<string | null>(null)
   const [capabilities, setCapabilities] = useState<IndustryCapabilities | null>(null)
@@ -153,9 +167,14 @@ export function DashboardContent({ section = 'all' }: { section?: DashboardSecti
   const [paymentType, setPaymentType] = useState<'FULL' | 'PERCENTAGE'>('FULL')
   const [depositPercentage, setDepositPercentage] = useState('30')
   const [mercadoPagoPublicKey, setMercadoPagoPublicKey] = useState('')
-  const [mercadoPagoAccessToken, setMercadoPagoAccessToken] = useState('')
   const [mercadoPagoWebhookSecret, setMercadoPagoWebhookSecret] = useState('')
   const [hasMercadoPagoAccessToken, setHasMercadoPagoAccessToken] = useState(false)
+  const [mercadoPagoConnectionType, setMercadoPagoConnectionType] = useState<'OAUTH' | 'MANUAL' | null>(null)
+  const [mercadoPagoAccountId, setMercadoPagoAccountId] = useState<string | null>(null)
+  const [mercadoPagoConnectedAt, setMercadoPagoConnectedAt] = useState<string | null>(null)
+  const [connectingMercadoPago, setConnectingMercadoPago] = useState(false)
+  const [disconnectingMercadoPago, setDisconnectingMercadoPago] = useState(false)
+  const [mercadoPagoNotice, setMercadoPagoNotice] = useState<string | null>(null)
   const [savingPaymentSettings, setSavingPaymentSettings] = useState(false)
   const [workingHours, setWorkingHours] = useState<WorkingHoursItem[]>([])
   const [loadingWorkingHours, setLoadingWorkingHours] = useState(false)
@@ -280,6 +299,9 @@ export function DashboardContent({ section = 'all' }: { section?: DashboardSecti
         setMercadoPagoPublicKey(s.mercadoPagoPublicKey ?? '')
         setMercadoPagoWebhookSecret(s.mercadoPagoWebhookSecret ?? '')
         setHasMercadoPagoAccessToken(!!s.hasMercadoPagoAccessToken)
+        setMercadoPagoConnectionType(s.mercadoPagoConnectionType ?? null)
+        setMercadoPagoAccountId(s.mercadoPagoAccountId ?? null)
+        setMercadoPagoConnectedAt(s.mercadoPagoConnectedAt ?? null)
         setBgDarkHex(s.publicPageBackgroundDark ?? DEFAULT_PUBLIC_PAGE_BG_DARK)
         setBgLightHex(s.publicPageBackgroundLight ?? DEFAULT_PUBLIC_PAGE_BG_LIGHT)
         setPublicBrandColor(s.publicBrandColor ?? null)
@@ -302,8 +324,22 @@ export function DashboardContent({ section = 'all' }: { section?: DashboardSecti
         setPaymentMode('CONFIRM_ONLY')
         setPaymentRequired(false)
         setPaymentOptionalEnabled(false)
+        setHasMercadoPagoAccessToken(false)
+        setMercadoPagoConnectionType(null)
+        setMercadoPagoAccountId(null)
+        setMercadoPagoConnectedAt(null)
       })
   }, [actsAsOwner])
+
+  useEffect(() => {
+    const connected = searchParams.get('mercado_pago')
+    const errorCode = searchParams.get('mercado_pago_error')
+    if (connected === 'connected') {
+      setMercadoPagoNotice('Mercado Pago conectado correctamente.')
+    } else if (errorCode) {
+      setMercadoPagoNotice('No se pudo conectar Mercado Pago. Intentá nuevamente.')
+    }
+  }, [searchParams])
 
   useEffect(() => {
     if (!fontJustSaved) return
@@ -757,7 +793,6 @@ export function DashboardContent({ section = 'all' }: { section?: DashboardSecti
         depositPercentage:
           nextPaymentRequired && paymentType === 'PERCENTAGE' ? safeDeposit : null,
         mercadoPagoPublicKey: mercadoPagoPublicKey.trim() || null,
-        mercadoPagoAccessToken: mercadoPagoAccessToken.trim() || undefined,
         mercadoPagoWebhookSecret: mercadoPagoWebhookSecret.trim() || null,
       })
       setPaymentRequired(updated.paymentRequired)
@@ -776,7 +811,9 @@ export function DashboardContent({ section = 'all' }: { section?: DashboardSecti
       setMercadoPagoPublicKey(updated.mercadoPagoPublicKey ?? '')
       setMercadoPagoWebhookSecret(updated.mercadoPagoWebhookSecret ?? '')
       setHasMercadoPagoAccessToken(updated.hasMercadoPagoAccessToken)
-      setMercadoPagoAccessToken('')
+      setMercadoPagoConnectionType(updated.mercadoPagoConnectionType ?? null)
+      setMercadoPagoAccountId(updated.mercadoPagoAccountId ?? null)
+      setMercadoPagoConnectedAt(updated.mercadoPagoConnectedAt ?? null)
     } catch (err) {
       setError(
         (err as { response?: { data?: { error?: string } } })?.response?.data?.error ||
@@ -784,6 +821,49 @@ export function DashboardContent({ section = 'all' }: { section?: DashboardSecti
       )
     } finally {
       setSavingPaymentSettings(false)
+    }
+  }
+
+  const handleConnectMercadoPago = async () => {
+    setConnectingMercadoPago(true)
+    setMercadoPagoNotice(null)
+    setError(null)
+    try {
+      const returnUrl =
+        typeof window !== 'undefined'
+          ? `${window.location.origin}/setting/payments`
+          : '/setting/payments'
+      const { authUrl } = await getMercadoPagoOAuthAuthUrl(returnUrl)
+      window.location.href = authUrl
+    } catch (err) {
+      setError(
+        (err as { response?: { data?: { error?: string } } })?.response?.data?.error ||
+          'Error al iniciar conexión con Mercado Pago'
+      )
+      setConnectingMercadoPago(false)
+    }
+  }
+
+  const handleDisconnectMercadoPago = async () => {
+    if (!window.confirm('¿Desconectar Mercado Pago de este negocio?')) return
+    setDisconnectingMercadoPago(true)
+    setMercadoPagoNotice(null)
+    setError(null)
+    try {
+      await disconnectMercadoPagoOAuth()
+      setHasMercadoPagoAccessToken(false)
+      setMercadoPagoConnectionType(null)
+      setMercadoPagoAccountId(null)
+      setMercadoPagoConnectedAt(null)
+      setMercadoPagoPublicKey('')
+      setMercadoPagoNotice('Mercado Pago desconectado.')
+    } catch (err) {
+      setError(
+        (err as { response?: { data?: { error?: string } } })?.response?.data?.error ||
+          'Error al desconectar Mercado Pago'
+      )
+    } finally {
+      setDisconnectingMercadoPago(false)
     }
   }
 
@@ -1026,9 +1106,14 @@ export function DashboardContent({ section = 'all' }: { section?: DashboardSecti
           <div className="mb-4">
             <h2 className="text-lg font-semibold text-neutral-900">Pagos (Mercado Pago)</h2>
             <p className="mt-1 text-sm text-neutral-600">
-              Configura si el pago es obligatorio u opcional y las credenciales de tu cuenta.
+              Configura si el pago es obligatorio u opcional y conecta la cuenta que recibirá el dinero.
             </p>
           </div>
+          {mercadoPagoNotice && (
+            <div className="mb-4 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-800">
+              {mercadoPagoNotice}
+            </div>
+          )}
           <div className="grid gap-4 md:grid-cols-2">
             <div className="md:col-span-2">
               <p className="mb-2 text-sm font-medium text-neutral-800">Modo de pago</p>
@@ -1087,6 +1172,52 @@ export function DashboardContent({ section = 'all' }: { section?: DashboardSecti
                 />
               </label>
             )}
+            <div className="rounded-xl border border-neutral-200 bg-neutral-50 p-4 md:col-span-2">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                <div>
+                  <p className="text-sm font-semibold text-neutral-900">Conexión de Mercado Pago</p>
+                  <p className="mt-1 text-sm text-neutral-600">
+                    {hasMercadoPagoAccessToken
+                      ? mercadoPagoConnectionType === 'OAUTH'
+                        ? 'Cuenta conectada con autorización segura.'
+                        : 'Hay un token manual cargado. Recomendamos reconectar con OAuth para renovación automática.'
+                      : 'Conectá Mercado Pago para poder cobrar reservas.'}
+                  </p>
+                  {mercadoPagoAccountId && (
+                    <p className="mt-2 text-xs text-neutral-500">Cuenta MP: {mercadoPagoAccountId}</p>
+                  )}
+                  {formatConnectionDate(mercadoPagoConnectedAt) && (
+                    <p className="mt-1 text-xs text-neutral-500">
+                      Conectado el {formatConnectionDate(mercadoPagoConnectedAt)}
+                    </p>
+                  )}
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    onClick={handleConnectMercadoPago}
+                    disabled={connectingMercadoPago || disconnectingMercadoPago}
+                    className="rounded-lg bg-sky-600 px-4 py-2 text-sm font-medium text-white disabled:opacity-60"
+                  >
+                    {connectingMercadoPago
+                      ? 'Conectando...'
+                      : hasMercadoPagoAccessToken
+                        ? 'Reconectar'
+                        : 'Conectar Mercado Pago'}
+                  </button>
+                  {hasMercadoPagoAccessToken && (
+                    <button
+                      type="button"
+                      onClick={handleDisconnectMercadoPago}
+                      disabled={connectingMercadoPago || disconnectingMercadoPago}
+                      className="rounded-lg border border-neutral-300 bg-white px-4 py-2 text-sm font-medium text-neutral-800 disabled:opacity-60"
+                    >
+                      {disconnectingMercadoPago ? 'Desconectando...' : 'Desconectar'}
+                    </button>
+                  )}
+                </div>
+              </div>
+            </div>
             <label className="flex flex-col gap-1 text-sm text-neutral-800 md:col-span-2">
               Mercado Pago Public Key
               <input
@@ -1095,16 +1226,9 @@ export function DashboardContent({ section = 'all' }: { section?: DashboardSecti
                 value={mercadoPagoPublicKey}
                 onChange={(e) => setMercadoPagoPublicKey(e.target.value)}
               />
-            </label>
-            <label className="flex flex-col gap-1 text-sm text-neutral-800 md:col-span-2">
-              Mercado Pago Access Token {hasMercadoPagoAccessToken ? '(ya cargado)' : ''}
-              <input
-                type="password"
-                className="rounded-lg border border-neutral-300 px-3 py-2"
-                value={mercadoPagoAccessToken}
-                onChange={(e) => setMercadoPagoAccessToken(e.target.value)}
-                placeholder={hasMercadoPagoAccessToken ? 'Dejar vacío para mantener actual' : ''}
-              />
+              <span className="text-xs text-neutral-500">
+                Se completa automáticamente al conectar si Mercado Pago la devuelve. Podés editarla si necesitás el Brick embebido.
+              </span>
             </label>
             <label className="flex flex-col gap-1 text-sm text-neutral-800 md:col-span-2">
               Webhook Secret (opcional)
