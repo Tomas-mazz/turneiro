@@ -661,7 +661,7 @@ function buildEmployeeNotificationHtml(args: {
   } = args
 
   const paymentLinesHtml = paymentLines
-    .map((line) => `<p style="margin:2px 0; font-size:13px; color:#e5e7eb;">${line}</p>`)
+    .map((line) => `<p style="margin:2px 0; font-size:13px; color:#4b5563;">${line}</p>`)
     .join('')
 
   return `
@@ -672,50 +672,50 @@ function buildEmployeeNotificationHtml(args: {
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Nuevo turno agendado - ${businessName}</title>
   </head>
-  <body style="margin:0; padding:0; background-color:#0f172a; font-family:system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">
-    <table role="presentation" width="100%" cellPadding="0" cellSpacing="0" style="background-color:#0f172a; padding:24px 12px;">
+  <body style="margin:0; padding:0; background-color:#f3f4f6; font-family:system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">
+    <table role="presentation" width="100%" cellPadding="0" cellSpacing="0" style="background-color:#f3f4f6; padding:24px 12px;">
       <tr>
         <td align="center">
-          <table role="presentation" width="100%" cellPadding="0" cellSpacing="0" style="max-width:640px; background-color:#020617; border-radius:20px; padding:24px 22px; border:1px solid #1e293b;">
+          <table role="presentation" width="100%" cellPadding="0" cellSpacing="0" style="max-width:640px; background-color:#f9fafb; border-radius:16px; padding:24px 20px; border:1px solid #e5e7eb;">
             <tr>
-              <td style="padding-bottom:12px; border-bottom:1px solid #1e293b;">
-                <p style="margin:0 0 4px 0; font-size:11px; letter-spacing:0.08em; text-transform:uppercase; color:#64748b;">
+              <td style="padding-bottom:16px; border-bottom:1px solid #e5e7eb;">
+                <p style="margin:0 0 4px 0; font-size:12px; letter-spacing:0.08em; text-transform:uppercase; color:#9ca3af;">
                   Nuevo turno asignado
                 </p>
-                <h1 style="margin:0; font-size:20px; color:#e5e7eb;">${businessName}</h1>
+                <h1 style="margin:0; font-size:20px; color:#111827;">${businessName}</h1>
               </td>
             </tr>
             <tr>
-              <td style="padding-top:14px; padding-bottom:10px;">
-                <p style="margin:0 0 4px 0; font-size:14px; color:#e5e7eb;">
+              <td style="padding-top:16px; padding-bottom:12px;">
+                <p style="margin:0 0 4px 0; font-size:14px; color:#111827;">
                   Hola ${employeeName},
                 </p>
-                <p style="margin:0; font-size:13px; color:#9ca3af;">
+                <p style="margin:0; font-size:13px; color:#4b5563;">
                   Acabás de recibir un nuevo turno en tu agenda. Abajo tenés el resumen rápido con los datos del cliente.
                 </p>
               </td>
             </tr>
             <tr>
               <td>
-                <table role="presentation" width="100%" cellPadding="0" cellSpacing="0" style="background-color:#020617; border-radius:14px; border:1px solid #1e293b; padding:16px;">
+                <table role="presentation" width="100%" cellPadding="0" cellSpacing="0" style="background-color:#ffffff; border-radius:14px; border:1px solid #e5e7eb; padding:16px 16px 14px 16px;">
                   <tr>
                     <td>
-                      <p style="margin:0 0 8px 0; font-size:11px; font-weight:600; letter-spacing:0.08em; text-transform:uppercase; color:#64748b;">
+                      <p style="margin:0 0 8px 0; font-size:11px; font-weight:600; letter-spacing:0.08em; text-transform:uppercase; color:#9ca3af;">
                         Detalles del turno
                       </p>
-                      <p style="margin:0 0 2px 0; font-size:14px; font-weight:600; color:#e5e7eb;">
+                      <p style="margin:0 0 4px 0; font-size:14px; font-weight:600; color:#111827;">
                         ${serviceName}
                       </p>
-                      <p style="margin:0 0 2px 0; font-size:13px; color:#cbd5f5;">
+                      <p style="margin:0 0 2px 0; font-size:13px; color:#4b5563;">
                         ${dateLabel}
                       </p>
-                      <p style="margin:0 0 8px 0; font-size:13px; color:#cbd5f5;">
+                      <p style="margin:0 0 8px 0; font-size:13px; color:#4b5563;">
                         ${timeLabel}
                       </p>
-                      <p style="margin:0 0 2px 0; font-size:13px; color:#e5e7eb;">
+                      <p style="margin:0 0 2px 0; font-size:13px; color:#4b5563;">
                         Cliente: <strong>${clientName}</strong>
                       </p>
-                      <p style="margin:0; font-size:13px; color:#e5e7eb;">
+                      <p style="margin:0; font-size:13px; color:#4b5563;">
                         Teléfono: <strong>${clientPhone}</strong>
                       </p>
                     </td>
@@ -724,14 +724,14 @@ function buildEmployeeNotificationHtml(args: {
               </td>
             </tr>
             <tr>
-              <td style="padding-top:12px;">
-                <table role="presentation" width="100%" cellPadding="0" cellSpacing="0" style="background-color:#020617; border-radius:14px; border:1px solid #1e293b; padding:16px;">
+              <td style="padding-top:16px;">
+                <table role="presentation" width="100%" cellPadding="0" cellSpacing="0" style="background-color:#ffffff; border-radius:14px; border:1px solid #e5e7eb; padding:14px 16px;">
                   <tr>
                     <td>
-                      <p style="margin:0 0 8px 0; font-size:11px; font-weight:600; letter-spacing:0.08em; text-transform:uppercase; color:#64748b;">
+                      <p style="margin:0 0 6px 0; font-size:11px; font-weight:600; letter-spacing:0.08em; text-transform:uppercase; color:#9ca3af;">
                         Estado del pago
                       </p>
-                      <p style="margin:0 0 6px 0; font-size:13px; font-weight:700; color:#e5e7eb;">
+                      <p style="margin:0 0 4px 0; font-size:13px; font-weight:600; color:#111827;">
                         ${paymentTitle}
                       </p>
                       ${paymentLinesHtml}
@@ -741,13 +741,13 @@ function buildEmployeeNotificationHtml(args: {
               </td>
             </tr>
             <tr>
-              <td style="padding-top:18px;">
+              <td style="padding-top:18px; padding-bottom:4px;">
                 <table role="presentation" width="100%" cellPadding="0" cellSpacing="0">
                   <tr>
                     <td align="center" style="padding-bottom:10px;">
                       <a
                         href="${googleCalendarDayUrl}"
-                        style="display:inline-block; padding:10px 18px; font-size:13px; font-weight:600; color:#020617; background-color:#e5e7eb; text-decoration:none; border-radius:999px;"
+                        style="display:inline-block; padding:10px 18px; font-size:13px; font-weight:600; color:#111827; background-color:#e5e7eb; text-decoration:none; border-radius:999px;"
                       >
                         Ver día en Google Calendar
                       </a>
@@ -755,7 +755,7 @@ function buildEmployeeNotificationHtml(args: {
                   </tr>
                   <tr>
                     <td align="center">
-                      <p style="margin:0; font-size:11px; color:#64748b;">
+                      <p style="margin:0; font-size:11px; color:#9ca3af;">
                         Si usás Google Calendar con tu usuario de Appointments, el evento ya figura en tu agenda para ese horario.
                       </p>
                     </td>
