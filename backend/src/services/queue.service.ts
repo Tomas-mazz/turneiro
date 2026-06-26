@@ -3,6 +3,11 @@ import { Client } from '@upstash/qstash'
 const qstashToken = process.env.QSTASH_TOKEN
 const baseUrl = process.env.QSTASH_BASE_URL || process.env.FRONTEND_URL?.replace('www.', 'api.')
 
+/** Brief delay so the create-appointment request can warm Vercel before QStash hits /api/jobs. */
+const IMMEDIATE_JOB_DELAY_SEC = 5
+const QSTASH_HTTP_TIMEOUT_SEC = 60
+const QSTASH_RETRIES = 5
+
 let qstashClient: Client | null = null
 
 function getClient(): Client | null {
@@ -17,6 +22,15 @@ function getClient(): Client | null {
     })
   }
   return qstashClient
+}
+
+/** Fire-and-forget ping to reduce cold-start failures when QStash delivers jobs. */
+function warmUpBackend(): void {
+  if (!baseUrl) return
+  const healthUrl = `${baseUrl.replace(/\/$/, '')}/api/health`
+  fetch(healthUrl, { method: 'GET' }).catch(() => {
+    // Best-effort; QStash retries handle remaining cold starts.
+  })
 }
 
 export interface AppointmentJobPayload {
@@ -59,8 +73,9 @@ export async function enqueueJob(
     await client.publishJSON({
       url: jobUrl,
       body: payload,
-      retries: 3,
+      retries: QSTASH_RETRIES,
       delay: delaySeconds,
+      timeout: QSTASH_HTTP_TIMEOUT_SEC,
     })
     console.log(`✅ Job enqueued: ${jobType} for appointment ${payload.appointmentId}`)
     return true
@@ -98,12 +113,17 @@ export async function enqueueAppointmentJobs(
       )
     : 0
 
+  warmUpBackend()
+
+  const reminderDelaySeconds =
+    delaySeconds > 0 ? delaySeconds : IMMEDIATE_JOB_DELAY_SEC
+
   try {
     await Promise.all([
-      enqueueJob('send-confirmation-email', payload),
-      enqueueJob('send-employee-notification', payload),
-      enqueueJob('sync-google-calendar', payload),
-      enqueueJob('send-client-reminder', payload, delaySeconds),
+      enqueueJob('send-confirmation-email', payload, IMMEDIATE_JOB_DELAY_SEC),
+      enqueueJob('send-employee-notification', payload, IMMEDIATE_JOB_DELAY_SEC),
+      enqueueJob('sync-google-calendar', payload, IMMEDIATE_JOB_DELAY_SEC),
+      enqueueJob('send-client-reminder', payload, reminderDelaySeconds),
     ])
     return true
   } catch (err) {

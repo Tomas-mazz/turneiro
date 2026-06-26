@@ -66,7 +66,7 @@ router.post('/send-confirmation-email', async (req: Request, res: Response) => {
     const appointment = await loadAppointmentWithRelations(payload.appointmentId)
     if (!appointment) {
       console.warn('Job: appointment not found', payload.appointmentId)
-      return res.status(200).json({ success: false, reason: 'appointment_not_found' })
+      return res.status(503).json({ error: 'appointment_not_found' })
     }
 
     await sendAppointmentConfirmationEmailUsingLoadedAppointment(appointment)
@@ -89,7 +89,7 @@ router.post('/send-employee-notification', async (req: Request, res: Response) =
     const appointment = await loadAppointmentWithRelations(payload.appointmentId)
     if (!appointment) {
       console.warn('Job: appointment not found', payload.appointmentId)
-      return res.status(200).json({ success: false, reason: 'appointment_not_found' })
+      return res.status(503).json({ error: 'appointment_not_found' })
     }
 
     await sendEmployeeAppointmentNotificationUsingLoadedAppointment(appointment, payload.preloadedOwner)
@@ -112,7 +112,7 @@ router.post('/send-client-reminder', async (req: Request, res: Response) => {
     const appointment = await loadAppointmentWithRelations(payload.appointmentId)
     if (!appointment) {
       console.warn('Job: appointment not found', payload.appointmentId)
-      return res.status(200).json({ success: false, reason: 'appointment_not_found' })
+      return res.status(503).json({ error: 'appointment_not_found' })
     }
 
     await sendAppointmentReminderEmailUsingLoadedAppointment(appointment)
@@ -135,7 +135,7 @@ router.post('/sync-google-calendar', async (req: Request, res: Response) => {
     const appointment = await loadAppointmentWithRelations(payload.appointmentId)
     if (!appointment) {
       console.warn('Job: appointment not found', payload.appointmentId)
-      return res.status(200).json({ success: false, reason: 'appointment_not_found' })
+      return res.status(503).json({ error: 'appointment_not_found' })
     }
 
     await syncAppointmentToGoogleCalendar(appointment, payload.businessId, payload.preloadedOwner)
@@ -148,6 +148,7 @@ router.post('/sync-google-calendar', async (req: Request, res: Response) => {
 
 interface LoadedAppointment {
   id: string
+  googleEventId: string | null
   employeeId: string | null
   serviceName: string
   clientName: string
@@ -177,6 +178,11 @@ async function syncAppointmentToGoogleCalendar(
   businessId: string,
   preloadedOwner?: AppointmentJobPayload['preloadedOwner']
 ): Promise<void> {
+  if (appointment.googleEventId) {
+    console.log(`Appointment ${appointment.id} already has googleEventId, skipping calendar sync`)
+    return
+  }
+
   let targetUser: { id: string; googleRefreshToken: string | null; googleCalendarId: string | null } | null = null
   const isStaffEmployee = appointment.employeeId && appointment.employee && !appointment.employee.isOwner
 
