@@ -6,6 +6,59 @@
   --color-primary: #000000;
 }
 
+/* Landing Turneiro — minimal / profesional, acento teal suave */
+.landing {
+  --landing-bg: #f6f8f7;
+  --landing-ink: #14201c;
+  --landing-muted: #5c6b66;
+  --landing-accent: #0f766e;
+  --landing-accent-hover: #0d9488;
+  --landing-soft: #e7f4f1;
+  --landing-border: #d8e3df;
+  font-family: var(--font-poppins), var(--font-montserrat), ui-sans-serif, system-ui, sans-serif;
+}
+
+.landing h1,
+.landing h2,
+.landing h3,
+.landing .font-heading {
+  font-family: var(--font-montserrat), var(--font-poppins), ui-sans-serif, sans-serif;
+}
+
+.landing-btn-primary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 0.625rem;
+  background: var(--landing-accent);
+  padding: 0.7rem 1.25rem;
+  font-weight: 500;
+  color: #fff;
+  transition: background-color 0.15s ease, transform 0.15s ease;
+}
+
+.landing-btn-primary:hover {
+  background: var(--landing-accent-hover);
+}
+
+.landing-btn-secondary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 0.625rem;
+  border: 1px solid var(--landing-border);
+  background: transparent;
+  padding: 0.7rem 1.25rem;
+  font-weight: 500;
+  color: var(--landing-ink);
+  transition: border-color 0.15s ease, background-color 0.15s ease;
+}
+
+.landing-btn-secondary:hover {
+  border-color: var(--landing-accent);
+  background: var(--landing-soft);
+}
+
 body {
   @apply antialiased;
   font-family: var(--font-roboto);
