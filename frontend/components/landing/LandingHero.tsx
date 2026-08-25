@@ -2,7 +2,7 @@ import { ACCESS_MAILTO, DEMO_URL } from './constants'
 
 export function LandingHero() {
   return (
-    <section className="relative overflow-hidden px-5 pb-20 pt-16 sm:px-8 sm:pb-28 sm:pt-24">
+    <section className="relative overflow-hidden px-5 pb-16 pt-12 sm:px-8 sm:pb-24 sm:pt-20">
       <div
         aria-hidden
         className="pointer-events-none absolute inset-0 -z-10"

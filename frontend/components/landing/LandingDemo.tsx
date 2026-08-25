@@ -2,7 +2,7 @@ import { DEMO_URL } from './constants'
 
 export function LandingDemo() {
   return (
-    <section id="demo" className="px-5 pb-16 sm:px-8 sm:pb-24">
+    <section id="demo" className="scroll-mt-20 px-5 pb-16 sm:px-8 sm:pb-20">
       <div className="mx-auto max-w-5xl">
         <a
           href={DEMO_URL}

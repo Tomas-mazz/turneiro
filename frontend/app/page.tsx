@@ -3,6 +3,12 @@ import { LandingShell } from '@/components/landing/LandingShell'
 import { LandingHero } from '@/components/landing/LandingHero'
 import { LandingProduct } from '@/components/landing/LandingProduct'
 import { LandingDemo } from '@/components/landing/LandingDemo'
+import { LandingIndustries } from '@/components/landing/LandingIndustries'
+import { LandingBenefits } from '@/components/landing/LandingBenefits'
+import { LandingHowItWorks } from '@/components/landing/LandingHowItWorks'
+import { LandingPricing } from '@/components/landing/LandingPricing'
+import { LandingFaq } from '@/components/landing/LandingFaq'
+import { LandingFinalCta } from '@/components/landing/LandingFinalCta'
 
 export const metadata: Metadata = {
   title: 'Turneiro | Reservas online para tu negocio',
@@ -23,6 +29,12 @@ export default function Home() {
       <LandingHero />
       <LandingProduct />
       <LandingDemo />
+      <LandingIndustries />
+      <LandingBenefits />
+      <LandingHowItWorks />
+      <LandingPricing />
+      <LandingFaq />
+      <LandingFinalCta />
     </LandingShell>
   )
 }
