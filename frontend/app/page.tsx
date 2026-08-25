@@ -1,6 +1,8 @@
 import type { Metadata } from 'next'
 import { LandingShell } from '@/components/landing/LandingShell'
 import { LandingHero } from '@/components/landing/LandingHero'
+import { LandingProduct } from '@/components/landing/LandingProduct'
+import { LandingDemo } from '@/components/landing/LandingDemo'
 
 export const metadata: Metadata = {
   title: 'Turneiro | Reservas online para tu negocio',
@@ -19,6 +21,8 @@ export default function Home() {
   return (
     <LandingShell>
       <LandingHero />
+      <LandingProduct />
+      <LandingDemo />
     </LandingShell>
   )
 }

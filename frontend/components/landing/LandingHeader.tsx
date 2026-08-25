@@ -11,7 +11,13 @@ export function LandingHeader() {
         >
           Turneiro
         </Link>
-        <nav className="flex items-center gap-5">
+        <nav className="flex items-center gap-5 sm:gap-6">
+          <a
+            href="#demo"
+            className="hidden text-sm text-[var(--landing-muted)] transition-colors hover:text-[var(--landing-ink)] sm:inline"
+          >
+            Demo
+          </a>
           <a href={ACCESS_MAILTO} className="landing-btn-primary text-sm">
             Solicitar acceso
           </a>
