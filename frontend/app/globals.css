@@ -7,6 +7,16 @@
 }
 
 /* Landing Turneiro — minimal / profesional, acento teal suave */
+html:has(.landing) {
+  scroll-behavior: smooth;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html:has(.landing) {
+    scroll-behavior: auto;
+  }
+}
+
 .landing {
   --landing-bg: #f6f8f7;
   --landing-ink: #14201c;
