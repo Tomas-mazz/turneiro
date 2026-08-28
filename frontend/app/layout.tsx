@@ -46,7 +46,7 @@ const playfair = Playfair_Display({
 
 export const metadata: Metadata = {
   title: 'Turneiro',
-  description: 'Turneiro - plataforma de reservas',
+  description: 'Turneiro — reservas online para tu negocio',
   verification: {
     google: 'uSv3BhswGG0gLTYDKUe5o0VAgoGj5JeKgU4qSEB1sSo',
   },
@@ -62,7 +62,7 @@ export default function RootLayout({
 }) {
   return (
     <html
-      lang="en"
+      lang="es"
       className={`${roboto.variable} ${montserrat.variable} ${inter.variable} ${poppins.variable} ${nunito.variable} ${playfair.variable}`}
     >
       <body className="font-sans">{children}</body>

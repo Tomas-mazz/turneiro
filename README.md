@@ -1,6 +1,8 @@
-# Appointments - Booking SaaS Platform
+# Turneiro (Appointments monorepo)
 
-Multi-tenant appointment booking platform for businesses (barbershops, salons, spas, etc.).
+Multi-tenant appointment booking SaaS for service businesses (barbershops, salons, and more).
+
+**Product context for agents:** start at [`docs/README.md`](docs/README.md).
 
 ## Tech Stack
 
@@ -17,18 +19,19 @@ Multi-tenant appointment booking platform for businesses (barbershops, salons, s
 - **ORM**: Prisma
 - **Authentication**: JWT
 
-### Integrations
-- **Payments**: Stripe + Mercado Pago
-- **Notifications**: Twilio WhatsApp API
+### Integrations (see `docs/SYSTEM.md` for reality)
+- **Payments**: Mercado Pago
 - **Calendar**: Google Calendar API
+- **Email**: SMTP (transactional)
+- **WhatsApp**: not implemented (stub)
 
 ## Project Structure
 
 ```
 Appointments/
-├── frontend/          # Next.js Frontend (UI only)
+├── frontend/          # Next.js Frontend (UI)
 ├── backend/           # Express.js Backend (REST API)
-└── docs/              # Project documentation
+└── docs/              # Durable agent/product docs
 ```
 
 ## Getting Started

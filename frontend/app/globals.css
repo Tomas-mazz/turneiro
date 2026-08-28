@@ -6,6 +6,186 @@
   --color-primary: #000000;
 }
 
+/* Landing Turneiro — minimal / profesional, acento teal suave */
+html:has(.landing) {
+  scroll-behavior: smooth;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html:has(.landing) {
+    scroll-behavior: auto;
+  }
+}
+
+.landing {
+  --landing-bg: #f6f8f7;
+  --landing-ink: #14201c;
+  --landing-muted: #5c6b66;
+  --landing-accent: #0f766e;
+  --landing-accent-hover: #0d9488;
+  --landing-soft: #e7f4f1;
+  --landing-border: #d8e3df;
+  font-family: var(--font-poppins), var(--font-montserrat), ui-sans-serif, system-ui, sans-serif;
+}
+
+.landing h1,
+.landing h2,
+.landing h3,
+.landing .font-heading {
+  font-family: var(--font-montserrat), var(--font-poppins), ui-sans-serif, sans-serif;
+}
+
+.landing section[id] {
+  scroll-margin-top: 5rem;
+}
+
+.landing-section {
+  padding: 4rem 1.25rem;
+}
+
+@media (min-width: 640px) {
+  .landing-section {
+    padding: 5rem 2rem;
+  }
+}
+
+.landing-section-inner {
+  margin: 0 auto;
+  max-width: 64rem;
+}
+
+.landing-section--white {
+  background: #ffffff;
+}
+
+.landing-section--soft {
+  background: var(--landing-soft);
+}
+
+.landing-section--muted {
+  background: #eef2f0;
+}
+
+.landing-label {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 9999px;
+  background: rgba(15, 118, 110, 0.1);
+  padding: 0.35rem 0.85rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--landing-accent);
+}
+
+.landing-badge {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 9999px;
+  border: 1px solid rgba(15, 118, 110, 0.2);
+  background: rgba(255, 255, 255, 0.85);
+  padding: 0.35rem 0.75rem;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: var(--landing-accent);
+}
+
+.landing-card {
+  border-radius: 1rem;
+  border: 1px solid var(--landing-border);
+  background: #ffffff;
+  padding: 1.35rem 1.25rem;
+  box-shadow: 0 1px 2px rgba(20, 32, 28, 0.04), 0 8px 24px rgba(20, 32, 28, 0.04);
+  transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
+}
+
+.landing-card:hover {
+  border-color: rgba(15, 118, 110, 0.35);
+  box-shadow: 0 4px 12px rgba(15, 118, 110, 0.08), 0 16px 32px rgba(20, 32, 28, 0.06);
+  transform: translateY(-2px);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .landing-card,
+  .landing-card:hover {
+    transition: none;
+    transform: none;
+  }
+}
+
+.landing-icon-wrap {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: 0.75rem;
+  background: var(--landing-soft);
+  color: var(--landing-accent);
+}
+
+.landing-icon-wrap svg {
+  width: 1.25rem;
+  height: 1.25rem;
+}
+
+.landing-step-num {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.25rem;
+  height: 2.25rem;
+  border-radius: 9999px;
+  background: var(--landing-accent);
+  font-family: var(--font-montserrat), var(--font-poppins), ui-sans-serif, sans-serif;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #fff;
+}
+
+.landing-btn-primary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 0.625rem;
+  background: var(--landing-accent);
+  padding: 0.7rem 1.25rem;
+  font-weight: 500;
+  color: #fff;
+  box-shadow: 0 4px 14px rgba(15, 118, 110, 0.25);
+  transition: background-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.landing-btn-primary:hover {
+  background: var(--landing-accent-hover);
+  box-shadow: 0 6px 18px rgba(15, 118, 110, 0.32);
+}
+
+.landing-btn-primary:focus-visible,
+.landing-btn-secondary:focus-visible {
+  outline: 2px solid var(--landing-accent);
+  outline-offset: 2px;
+}
+
+.landing-btn-secondary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 0.625rem;
+  border: 1px solid var(--landing-border);
+  background: transparent;
+  padding: 0.7rem 1.25rem;
+  font-weight: 500;
+  color: var(--landing-ink);
+  transition: border-color 0.15s ease, background-color 0.15s ease;
+}
+
+.landing-btn-secondary:hover {
+  border-color: var(--landing-accent);
+  background: var(--landing-soft);
+}
+
 body {
   @apply antialiased;
   font-family: var(--font-roboto);
