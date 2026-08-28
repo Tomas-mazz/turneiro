@@ -19,7 +19,7 @@ import {
 } from './email.service'
 import { buildPaymentSummaryLines } from '../lib/paymentSummary'
 import { resolveAddOnLinesForAppointment } from './serviceAddons.service'
-import { enqueueAppointmentJobs, enqueueDeleteCalendarEvent, isQueueEnabled } from './queue.service'
+import { enqueueAppointmentJobs, enqueueDeleteCalendarEvent, isQueueEnabled, reconcilePendingAppointmentJobs } from './queue.service'
 import { fromZonedTime } from 'date-fns-tz'
 
 const ARGENTINA_TIMEZONE = 'America/Argentina/Buenos_Aires'
@@ -69,6 +69,7 @@ async function syncToGoogleCalendarForLoadedAppointment(
   try {
     const apt = appointment as {
       id: string
+      googleEventId?: string | null
       employeeId: string | null
       serviceName: string
       clientName: string
@@ -88,6 +89,12 @@ async function syncToGoogleCalendarForLoadedAppointment(
         user?: { id: string; googleRefreshToken: string | null; googleCalendarId: string | null } | null
       } | null
     }
+
+    if (apt.googleEventId) {
+      console.log(`Appointment ${apt.id} already synced to Google Calendar, skipping`)
+      return
+    }
+
     let targetUser: { id: string; googleRefreshToken: string | null; googleCalendarId: string | null } | null = null
     const isStaffEmployee = apt.employeeId && apt.employee && !apt.employee.isOwner
 
@@ -664,6 +671,9 @@ export async function createAppointmentService(data: CreateAppointmentInput) {
       enqueueAppointmentJobs(appointment.id, business.id, preloadedOwner, appointment.startTime).catch(err => {
         console.error('Failed to enqueue appointment jobs:', err)
       })
+      reconcilePendingAppointmentJobs(business.id, preloadedOwner, appointment.id).catch(err => {
+        console.error('Failed to reconcile pending appointment jobs:', err)
+      })
     } else {
       // Fallback: run tasks directly (may cause connection pool issues under load)
       syncToGoogleCalendarForLoadedAppointment(appointment, business.id, preloadedOwner).catch(err => {
@@ -716,10 +726,6 @@ export async function finalizeAppointmentAfterPaymentService(
 
   if (!appointment) return
   if (appointment.paymentStatus !== 'PAID') return
-  // Legacy: calendar created implies the post-payment batch already ran.
-  if (appointment.googleEventId) return
-  // Avoid re-enqueueing on every /payments/confirm refresh when Calendar is slow or unused.
-  if (appointment.paymentConfirmationJobsEnqueuedAt) return
 
   const preloadedOwner = await prisma.user.findFirst({
     where: { businessId: appointment.businessId, role: 'OWNER' },
@@ -731,6 +737,22 @@ export async function finalizeAppointmentAfterPaymentService(
       googleCalendarId: true,
     },
   })
+
+  const staffHasCalendar = !!(
+    appointment.employee?.user?.googleRefreshToken &&
+    appointment.employee?.user?.googleCalendarId
+  )
+  const ownerHasCalendar = !!(
+    preloadedOwner?.googleRefreshToken && preloadedOwner?.googleCalendarId
+  )
+  const calendarConnected = staffHasCalendar || ownerHasCalendar
+
+  const sideEffectsComplete =
+    (!appointment.clientEmail || appointment.confirmationSentAt) &&
+    appointment.employeeNotificationSentAt &&
+    (!calendarConnected || appointment.googleEventId)
+
+  if (sideEffectsComplete) return
 
   if (isQueueEnabled()) {
     const enqueued = await enqueueAppointmentJobs(
@@ -750,6 +772,13 @@ export async function finalizeAppointmentAfterPaymentService(
         appointmentId
       )
     }
+    reconcilePendingAppointmentJobs(
+      appointment.businessId,
+      preloadedOwner,
+      appointment.id
+    ).catch((err) => {
+      console.error('Failed to reconcile pending appointment jobs after payment:', err)
+    })
     return
   }
 

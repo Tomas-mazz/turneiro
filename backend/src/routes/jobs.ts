@@ -148,6 +148,7 @@ router.post('/sync-google-calendar', async (req: Request, res: Response) => {
 
 interface LoadedAppointment {
   id: string
+  googleEventId?: string | null
   employeeId: string | null
   serviceName: string
   clientName: string
@@ -177,6 +178,11 @@ async function syncAppointmentToGoogleCalendar(
   businessId: string,
   preloadedOwner?: AppointmentJobPayload['preloadedOwner']
 ): Promise<void> {
+  if (appointment.googleEventId) {
+    console.log(`Appointment ${appointment.id} already synced to Google Calendar, skipping`)
+    return
+  }
+
   let targetUser: { id: string; googleRefreshToken: string | null; googleCalendarId: string | null } | null = null
   const isStaffEmployee = appointment.employeeId && appointment.employee && !appointment.employee.isOwner
 

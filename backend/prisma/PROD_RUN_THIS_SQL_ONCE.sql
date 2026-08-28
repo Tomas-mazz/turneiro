@@ -19,3 +19,7 @@ ALTER TABLE "Appointment" ADD COLUMN IF NOT EXISTS "paymentConfirmationJobsEnque
 
 -- Client reminder (fixed: 2 hours before appointment)
 ALTER TABLE "Appointment" ADD COLUMN IF NOT EXISTS "reminderSentAt" TIMESTAMP(3);
+
+-- Booking confirmation + employee notification idempotency (QStash retries)
+ALTER TABLE "Appointment" ADD COLUMN IF NOT EXISTS "confirmationSentAt" TIMESTAMP(3);
+ALTER TABLE "Appointment" ADD COLUMN IF NOT EXISTS "employeeNotificationSentAt" TIMESTAMP(3);
