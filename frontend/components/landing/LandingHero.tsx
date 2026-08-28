@@ -2,18 +2,19 @@ import { ACCESS_MAILTO, DEMO_URL } from './constants'
 
 export function LandingHero() {
   return (
-    <section className="relative overflow-hidden px-5 pb-16 pt-12 sm:px-8 sm:pb-24 sm:pt-20">
+    <section className="landing-section relative overflow-hidden">
       <div
         aria-hidden
         className="pointer-events-none absolute inset-0 -z-10"
         style={{
           background:
-            'radial-gradient(ellipse 80% 60% at 50% -10%, rgba(15, 118, 110, 0.10), transparent 55%), radial-gradient(ellipse 50% 40% at 100% 20%, rgba(15, 118, 110, 0.05), transparent 50%)',
+            'radial-gradient(ellipse 80% 60% at 50% -10%, rgba(15, 118, 110, 0.14), transparent 55%), radial-gradient(ellipse 50% 40% at 100% 20%, rgba(15, 118, 110, 0.08), transparent 50%)',
         }}
       />
 
-      <div className="mx-auto max-w-5xl">
-        <p className="font-heading text-5xl font-semibold tracking-tight text-[var(--landing-ink)] sm:text-6xl md:text-7xl">
+      <div className="landing-section-inner">
+        <span className="landing-badge">1 mes gratis</span>
+        <p className="mt-5 font-heading text-5xl font-semibold tracking-tight text-[var(--landing-ink)] sm:text-6xl md:text-7xl">
           Turneiro
         </p>
         <h1 className="mt-5 max-w-2xl font-heading text-2xl font-medium leading-snug tracking-tight text-[var(--landing-ink)] sm:text-3xl md:text-[2.15rem]">
@@ -37,7 +38,7 @@ export function LandingHero() {
           </a>
         </div>
         <p className="mt-4 text-sm text-[var(--landing-muted)]">
-          1 mes gratis · Barberías y salones
+          Barberías y salones
         </p>
       </div>
     </section>

@@ -2,6 +2,10 @@
 
 import { useState } from 'react'
 import { CONTACT_EMAIL } from './constants'
+import {
+  LandingSection,
+  LandingSectionHeader,
+} from './LandingSection'
 
 const faqs = [
   {
@@ -30,46 +34,46 @@ export function LandingFaq() {
   const [open, setOpen] = useState<number | null>(0)
 
   return (
-    <section id="faq" className="px-5 py-16 sm:px-8 sm:py-20">
-      <div className="mx-auto max-w-5xl">
-        <p className="text-sm font-medium tracking-wide text-[var(--landing-accent)]">
-          FAQ
-        </p>
-        <h2 className="mt-2 max-w-xl font-heading text-2xl font-semibold tracking-tight text-[var(--landing-ink)] sm:text-3xl">
-          Preguntas frecuentes
-        </h2>
+    <LandingSection id="faq" tone="muted">
+      <LandingSectionHeader
+        label="FAQ"
+        title="Preguntas frecuentes"
+      />
 
-        <ul className="mt-10 divide-y divide-[var(--landing-border)] border-y border-[var(--landing-border)]">
-          {faqs.map((item, i) => {
-            const isOpen = open === i
-            return (
-              <li key={item.q}>
-                <button
-                  type="button"
-                  className="flex w-full items-center justify-between gap-4 py-4 text-left"
-                  aria-expanded={isOpen}
-                  onClick={() => setOpen(isOpen ? null : i)}
+      <ul className="mt-10 space-y-3">
+        {faqs.map((item, i) => {
+          const isOpen = open === i
+          return (
+            <li key={item.q} className="landing-card !p-0 hover:!transform-none">
+              <button
+                type="button"
+                className="flex w-full items-center justify-between gap-4 px-5 py-4 text-left sm:px-6"
+                aria-expanded={isOpen}
+                onClick={() => setOpen(isOpen ? null : i)}
+              >
+                <span className="font-heading text-sm font-semibold text-[var(--landing-ink)] sm:text-base">
+                  {item.q}
+                </span>
+                <span
+                  aria-hidden
+                  className={`flex size-7 shrink-0 items-center justify-center rounded-full text-sm font-medium transition-colors ${
+                    isOpen
+                      ? 'bg-[var(--landing-accent)] text-white'
+                      : 'bg-[var(--landing-soft)] text-[var(--landing-accent)]'
+                  }`}
                 >
-                  <span className="font-heading text-sm font-semibold text-[var(--landing-ink)] sm:text-base">
-                    {item.q}
-                  </span>
-                  <span
-                    aria-hidden
-                    className="text-lg text-[var(--landing-muted)]"
-                  >
-                    {isOpen ? '−' : '+'}
-                  </span>
-                </button>
-                {isOpen && (
-                  <p className="pb-4 text-sm leading-relaxed text-[var(--landing-muted)]">
-                    {item.a}
-                  </p>
-                )}
-              </li>
-            )
-          })}
-        </ul>
-      </div>
-    </section>
+                  {isOpen ? '−' : '+'}
+                </span>
+              </button>
+              {isOpen && (
+                <p className="border-t border-[var(--landing-border)] px-5 pb-4 pt-3 text-sm leading-relaxed text-[var(--landing-muted)] sm:px-6">
+                  {item.a}
+                </p>
+              )}
+            </li>
+          )
+        })}
+      </ul>
+    </LandingSection>
   )
 }
