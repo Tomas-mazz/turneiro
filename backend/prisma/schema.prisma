@@ -263,6 +263,12 @@ model Appointment {
   /// When the 2-hour reminder email was successfully sent to the client.
   reminderSentAt DateTime?
 
+  /// When the booking confirmation email was sent to the client.
+  confirmationSentAt DateTime?
+
+  /// When the new-booking notification email was sent to the employee/owner.
+  employeeNotificationSentAt DateTime?
+
   // Relations
   business     Business  @relation(fields: [businessId], references: [id], onDelete: Cascade)
   service      Service?  @relation(fields: [serviceId], references: [id], onDelete: SetNull)

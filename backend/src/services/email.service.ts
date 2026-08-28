@@ -7,6 +7,16 @@ type AppointmentPaymentMode = 'UNPAID' | 'DEPOSIT' | 'FULL'
 
 let cachedTransporter: Transporter | null = null
 
+function resetTransporter(): void {
+  if (!cachedTransporter) return
+  try {
+    cachedTransporter.close()
+  } catch {
+    // Ignore close errors on stale pooled connections.
+  }
+  cachedTransporter = null
+}
+
 function getTransporter(): Transporter | null {
   if (cachedTransporter) return cachedTransporter
 
@@ -51,6 +61,7 @@ async function sendMailWithRetry(
     } catch (err: unknown) {
       lastError = err instanceof Error ? err : new Error(String(err))
       console.warn(`Email send attempt ${attempt} failed:`, lastError.message)
+      resetTransporter()
       if (attempt < maxRetries) {
         const backoffMs = 1000 * Math.pow(2, attempt - 1)
         await new Promise((r) => setTimeout(r, backoffMs))
@@ -324,6 +335,7 @@ async function sendAppointmentConfirmationEmailForAppointment(appointment: unkno
     price: number
     paymentAmount: number | null
     serviceName: string
+    confirmationSentAt?: Date | null
     business: { name: string; address?: string | null }
     employee?: { name?: string | null } | null
   }
@@ -332,6 +344,8 @@ async function sendAppointmentConfirmationEmailForAppointment(appointment: unkno
     console.warn('sendAppointmentConfirmationEmail: appointment has no clientEmail', apt.id)
     return
   }
+
+  if (apt.confirmationSentAt) return
 
   const paymentMode = resolvePaymentMode({
     paymentStatus: apt.paymentStatus,
@@ -364,6 +378,14 @@ async function sendAppointmentConfirmationEmailForAppointment(appointment: unkno
   const fromEmail = process.env.EMAIL_FROM || process.env.SMTP_USER || ''
   const subject = `Confirmación de tu turno - ${apt.business.name}`
 
+  const claimedRows = await prisma.$executeRaw`
+    UPDATE "Appointment"
+    SET "confirmationSentAt" = NOW()
+    WHERE "id" = ${apt.id} AND "confirmationSentAt" IS NULL
+  `
+
+  if (claimedRows === 0) return
+
   try {
     const result = await sendMailWithRetry({
       from: `"${fromName}" <${fromEmail}>`,
@@ -374,13 +396,24 @@ async function sendAppointmentConfirmationEmailForAppointment(appointment: unkno
     if (result.sent) {
       console.log('✅ Confirmation email sent for appointment', apt.id)
     } else {
+      await prisma.$executeRaw`
+        UPDATE "Appointment"
+        SET "confirmationSentAt" = NULL
+        WHERE "id" = ${apt.id}
+      `
       console.warn(
         '⚠️ Confirmation email skipped for appointment (SMTP not configured)',
         apt.id
       )
     }
   } catch (err) {
+    await prisma.$executeRaw`
+      UPDATE "Appointment"
+      SET "confirmationSentAt" = NULL
+      WHERE "id" = ${apt.id}
+    `
     console.error('Failed to send confirmation email for appointment', apt.id, err)
+    throw err
   }
 }
 
@@ -797,9 +830,12 @@ async function sendEmployeeAppointmentNotificationForAppointment(
     paymentAmount: number | null
     startTime: Date
     endTime: Date
+    employeeNotificationSentAt?: Date | null
     business: { name: string }
     employee?: { name?: string | null; user?: { email?: string | null; name?: string | null } | null } | null
   }
+
+  if (apt.employeeNotificationSentAt) return
 
   const employee = apt.employee
   const employeeUser = employee?.user as
@@ -867,6 +903,14 @@ async function sendEmployeeAppointmentNotificationForAppointment(
   const fromEmail = process.env.EMAIL_FROM || process.env.SMTP_USER || ''
   const subject = `Nuevo turno asignado - ${apt.business.name}`
 
+  const claimedRows = await prisma.$executeRaw`
+    UPDATE "Appointment"
+    SET "employeeNotificationSentAt" = NOW()
+    WHERE "id" = ${apt.id} AND "employeeNotificationSentAt" IS NULL
+  `
+
+  if (claimedRows === 0) return
+
   try {
     const result = await sendMailWithRetry({
       from: `"${fromName}" <${fromEmail}>`,
@@ -877,13 +921,24 @@ async function sendEmployeeAppointmentNotificationForAppointment(
     if (result.sent) {
       console.log('✅ Employee notification email sent for appointment', apt.id)
     } else {
+      await prisma.$executeRaw`
+        UPDATE "Appointment"
+        SET "employeeNotificationSentAt" = NULL
+        WHERE "id" = ${apt.id}
+      `
       console.warn(
         '⚠️ Employee notification email skipped for appointment (SMTP not configured)',
         apt.id
       )
     }
   } catch (err) {
+    await prisma.$executeRaw`
+      UPDATE "Appointment"
+      SET "employeeNotificationSentAt" = NULL
+      WHERE "id" = ${apt.id}
+    `
     console.error('Failed to send employee notification email for appointment', apt.id, err)
+    throw err
   }
 }
 

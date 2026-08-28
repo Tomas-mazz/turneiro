@@ -1,7 +1,18 @@
 import { Client } from '@upstash/qstash'
+import { prisma } from '../lib/prisma'
 
 const qstashToken = process.env.QSTASH_TOKEN
 const baseUrl = process.env.QSTASH_BASE_URL || process.env.FRONTEND_URL?.replace('www.', 'api.')
+const JOB_WARMUP_DELAY_SECONDS = Math.max(
+  0,
+  Number(process.env.QSTASH_JOB_WARMUP_DELAY_SECONDS ?? 8)
+)
+const JOB_MAX_RETRIES = 5
+const RECONCILE_LOOKBACK_DAYS = Math.max(
+  1,
+  Number(process.env.APPOINTMENT_JOBS_RECONCILE_LOOKBACK_DAYS ?? 7)
+)
+const RECONCILE_MAX_APPOINTMENTS = 20
 
 let qstashClient: Client | null = null
 
@@ -59,7 +70,7 @@ export async function enqueueJob(
     await client.publishJSON({
       url: jobUrl,
       body: payload,
-      retries: 3,
+      retries: JOB_MAX_RETRIES,
       delay: delaySeconds,
     })
     console.log(`✅ Job enqueued: ${jobType} for appointment ${payload.appointmentId}`)
@@ -100,9 +111,9 @@ export async function enqueueAppointmentJobs(
 
   try {
     await Promise.all([
-      enqueueJob('send-confirmation-email', payload),
-      enqueueJob('send-employee-notification', payload),
-      enqueueJob('sync-google-calendar', payload),
+      enqueueJob('send-confirmation-email', payload, JOB_WARMUP_DELAY_SECONDS),
+      enqueueJob('send-employee-notification', payload, JOB_WARMUP_DELAY_SECONDS),
+      enqueueJob('sync-google-calendar', payload, JOB_WARMUP_DELAY_SECONDS),
       enqueueJob('send-client-reminder', payload, delaySeconds),
     ])
     return true
@@ -110,6 +121,69 @@ export async function enqueueAppointmentJobs(
     console.error('Failed to enqueue appointment jobs:', err)
     return false
   }
+}
+
+/**
+ * Re-enqueue side-effect jobs for recent appointments that still have pending
+ * emails or calendar sync. Called when a new booking wakes the server so stuck
+ * jobs from earlier reservations are retried together with the new one.
+ */
+export async function reconcilePendingAppointmentJobs(
+  businessId: string,
+  preloadedOwner?: AppointmentJobPayload['preloadedOwner'],
+  excludeAppointmentId?: string
+): Promise<number> {
+  if (!isQueueEnabled()) return 0
+
+  const lookback = new Date(Date.now() - RECONCILE_LOOKBACK_DAYS * 24 * 60 * 60 * 1000)
+
+  const pending = await prisma.appointment.findMany({
+    where: {
+      businessId,
+      status: 'UPCOMING',
+      createdAt: { gte: lookback },
+      ...(excludeAppointmentId ? { id: { not: excludeAppointmentId } } : {}),
+      OR: [{ paymentStatus: { not: 'PENDING' } }, { paymentHoldExpiresAt: null }],
+      AND: {
+        OR: [
+          { confirmationSentAt: null },
+          { employeeNotificationSentAt: null },
+          { googleEventId: null },
+        ],
+      },
+    },
+    select: {
+      id: true,
+      startTime: true,
+      clientEmail: true,
+      confirmationSentAt: true,
+      employeeNotificationSentAt: true,
+      googleEventId: true,
+    },
+    orderBy: { createdAt: 'asc' },
+    take: RECONCILE_MAX_APPOINTMENTS,
+  })
+
+  const toReconcile = pending.filter((apt) => {
+    const needsConfirmation = !!apt.clientEmail && !apt.confirmationSentAt
+    const needsEmployeeNotification = !apt.employeeNotificationSentAt
+    const needsCalendarSync = !apt.googleEventId
+    return needsConfirmation || needsEmployeeNotification || needsCalendarSync
+  })
+
+  if (toReconcile.length === 0) return 0
+
+  console.log(
+    `Reconciling ${toReconcile.length} pending appointment job(s) for business ${businessId}`
+  )
+
+  await Promise.all(
+    toReconcile.map((apt) =>
+      enqueueAppointmentJobs(apt.id, businessId, preloadedOwner, apt.startTime)
+    )
+  )
+
+  return toReconcile.length
 }
 
 export async function enqueueDeleteCalendarEvent(
