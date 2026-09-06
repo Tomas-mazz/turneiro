@@ -46,6 +46,17 @@ export class SlotUnavailableError extends Error {
   }
 }
 
+/**
+ * Postgres raises SQLSTATE 23P01 when the appointment_no_overlap exclusion constraint rejects a
+ * booking that overlaps one already committed. Prisma has no typed error code for exclusion
+ * violations, so match the SQLSTATE and the constraint name.
+ */
+function isOverlapConstraintViolation(error: unknown): boolean {
+  if ((error as { code?: string })?.code === '23P01') return true
+  const message = error instanceof Error ? error.message : String(error)
+  return message.includes('23P01') || message.includes('appointment_no_overlap')
+}
+
 export class CancellationNotAllowedError extends Error {
   constructor(message: string = 'No se puede cancelar') {
     super(message)
@@ -607,7 +618,11 @@ export async function createAppointmentService(data: CreateAppointmentInput) {
 
   const cancellationToken = crypto.randomBytes(32).toString('hex')
 
-  const appointment = await prisma.$transaction(async (tx) => {
+  // The availability check above is a fast path for the common case, not a guarantee: under
+  // Read Committed two concurrent bookings can both pass it before either commits. The
+  // appointment_no_overlap exclusion constraint is what actually prevents the double booking, and
+  // the catch below turns that violation into the same error the pre-check would have raised.
+  const createAppointmentRow = () => prisma.$transaction(async (tx) => {
     const created = await tx.appointment.create({
       data: {
         businessId: business.id,
@@ -648,6 +663,16 @@ export async function createAppointmentService(data: CreateAppointmentInput) {
     }
     return created
   })
+
+  let appointment: Awaited<ReturnType<typeof createAppointmentRow>>
+  try {
+    appointment = await createAppointmentRow()
+  } catch (error) {
+    if (isOverlapConstraintViolation(error)) {
+      throw new SlotUnavailableError('El horario ya no está disponible')
+    }
+    throw error
+  }
 
   // Preload owner once to share across async tasks (avoids multiple DB queries)
   const preloadedOwner = await prisma.user.findFirst({

@@ -1,4 +1,4 @@
-import { Router, Request, Response } from 'express'
+import { Router, Request, Response, NextFunction } from 'express'
 import { Receiver } from '@upstash/qstash'
 import { prisma } from '../lib/prisma'
 import {
@@ -15,30 +15,58 @@ const router = Router()
 const qstashCurrentSigningKey = process.env.QSTASH_CURRENT_SIGNING_KEY
 const qstashNextSigningKey = process.env.QSTASH_NEXT_SIGNING_KEY
 
-async function verifyQStashSignature(req: Request): Promise<boolean> {
+/**
+ * Verifies the QStash signature over the RAW request body, then parses it into `req.body`.
+ *
+ * These routes have no other authentication, so this must fail closed: without signing keys the
+ * endpoints would let anyone send mail to real clients and delete Google Calendar events.
+ * `/api/jobs` is mounted with express.raw() in app.ts so `req.body` is the exact byte string
+ * QStash signed — re-serializing parsed JSON would change key order/whitespace and never verify.
+ */
+async function requireQStashSignature(
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> {
   if (!qstashCurrentSigningKey || !qstashNextSigningKey) {
-    console.warn('QStash signing keys not configured; skipping signature verification')
-    return true
+    console.error('QStash signing keys not configured; rejecting job request')
+    res.status(403).json({ error: 'Job endpoint not configured' })
+    return
   }
 
-  const receiver = new Receiver({
-    currentSigningKey: qstashCurrentSigningKey,
-    nextSigningKey: qstashNextSigningKey,
-  })
-
-  const signature = req.headers['upstash-signature'] as string
+  const signature = req.headers['upstash-signature'] as string | undefined
   if (!signature) {
-    return false
+    res.status(401).json({ error: 'Invalid signature' })
+    return
+  }
+
+  const rawBody = Buffer.isBuffer(req.body) ? req.body.toString('utf8') : ''
+
+  try {
+    const receiver = new Receiver({
+      currentSigningKey: qstashCurrentSigningKey,
+      nextSigningKey: qstashNextSigningKey,
+    })
+    const isValid = await receiver.verify({ signature, body: rawBody })
+    if (!isValid) {
+      res.status(401).json({ error: 'Invalid signature' })
+      return
+    }
+  } catch {
+    res.status(401).json({ error: 'Invalid signature' })
+    return
   }
 
   try {
-    const body = JSON.stringify(req.body)
-    const isValid = await receiver.verify({ signature, body })
-    return isValid
+    req.body = rawBody.length > 0 ? JSON.parse(rawBody) : {}
   } catch {
-    return false
+    res.status(400).json({ error: 'Invalid JSON payload' })
+    return
   }
+  next()
 }
+
+router.use(requireQStashSignature)
 
 async function loadAppointmentWithRelations(appointmentId: string) {
   return prisma.appointment.findUnique({
@@ -55,11 +83,6 @@ async function loadAppointmentWithRelations(appointmentId: string) {
 }
 
 router.post('/send-confirmation-email', async (req: Request, res: Response) => {
-  const isValid = await verifyQStashSignature(req)
-  if (!isValid) {
-    return res.status(401).json({ error: 'Invalid signature' })
-  }
-
   const payload = req.body as AppointmentJobPayload
 
   try {
@@ -78,11 +101,6 @@ router.post('/send-confirmation-email', async (req: Request, res: Response) => {
 })
 
 router.post('/send-employee-notification', async (req: Request, res: Response) => {
-  const isValid = await verifyQStashSignature(req)
-  if (!isValid) {
-    return res.status(401).json({ error: 'Invalid signature' })
-  }
-
   const payload = req.body as AppointmentJobPayload
 
   try {
@@ -101,11 +119,6 @@ router.post('/send-employee-notification', async (req: Request, res: Response) =
 })
 
 router.post('/send-client-reminder', async (req: Request, res: Response) => {
-  const isValid = await verifyQStashSignature(req)
-  if (!isValid) {
-    return res.status(401).json({ error: 'Invalid signature' })
-  }
-
   const payload = req.body as AppointmentJobPayload
 
   try {
@@ -124,11 +137,6 @@ router.post('/send-client-reminder', async (req: Request, res: Response) => {
 })
 
 router.post('/sync-google-calendar', async (req: Request, res: Response) => {
-  const isValid = await verifyQStashSignature(req)
-  if (!isValid) {
-    return res.status(401).json({ error: 'Invalid signature' })
-  }
-
   const payload = req.body as AppointmentJobPayload
 
   try {
@@ -316,11 +324,6 @@ async function syncAppointmentToGoogleCalendar(
 }
 
 router.post('/delete-google-calendar-event', async (req: Request, res: Response) => {
-  const isValid = await verifyQStashSignature(req)
-  if (!isValid) {
-    return res.status(401).json({ error: 'Invalid signature' })
-  }
-
   const payload = req.body as DeleteCalendarEventPayload
 
   try {

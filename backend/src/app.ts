@@ -48,6 +48,11 @@ app.use(
   }),
 )
 
+// QStash signs the raw bytes it sent, so /api/jobs must be parsed as a Buffer and verified before
+// being turned into JSON (see requireQStashSignature in routes/jobs.ts). This runs first because
+// body-parser skips any request whose body another parser already consumed.
+app.use('/api/jobs', express.raw({ type: '*/*', limit: '1mb' }))
+
 // Body parsers must run before /api/webhooks — otherwise req.body stays undefined for Mercado Pago POSTs.
 app.use(express.json())
 app.use(express.urlencoded({ extended: true }))
