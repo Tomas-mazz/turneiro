@@ -129,6 +129,30 @@ export async function verifyWebhookSignature(
   return true
 }
 
+/**
+ * Ask Mercado Pago whether an approved payment exists for this appointment.
+ *
+ * Preferences are created with `external_reference = appointmentId` (see createPreference), so this
+ * is the authoritative server-side way to confirm a payment when the client only knows the
+ * preference id. Never trust a client-supplied preference id as proof of payment.
+ */
+export async function findApprovedPaymentByAppointmentId(
+  appointmentId: string,
+  options?: { accessToken?: string | null }
+): Promise<{ id: string } | null> {
+  const { paymentClient } = getClients(options?.accessToken)
+  try {
+    const found = await paymentClient.search({
+      options: { external_reference: appointmentId },
+    })
+    const approved = (found.results ?? []).find((p) => p.status === 'approved')
+    return approved?.id != null ? { id: String(approved.id) } : null
+  } catch (error) {
+    console.error('Mercado Pago payment search error:', error)
+    throw new Error('Failed to search payments')
+  }
+}
+
 export async function getPayment(
   paymentId: string,
   options?: { accessToken?: string | null }

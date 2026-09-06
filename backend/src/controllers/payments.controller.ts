@@ -201,9 +201,6 @@ export async function confirmPayment(req: Request, res: Response) {
     const { appointmentId, paymentIntentId: bodyPaymentIntentId, mercadoPagoPaymentId: rawMpPaymentId } =
       req.body ?? {}
 
-    const clientSentPreferenceId =
-      bodyPaymentIntentId != null && String(bodyPaymentIntentId).trim() !== ''
-
     if (!appointmentId) {
       return res.status(400).json({
         error: 'appointmentId es requerido',
@@ -304,9 +301,25 @@ export async function confirmPayment(req: Request, res: Response) {
         })) as MercadoPagoPaymentLike
         paymentStatus = payment.status
         paymentVerified = paymentStatus === 'approved'
-      } else if (clientSentPreferenceId && aptPaymentIntentId === resolvedPaymentIntentId) {
-        // Misma pestaña / sessionStorage: el cliente reenvía el preferenceId que guardó al ir a MP.
+      } else if (aptPaymentIntentId && aptPaymentIntentId === resolvedPaymentIntentId) {
+        // Solo tenemos el preferenceId (no un id de pago numérico): preguntamos a Mercado Pago si
+        // existe un pago aprobado para esta reserva. El preferenceId que reenvía el cliente NO es
+        // prueba de pago — solo sirve para verificar que habla de la reserva correcta.
+        const approved = await mercadopagoService.findApprovedPaymentByAppointmentId(appointmentId, {
+          accessToken,
+        })
+        if (!approved) {
+          // Camino legítimo y frecuente: el cliente volvió antes de que Mercado Pago registrara el
+          // pago. Debe ser 4xx — el cliente muestra la pantalla de reserva confirmada ante
+          // cualquier 2xx, así que un "pendiente" con status 2xx confirmaría una reserva impaga.
+          return res.status(409).json({
+            pending: true,
+            error:
+              'Todavía no vemos el pago acreditado. Si ya pagaste, esperá unos segundos y recargá la página.',
+          })
+        }
         paymentVerified = true
+        paymentStatus = 'approved'
       } else {
         return res.status(400).json({
           error:
