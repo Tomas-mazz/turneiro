@@ -120,15 +120,17 @@ export async function mercadopagoWebhook(req: Request, res: Response) {
     const paymentIdForVerify =
       dataObj.id != null ? String(dataObj.id) : dataIdFromQuery != null ? String(dataIdFromQuery) : undefined
 
-    // Get headers for signature verification
-    const xSignature = req.headers['x-signature'] as string
-    const xRequestId = req.headers['x-request-id'] as string
+    // Signature verification. This runs before anything else touches the DB or Mercado Pago:
+    // the endpoint is public, so an unverified notification must cost us nothing.
+    const xSignature = req.headers['x-signature'] as string | undefined
+    const xRequestId = req.headers['x-request-id'] as string | undefined
 
-    // Verify webhook (basic verification for now)
+    const signingSecrets = await mercadopagoService.listWebhookSigningSecrets()
     const isValid = await mercadopagoService.verifyWebhookSignature(
       xSignature,
       xRequestId,
-      paymentIdForVerify
+      paymentIdForVerify,
+      signingSecrets
     )
 
     if (!isValid) {
