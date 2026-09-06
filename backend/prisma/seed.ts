@@ -9,10 +9,25 @@ const DEMO_SLUG = 'barberia-demo'
 const DEMO_OWNER_EMAIL = 'owner@demo.com'
 const DEMO_OWNER_PASSWORD = 'demo123'
 
-const ADMIN_EMAIL = 'tmazzucco.dev@gmail.com'
-const ADMIN_PASSWORD = 'Aron15576667'
+// Admin credentials come from the environment — never hardcode them here. This file is committed,
+// so a literal password would live in git history for every collaborator. Same variables that
+// src/ensureFirstAdmin.ts uses.
+const ADMIN_EMAIL = process.env.INIT_ADMIN_EMAIL
+const ADMIN_PASSWORD = process.env.INIT_ADMIN_PASSWORD
 
 async function main() {
+  // This seed creates demo data and an admin account with a known password. It must never touch a
+  // production database.
+  if (process.env.NODE_ENV === 'production') {
+    throw new Error('Refusing to run the seed script with NODE_ENV=production')
+  }
+
+  if (!ADMIN_EMAIL || !ADMIN_PASSWORD) {
+    throw new Error(
+      'Faltan INIT_ADMIN_EMAIL e INIT_ADMIN_PASSWORD en el entorno. Definilas en backend/.env antes de correr el seed.'
+    )
+  }
+
   const hashedPassword = await bcrypt.hash(DEMO_OWNER_PASSWORD, 10)
 
   const business = await prisma.business.upsert({
