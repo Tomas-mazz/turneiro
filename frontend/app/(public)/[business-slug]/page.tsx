@@ -545,9 +545,9 @@ export default function BusinessBookingPage() {
     if (!business || selectedServices.length === 0 || !selectedDate || !selectedSlot) return
 
     const email = clientEmail.trim()
-    const gmailRegex = /^[a-zA-Z0-9._%+-]+@gmail\.com$/i
-    if (!gmailRegex.test(email)) {
-      setSubmitError('Ingresá un Gmail válido (por ejemplo, tuusuario@gmail.com).')
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/
+    if (!emailRegex.test(email)) {
+      setSubmitError('Ingresá un email válido (por ejemplo, tunombre@gmail.com).')
       return
     }
     setSubmitLoading(true)
@@ -1001,7 +1001,12 @@ export default function BusinessBookingPage() {
           onLogout={handleLogout}
         >
           <div className="flex min-h-[calc(100vh-12rem)] items-center justify-center px-4 py-12">
-            <BookingDone appointment={createdAppointment} primaryColor={primaryColor} />
+            <BookingDone
+              appointment={createdAppointment}
+              primaryColor={primaryColor}
+              businessName={business.name}
+              businessAddress={business.address}
+            />
           </div>
         </BookingLayout>
       )}

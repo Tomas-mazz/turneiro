@@ -227,16 +227,17 @@ export function ClientFormStep({
           </div>
           <div>
             <label htmlFor="clientEmail" className={`mb-2 block text-sm font-medium ${titleText}`}>
-              Gmail
+              Email
             </label>
             <input
               id="clientEmail"
               type="email"
+              autoComplete="email"
               required
               value={clientEmail}
               onChange={(e) => onClientEmail(e.target.value)}
               className={inputClass}
-              placeholder="tuusuario@gmail.com"
+              placeholder="tunombre@email.com"
             />
           </div>
           <div>

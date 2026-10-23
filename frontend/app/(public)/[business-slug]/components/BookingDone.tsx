@@ -1,62 +1,61 @@
 'use client'
 
-import type React from 'react'
 import type { CreatedAppointment } from '../types'
 
 type BookingDoneProps = {
   appointment: CreatedAppointment
   primaryColor: string
+  businessName?: string
+  businessAddress?: string | null
 }
 
-const GMAIL_WEB_URL = 'https://mail.google.com/mail/u/0/#inbox'
+const BOOKING_TIME_ZONE = 'America/Argentina/Buenos_Aires'
 
-const isMobileDevice = () => {
-  if (typeof navigator === 'undefined') return false
-  return /Android|iPhone|iPad|iPod/i.test(navigator.userAgent)
+/** Google Calendar expects UTC timestamps as YYYYMMDDTHHMMSSZ. */
+const toGoogleCalendarDate = (date: Date) =>
+  date.toISOString().replace(/[-:]/g, '').replace(/\.\d{3}/, '')
+
+const buildGoogleCalendarUrl = (
+  appointment: CreatedAppointment,
+  businessName?: string,
+  businessAddress?: string | null,
+) => {
+  const params = new URLSearchParams({
+    action: 'TEMPLATE',
+    text: businessName ? `${appointment.serviceName} · ${businessName}` : appointment.serviceName,
+    dates: `${toGoogleCalendarDate(new Date(appointment.startTime))}/${toGoogleCalendarDate(
+      new Date(appointment.endTime),
+    )}`,
+  })
+  if (businessAddress) params.set('location', businessAddress)
+  return `https://calendar.google.com/calendar/render?${params.toString()}`
 }
 
-export function BookingDone({ appointment, primaryColor }: BookingDoneProps) {
-  const handleOpenGmail = (event: React.MouseEvent<HTMLAnchorElement>) => {
-    if (!isMobileDevice()) {
-      // En desktop dejamos que el enlace normal a la web de Gmail funcione.
-      return
-    }
-
-    event.preventDefault()
-
-    const gmailAppUrl = 'googlegmail://'
-
-    const fallbackTimer = window.setTimeout(() => {
-      window.location.href = GMAIL_WEB_URL
-    }, 800)
-
-    window.location.href = gmailAppUrl
-
-    window.addEventListener(
-      'pagehide',
-      () => {
-        window.clearTimeout(fallbackTimer)
-      },
-      { once: true },
-    )
-  }
-
+export function BookingDone({
+  appointment,
+  primaryColor,
+  businessName,
+  businessAddress,
+}: BookingDoneProps) {
   const start = new Date(appointment.startTime)
   const end = new Date(appointment.endTime)
 
-  const dateLabel = start.toLocaleDateString('es-ES', {
+  const dateLabel = start.toLocaleDateString('es-AR', {
     weekday: 'long',
     day: 'numeric',
     month: 'long',
+    timeZone: BOOKING_TIME_ZONE,
   })
 
-  const timeLabel = `${start.toLocaleTimeString('es-ES', {
+  const timeOptions: Intl.DateTimeFormatOptions = {
     hour: '2-digit',
     minute: '2-digit',
-  })} – ${end.toLocaleTimeString('es-ES', {
-    hour: '2-digit',
-    minute: '2-digit',
-  })}`
+    timeZone: BOOKING_TIME_ZONE,
+  }
+  const timeLabel = `${start.toLocaleTimeString('es-AR', timeOptions)} – ${end.toLocaleTimeString(
+    'es-AR',
+    timeOptions,
+  )}`
 
   return (
     <div className="w-full max-w-md text-neutral-50">
@@ -71,7 +70,8 @@ export function BookingDone({ appointment, primaryColor }: BookingDoneProps) {
         </div>
 
         <p className="mb-4 text-sm text-neutral-300 sm:text-base">
-          Te enviamos un correo con la confirmación de tu turno.
+          Te enviamos un correo con la confirmación de tu turno. Si no lo ves, revisá la carpeta de
+          spam.
         </p>
 
         <div className="mb-5 rounded-xl border border-neutral-800 bg-neutral-800/80 px-4 py-3 text-sm text-neutral-100">
@@ -81,17 +81,17 @@ export function BookingDone({ appointment, primaryColor }: BookingDoneProps) {
         </div>
 
         <a
-          href={GMAIL_WEB_URL}
-          onClick={handleOpenGmail}
+          href={buildGoogleCalendarUrl(appointment, businessName, businessAddress)}
+          target="_blank"
+          rel="noopener noreferrer"
           className="inline-flex w-full items-center justify-center rounded-full px-5 py-3 text-sm font-semibold text-black shadow-sm transition hover:opacity-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-neutral-200 focus-visible:ring-offset-2 focus-visible:ring-offset-neutral-900"
           style={{ backgroundColor: primaryColor }}
         >
-          Ver confirmación en Gmail
+          Agregar a Google Calendar
         </a>
 
         <p className="mt-4 text-xs leading-relaxed text-neutral-400">
-          Desde ese correo vas a poder agregar el turno a tu calendario y cancelarlo cuando lo
-          necesites usando el enlace de cancelación.
+          En el correo de confirmación tenés el enlace para cancelar el turno si lo necesitás.
         </p>
       </div>
     </div>
