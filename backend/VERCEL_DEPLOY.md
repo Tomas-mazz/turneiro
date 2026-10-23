@@ -59,8 +59,8 @@ El backend en Vercel usa la base definida por **`DATABASE_URL` / `DIRECT_URL` de
 
    **No** pegues comandos de terminal en el SQL Editor de Supabase; ahí solo va SQL.
 
-4. **Alternativa si el CLI falla**  
-   Podés ejecutar el SQL idempotente de `prisma/PROD_RUN_THIS_SQL_ONCE.sql` en el SQL Editor del **mismo** proyecto Supabase que usa Vercel. Después conviene igual ejecutar `prisma migrate deploy` contra esa base para que la tabla `_prisma_migrations` quede alineada (el SQL usa `IF NOT EXISTS` donde aplica).
+4. **No apliques SQL a mano en producción**  
+   Todo cambio de esquema va como migración en `prisma/migrations/` y se aplica con `prisma migrate deploy`. Si se aplica SQL desde el SQL Editor, `_prisma_migrations` queda desalineada y después hay que marcar cada migración con `prisma migrate resolve --applied <nombre>`.
 
 5. **Opcional tras el primer deploy**  
    `npm run db:seed` solo si corresponde (no en DB compartida sin acordar).
