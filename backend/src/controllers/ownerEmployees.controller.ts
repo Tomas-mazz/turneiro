@@ -117,6 +117,7 @@ export async function updateOwnerEmployee(
       name?: string
       photoUrl?: string | null
       ownerCalendarColorId?: string | null
+      bio?: string | null
       staffEmail?: string
       staffPassword?: string
     }
@@ -127,6 +128,7 @@ export async function updateOwnerEmployee(
       name: body.name,
       photoUrl: body.photoUrl,
       ownerCalendarColorId: body.ownerCalendarColorId,
+      bio: body.bio,
       staffEmail: body.staffEmail,
       staffPassword: body.staffPassword,
     })
