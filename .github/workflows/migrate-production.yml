@@ -1,0 +1,70 @@
+name: Migrate production database
+
+# Applies pending Prisma migrations to production when they land on main.
+# Requires repository secrets PROD_DATABASE_URL (transaction pooler, 6543)
+# and PROD_DIRECT_URL (session pooler, 5432).
+on:
+  push:
+    branches: [main]
+    paths:
+      - backend/prisma/migrations/**
+  workflow_dispatch:
+
+concurrency:
+  group: migrate-production
+  cancel-in-progress: false
+
+jobs:
+  migrate:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    env:
+      DATABASE_URL: ${{ secrets.PROD_DATABASE_URL }}
+      DIRECT_URL: ${{ secrets.PROD_DIRECT_URL }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+
+      - name: Check secrets
+        run: |
+          if [ -z "$DATABASE_URL" ] || [ -z "$DIRECT_URL" ]; then
+            echo "::error::PROD_DATABASE_URL and PROD_DIRECT_URL secrets are required"
+            exit 1
+          fi
+
+      - run: npm ci
+
+      - name: Pending migrations
+        id: status
+        run: |
+          if npx prisma migrate status; then
+            echo "pending=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "pending=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Backup before migrating
+        if: steps.status.outputs.pending == 'true'
+        run: |
+          sudo apt-get update -qq && sudo apt-get install -y -qq postgresql-client
+          pg_dump "$DIRECT_URL" --format=custom --no-owner --schema=public --file "$RUNNER_TEMP/prod-backup.dump"
+
+      - uses: actions/upload-artifact@v4
+        if: steps.status.outputs.pending == 'true'
+        with:
+          name: prod-backup-${{ github.run_id }}
+          path: ${{ runner.temp }}/prod-backup.dump
+          retention-days: 7
+
+      - name: Apply migrations
+        if: steps.status.outputs.pending == 'true'
+        run: npx prisma migrate deploy
+
+      - name: Verify
+        run: npx prisma migrate status
