@@ -94,7 +94,7 @@ export function PublicPageBackgroundSection({
                 else setLightDraft(lightHex)
               }}
               className="min-w-[7.5rem] flex-1 rounded-lg border border-neutral-300 px-2 py-2 font-mono text-sm"
-              placeholder="#FFFFFF"
+              placeholder="#EEF1F5"
               spellCheck={false}
               autoComplete="off"
             />
