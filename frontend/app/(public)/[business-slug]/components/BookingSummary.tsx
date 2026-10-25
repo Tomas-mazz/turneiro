@@ -2,7 +2,6 @@
 
 import type { FormEvent } from 'react'
 import { CalendarDays, Clock, User, X } from 'lucide-react'
-import { primaryCtaTextClass } from '@/lib/booking'
 import type { ServiceOption } from '../types'
 import { serviceOptionTotalPrice } from '../utils'
 
@@ -50,7 +49,6 @@ export function BookingSummary({
   submitError,
   paymentRequired,
   paymentOptionalEnabled,
-  primaryColor,
 }: BookingSummaryProps) {
   const totalPrice = services.reduce((acc, s) => acc + serviceOptionTotalPrice(s), 0)
   const totalDuration = services.reduce((acc, s) => acc + s.duration, 0)
@@ -62,7 +60,8 @@ export function BookingSummary({
         ? 'Elegí el día y el horario.'
         : null
 
-  const primaryBtnClass = `w-full rounded-lg py-3 font-semibold transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50 ${primaryCtaTextClass(primaryColor)}`
+  const primaryBtnClass =
+    'w-full rounded-lg bg-[color:var(--booking-cta-bg)] py-3 font-semibold text-[color:var(--booking-cta-fg)] shadow-sm transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50'
 
   return (
     <div className="flex flex-col gap-5">
@@ -201,7 +200,6 @@ export function BookingSummary({
                 type="submit"
                 disabled={submitLoading}
                 className={primaryBtnClass}
-                style={{ backgroundColor: primaryColor }}
               >
                 {submitLoading ? 'Reservando...' : 'Reservar y pagar en el local'}
               </button>
@@ -219,7 +217,6 @@ export function BookingSummary({
               type="submit"
               disabled={submitLoading}
               className={primaryBtnClass}
-              style={{ backgroundColor: primaryColor }}
             >
               {submitLoading ? 'Reservando...' : paymentRequired ? 'Continuar al pago' : 'Confirmar reserva'}
             </button>

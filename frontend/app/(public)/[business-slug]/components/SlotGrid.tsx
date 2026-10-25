@@ -48,7 +48,7 @@ export function SlotGrid({
             aria-pressed={selected}
             className={`h-11 rounded-lg text-sm font-medium transition-colors ${
               selected
-                ? 'bg-[color:var(--booking-fg)] text-[color:var(--booking-page-bg)]'
+                ? 'bg-[color:var(--booking-selected-bg)] text-[color:var(--booking-selected-fg)]'
                 : 'border border-[color:var(--booking-border)] bg-[color:var(--booking-control-bg)] text-[color:var(--booking-control-text)] hover:bg-[color:var(--booking-control-hover)]'
             }`}
           >

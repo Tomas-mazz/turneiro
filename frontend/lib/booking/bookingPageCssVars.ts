@@ -24,6 +24,11 @@ export function bookingPageCssVars(backgroundHex: string): CSSProperties {
 
     return {
       '--booking-page-bg': hex,
+      /* Selected day/time and the confirm button. */
+      '--booking-selected-bg': 'rgba(255,255,255,0.96)',
+      '--booking-selected-fg': hex,
+      '--booking-cta-bg': '#3B82F6',
+      '--booking-cta-fg': '#FFFFFF',
       '--booking-fg': 'rgba(255,255,255,0.96)',
       '--booking-fg-muted': 'rgba(255,255,255,0.72)',
       '--booking-fg-subtle': 'rgba(255,255,255,0.52)',
@@ -104,6 +109,11 @@ export function bookingPageCssVars(backgroundHex: string): CSSProperties {
 
   return {
     '--booking-page-bg': hex,
+    /* Selected day/time and the confirm button. */
+    '--booking-selected-bg': '#2563EB',
+    '--booking-selected-fg': '#FFFFFF',
+    '--booking-cta-bg': '#2563EB',
+    '--booking-cta-fg': '#FFFFFF',
     '--booking-fg': 'rgba(23,23,23,0.96)',
     '--booking-fg-muted': 'rgba(23,23,23,0.72)',
     '--booking-fg-subtle': 'rgba(23,23,23,0.55)',

@@ -103,7 +103,7 @@ export function MonthCalendar({
               aria-label={date.toLocaleDateString('es-AR', { weekday: 'long', day: 'numeric', month: 'long' })}
               className={`aspect-square rounded-lg text-sm font-medium transition-colors ${
                 selected
-                  ? 'bg-[color:var(--booking-fg)] text-[color:var(--booking-page-bg)]'
+                  ? 'bg-[color:var(--booking-selected-bg)] text-[color:var(--booking-selected-fg)]'
                   : bookable
                     ? 'text-[color:var(--booking-fg)] hover:bg-[color:var(--booking-control-hover)]'
                     : 'cursor-not-allowed text-[color:var(--booking-fg-subtle)] opacity-40'
