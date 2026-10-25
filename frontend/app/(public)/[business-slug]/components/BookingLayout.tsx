@@ -25,6 +25,9 @@ type BookingLayoutProps = {
   onOpenRegister?: () => void
   user?: AuthUser | null
   onLogout?: () => void
+  showBusinessName?: boolean
+  /** Full-width content above the page column (e.g. the cover); the header floats over it. */
+  topSlot?: React.ReactNode
   children: React.ReactNode
 }
 
@@ -50,6 +53,8 @@ export function BookingLayout({
   onOpenRegister,
   user = null,
   onLogout,
+  showBusinessName = true,
+  topSlot,
   children,
 }: BookingLayoutProps) {
   const bgColor =
@@ -68,22 +73,34 @@ export function BookingLayout({
     [bgColor, fontVar, pageBackgroundImage]
   )
 
+  const headerProps = {
+    businessName,
+    logo,
+    isDarkTheme,
+    onToggleTheme,
+    onGoToServices,
+    onOpenLogin,
+    onOpenRegister,
+    user,
+    onLogout,
+    showBusinessName,
+  }
+
   return (
     <section
       className="business-font relative flex min-h-screen w-full max-w-full flex-col overflow-x-hidden text-[color:var(--booking-fg)] transition-colors duration-300 ease-out"
       style={surfaceStyle}
     >
-      <BookingHeader
-        businessName={businessName}
-        logo={logo}
-        isDarkTheme={isDarkTheme}
-        onToggleTheme={onToggleTheme}
-        onGoToServices={onGoToServices}
-        onOpenLogin={onOpenLogin}
-        onOpenRegister={onOpenRegister}
-        user={user}
-        onLogout={onLogout}
-      />
+      {topSlot ? (
+        <div className="relative">
+          {topSlot}
+          <div className="absolute inset-x-0 top-0 z-20">
+            <BookingHeader {...headerProps} overlay />
+          </div>
+        </div>
+      ) : (
+        <BookingHeader {...headerProps} />
+      )}
       <div className="mx-auto flex w-full max-w-4xl flex-1 flex-col px-4 py-8 md:px-6 md:py-10 lg:max-w-6xl lg:px-8">
         {children}
       </div>

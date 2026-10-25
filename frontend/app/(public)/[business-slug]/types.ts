@@ -2,6 +2,7 @@ export type Employee = {
   id: string
   name: string
   photoUrl: string | null
+  bio?: string | null
   isOwner: boolean
 }
 
@@ -26,6 +27,11 @@ export type Business = {
   phone: string | null
   email: string | null
   address: string | null
+  whatsapp?: string | null
+  instagram?: string | null
+  facebook?: string | null
+  mapsUrl?: string | null
+  googleReviewsUrl?: string | null
   services: {
     id: string
     name: string
@@ -48,7 +54,14 @@ export type Business = {
       images?: string[]
     }[]
   }[]
-  workingHours: { dayOfWeek: number; startTime: string; endTime: string; isClosed: boolean }[]
+  workingHours: {
+    dayOfWeek: number
+    startTime: string
+    endTime: string
+    lunchStart?: string | null
+    lunchEnd?: string | null
+    isClosed: boolean
+  }[]
   employees: Employee[]
   capabilities?: IndustryCapabilitiesPublic
   settings: {

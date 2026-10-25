@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useMemo, useState, useCallback, useRef } from 'react'
-import { useParams, usePathname, useRouter } from 'next/navigation'
+import { useParams, useRouter } from 'next/navigation'
 import { api } from '@/lib/api'
 import {
   getAuthUser,
@@ -11,76 +11,107 @@ import {
   setAdminActingShopSlug,
   clearAdminActingShopSlug,
 } from '@/lib/auth'
-import type { Business, Step, ServiceOption, CreatedAppointment } from './types'
+import type { Business, ServiceOption, CreatedAppointment } from './types'
 import { formatDateKey, getNowInArgentina, serviceOptionTotalPrice } from './utils'
 import {
-  BookingHero,
   BookingDone,
-  ClientFormStep,
-  DateStep,
   BookingLayout,
+  BookingSummary,
+  BusinessHero,
+  BusinessInfoBar,
   LoginModal,
+  MonthCalendar,
   PaymentStep,
-  ServiceStep,
+  ServicePicker,
+  SlotGrid,
+  TeamStrip,
 } from './components'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
-import { LegalFooter } from './components/LegalFooter'
 import { resolvePublicPageBackground } from '@/lib/publicPageBackground'
 import { bookingDerivedBackground } from '@/lib/booking'
 
 type ThemeMode = 'DARK' | 'LIGHT'
+/** The whole selection happens in 'booking'; payment and confirmation get their own screen. */
+type View = 'booking' | 'payment' | 'done'
+
+/** How far ahead clients can book. */
+const BOOKING_WINDOW_DAYS = 60
 
 function isTechnicalError(msg: unknown): boolean {
   return typeof msg === 'string' && /prisma|invocation|column|database|ECONNREFUSED/i.test(msg)
 }
 
-function getStepFromHistory(): Step {
-  if (typeof window === 'undefined') return 'hero'
-  const s = window.history.state?.step
-  return s && ['hero', 'service', 'date', 'form', 'payment', 'done'].includes(s) ? s : 'hero'
+function addDaysKey(dateKey: string, days: number): string {
+  const [y, m, d] = dateKey.split('-').map(Number)
+  return formatDateKey(new Date(y, m - 1, d + days))
 }
+
+function dateKeyToDate(dateKey: string): Date {
+  const [y, m, d] = dateKey.split('-').map(Number)
+  return new Date(y, m - 1, d)
+}
+
+/** On phones the sections are stacked: bring the next one into view after a choice. */
+function scrollToSection(id: string) {
+  if (typeof window === 'undefined' || window.innerWidth >= 1024) return
+  window.setTimeout(() => {
+    document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  }, 60)
+}
+
+const sectionCardClass =
+  'rounded-2xl border border-[color:var(--booking-card-border)] bg-[color:var(--booking-card-bg)] p-4 shadow-sm md:p-5'
+const sectionTitleClass = 'mb-4 text-lg font-semibold text-[color:var(--booking-fg)]'
 
 export default function BusinessBookingPage() {
   const params = useParams()
   const slug = (params['business-slug'] as string | undefined) ?? ''
-  const pathname = usePathname()
+  const router = useRouter()
+
   const [business, setBusiness] = useState<Business | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [view, setView] = useState<View>('booking')
 
-  const [step, setStep] = useState<Step>(getStepFromHistory)
   const [selectedServices, setSelectedServices] = useState<ServiceOption[]>([])
+  /** Professional chosen by the client; null = "Cualquiera". */
+  const [preferredEmployeeId, setPreferredEmployeeId] = useState<string | null>(null)
   const [calendarMonth, setCalendarMonth] = useState(() => new Date())
   const [weekAvailability, setWeekAvailability] = useState<Record<string, boolean>>({})
   const [selectedDate, setSelectedDate] = useState<string | null>(null)
+  /** Slots when the business has no employees (single agenda). */
   const [slots, setSlots] = useState<string[]>([])
-  /** When there are employees, slots per employeeId; backend scopes availability per employee. */
+  /** Slots per employee; the backend scopes availability per employee. */
   const [slotsByEmployee, setSlotsByEmployee] = useState<Record<string, string[]>>({})
   const [slotsLoading, setSlotsLoading] = useState(false)
+  /** Bumped to refetch the day's slots (e.g. after a time was taken by someone else). */
+  const [slotsRefreshKey, setSlotsRefreshKey] = useState(0)
   const [eligibleEmployeeIds, setEligibleEmployeeIds] = useState<string[] | null>(null)
-  const [eligibleEmployeesLoading, setEligibleEmployeesLoading] = useState(false)
   const [selectedSlot, setSelectedSlot] = useState<string | null>(null)
+  /** Employee the appointment is booked with (preferred one, or first free one for "Cualquiera"). */
   const [selectedEmployeeId, setSelectedEmployeeId] = useState<string | null>(null)
+
   const [clientName, setClientName] = useState('')
   const [clientEmail, setClientEmail] = useState('')
   const [clientPhone, setClientPhone] = useState('')
   const [submitLoading, setSubmitLoading] = useState(false)
   const [submitError, setSubmitError] = useState<string | null>(null)
   const [createdAppointment, setCreatedAppointment] = useState<CreatedAppointment | null>(null)
-  const [paymentIntentId, setPaymentIntentId] = useState<string | null>(null)
+
   const [paymentAmount, setPaymentAmount] = useState<number | null>(null)
   const [paymentLoading, setPaymentLoading] = useState(false)
   const [paymentError, setPaymentError] = useState<string | null>(null)
-  const [paymentProvider, setPaymentProvider] = useState<'MERCADOPAGO' | null>(null)
   const [mercadoPagoPreferenceId, setMercadoPagoPreferenceId] = useState<string | null>(null)
   const [mercadoPagoRedirectMode, setMercadoPagoRedirectMode] = useState<
     'idle' | 'redirecting' | 'fallback'
   >('idle')
   const mpFallbackTimerRef = useRef<number | null>(null)
+
   const [themeMode, setThemeMode] = useState<ThemeMode>('DARK')
   const [isLoginOpen, setIsLoginOpen] = useState(false)
   const [user, setUser] = useState(() => (typeof window !== 'undefined' ? getAuthUser() : null))
-  const router = useRouter()
+  const [summaryInView, setSummaryInView] = useState(false)
+  const restoredRef = useRef(false)
 
   useEffect(() => {
     setUser(getAuthUser())
@@ -103,6 +134,7 @@ export default function BusinessBookingPage() {
 
   const isDarkTheme = themeMode === 'DARK'
   const businessFontFamily = business?.settings?.fontFamily ?? 'ROBOTO'
+  const toggleTheme = () => setThemeMode((prev) => (prev === 'DARK' ? 'LIGHT' : 'DARK'))
 
   const { pageBackgroundColor, pageBackgroundImage } = useMemo(() => {
     const legacy = resolvePublicPageBackground(
@@ -130,69 +162,38 @@ export default function BusinessBookingPage() {
     business?.settings?.publicUseGradient,
   ])
 
-  const bookingFontVar =
-    ({
-      ROBOTO: 'var(--font-roboto)',
-      MONTSERRAT: 'var(--font-montserrat)',
-      INTER: 'var(--font-inter)',
-      POPPINS: 'var(--font-poppins)',
-      NUNITO: 'var(--font-nunito)',
-      PLAYFAIR: 'var(--font-playfair)',
-    } as Record<string, string>)[String(businessFontFamily).toUpperCase()] ?? 'var(--font-roboto)'
-
-  const getDisplayPath = useCallback(() => {
-    if (typeof window !== 'undefined') return window.location.pathname
-    return pathname ?? (slug ? `/${slug}` : '/')
-  }, [pathname, slug])
-
-  const goToStep = useCallback(
-    (nextStep: Step) => {
-      setStep(nextStep)
-      if (typeof window !== 'undefined') {
-        window.history.pushState({ step: nextStep }, '', getDisplayPath())
-      }
-    },
-    [getDisplayPath]
-  )
-
-  const handleBack = useCallback(() => {
-    if (typeof window !== 'undefined') window.history.back()
+  const goToView = useCallback((next: View) => {
+    setView(next)
+    if (typeof window !== 'undefined') {
+      window.history.pushState({ view: next }, '', window.location.pathname)
+      window.scrollTo({ top: 0 })
+    }
   }, [])
 
   const handleOpenLogin = useCallback(() => {
     setIsLoginOpen(true)
     if (typeof window !== 'undefined') {
-      window.history.pushState({ step, loginOpen: true }, '', getDisplayPath())
+      window.history.pushState({ view, loginOpen: true }, '', window.location.pathname)
     }
-  }, [getDisplayPath, step])
+  }, [view])
 
   useEffect(() => {
     if (typeof window === 'undefined') return
-    window.history.replaceState({ step }, '', getDisplayPath())
-  }, []) // eslint-disable-line react-hooks/exhaustive-deps -- only set initial history entry once
-
-  useEffect(() => {
-    if (typeof window === 'undefined') return
+    window.history.replaceState({ view: 'booking' }, '', window.location.pathname)
     const onPopState = (e: PopStateEvent) => {
-      setStep(e.state?.step ?? 'hero')
+      setView((e.state?.view as View | undefined) ?? 'booking')
       setIsLoginOpen(false)
     }
     window.addEventListener('popstate', onPopState)
     return () => window.removeEventListener('popstate', onPopState)
   }, [])
 
-  // Reserve scrollbar space only when the body scrolls (not on hero with overflow-hidden).
-  // Avoids double gutter when a section has its own overflow-y.
   useEffect(() => {
     if (typeof document === 'undefined') return
     const html = document.documentElement
-    if (step === 'hero') {
-      html.classList.remove('booking-body-scroll')
-    } else {
-      html.classList.add('booking-body-scroll')
-    }
+    html.classList.add('booking-body-scroll')
     return () => html.classList.remove('booking-body-scroll')
-  }, [step])
+  }, [])
 
   useEffect(() => {
     if (!slug) return
@@ -203,9 +204,7 @@ export default function BusinessBookingPage() {
         setBusiness(res.data)
         setError(null)
         const t = res.data.theme?.toUpperCase()
-        if (t === 'LIGHT' || t === 'DARK') {
-          setThemeMode(t as ThemeMode)
-        }
+        if (t === 'LIGHT' || t === 'DARK') setThemeMode(t as ThemeMode)
       })
       .catch((err) => {
         setError(err.response?.status === 404 ? 'Negocio no encontrado' : 'Error al cargar')
@@ -214,230 +213,131 @@ export default function BusinessBookingPage() {
       .finally(() => setLoading(false))
   }, [slug])
 
-  // Restore previous booking state (step + basic selections) for this business
-  // so that a full reload keeps the user on the same section when possible.
+  // Restore the previous selection for this business after a reload.
   useEffect(() => {
-    if (typeof window === 'undefined') return
-    if (!business) return
-
-    // If we already have an appointment and are showing the confirmation
-    // or payment screen, don't override the current step with older persisted state.
-    if (createdAppointment && (step === 'done' || step === 'payment')) return
-
-    const storageKey = `booking:${slug}`
-    const raw = window.sessionStorage.getItem(storageKey)
+    if (typeof window === 'undefined' || !business || restoredRef.current) return
+    restoredRef.current = true
+    const raw = window.sessionStorage.getItem(`booking:${slug}`)
     if (!raw) return
-
     try {
       const parsed = JSON.parse(raw) as {
-        step?: Step
-        serviceId?: string
         serviceIds?: string[]
-        calendarMonth?: string
         selectedDate?: string | null
-        selectedSlot?: string | null
-        selectedEmployeeId?: string | null
+        preferredEmployeeId?: string | null
         clientName?: string
         clientEmail?: string
         clientPhone?: string
       }
-
-      const restoredIds =
-        Array.isArray(parsed.serviceIds) && parsed.serviceIds.length > 0
-          ? parsed.serviceIds
-          : parsed.serviceId
-            ? [parsed.serviceId]
-            : []
-      const restoredServices: ServiceOption[] = []
-      if (restoredIds.length > 0 && business.services) {
-        for (const rid of restoredIds) {
-          // Try to match as a top-level service first
-          const topLevel = business.services.find((s) => s.id === rid)
-          if (topLevel) {
-            restoredServices.push({
-              id: topLevel.id,
-              name: topLevel.name,
-              price: topLevel.price,
-              duration: topLevel.duration,
+      const restored: ServiceOption[] = []
+      for (const rid of parsed.serviceIds ?? []) {
+        const topLevel = business.services.find((s) => s.id === rid)
+        if (topLevel) {
+          restored.push({ id: topLevel.id, name: topLevel.name, price: topLevel.price, duration: topLevel.duration })
+          continue
+        }
+        for (const s of business.services) {
+          const sub = (s.subServices ?? []).find((x) => x.id === rid)
+          if (sub) {
+            restored.push({
+              id: sub.id,
+              name: `${s.name} - ${sub.name}`,
+              price: sub.price,
+              duration: sub.duration,
+              parentServiceId: s.id,
+              parentServiceName: s.name,
             })
-            continue
-          }
-          // Otherwise, try to match as a subservice
-          for (const s of business.services) {
-            const sub = (s.subServices ?? []).find((sub) => sub.id === rid)
-            if (sub) {
-              restoredServices.push({
-                id: sub.id,
-                name: `${s.name} - ${sub.name}`,
-                price: sub.price,
-                duration: sub.duration,
-                parentServiceId: s.id,
-                parentServiceName: s.name,
-              })
-              break
-            }
+            break
           }
         }
       }
-
-      if (restoredServices.length > 0) {
-        setSelectedServices(restoredServices)
+      if (restored.length > 0) setSelectedServices(restored)
+      const { dateKey: today } = getNowInArgentina()
+      if (parsed.selectedDate && parsed.selectedDate >= today) {
+        setSelectedDate(parsed.selectedDate)
+        setCalendarMonth(dateKeyToDate(parsed.selectedDate))
       }
-      if (parsed.calendarMonth) {
-        const d = new Date(parsed.calendarMonth)
-        if (!Number.isNaN(d.getTime())) {
-          setCalendarMonth(d)
-        }
+      if (
+        parsed.preferredEmployeeId &&
+        (business.employees ?? []).some((e) => e.id === parsed.preferredEmployeeId)
+      ) {
+        setPreferredEmployeeId(parsed.preferredEmployeeId)
       }
-      if (parsed.selectedDate) setSelectedDate(parsed.selectedDate)
-      if (parsed.selectedSlot) setSelectedSlot(parsed.selectedSlot)
-      if (parsed.selectedEmployeeId !== undefined) setSelectedEmployeeId(parsed.selectedEmployeeId)
       if (parsed.clientName) setClientName(parsed.clientName)
       if (parsed.clientEmail) setClientEmail(parsed.clientEmail)
       if (parsed.clientPhone) setClientPhone(parsed.clientPhone)
-
-      // Decide the safest step we can restore given the data we have.
-      const requestedStep = parsed.step ?? step
-      const hasService = restoredServices.length > 0
-      const hasDate = !!parsed.selectedDate
-      const hasSlot = !!parsed.selectedSlot
-
-      let nextStep: Step = 'hero'
-      if (requestedStep === 'payment') {
-        // Do not restore directly to payment because we don't persist createdAppointment.
-        nextStep = hasService && hasDate && hasSlot ? 'form' : hasService ? 'date' : 'service'
-      } else if (requestedStep === 'form') {
-        nextStep = hasService && hasDate && hasSlot ? 'form' : hasService ? 'date' : 'service'
-      } else if (requestedStep === 'date') {
-        nextStep = hasService ? 'date' : 'service'
-      } else if (requestedStep === 'service') {
-        nextStep = 'service'
-      } else if (requestedStep === 'hero') {
-        nextStep = 'hero'
-      } else if (requestedStep === 'done' && createdAppointment) {
-        nextStep = 'done'
-      } else {
-        nextStep = 'hero'
-      }
-
-      if (nextStep !== step) {
-        setStep(nextStep)
-        window.history.replaceState({ step: nextStep }, '', getDisplayPath())
-      }
     } catch {
-      // Ignore corrupted storage, fallback to current step.
+      // Ignore corrupted storage.
     }
-    // We intentionally omit `step` from deps to avoid re-running after we adjust it here.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [business, slug, pathname, createdAppointment])
+  }, [business, slug])
 
-  // Persist current step and basic booking state so reloads can restore it.
   useEffect(() => {
-    if (typeof window === 'undefined') return
-    if (!slug) return
-
-    const storageKey = `booking:${slug}`
-    const serviceIds = selectedServices.map((s) => s.id)
-
-    const payload = {
-      step,
-      serviceIds,
-      calendarMonth: calendarMonth.toISOString(),
-      selectedDate,
-      selectedSlot,
-      selectedEmployeeId,
-      clientName,
-      clientEmail,
-      clientPhone,
-    }
-
-    window.sessionStorage.setItem(storageKey, JSON.stringify(payload))
-  }, [
-    slug,
-    step,
-    selectedServices,
-    calendarMonth,
-    selectedDate,
-    selectedSlot,
-    selectedEmployeeId,
-    clientName,
-    clientEmail,
-    clientPhone,
-  ])
+    if (typeof window === 'undefined' || !slug || !restoredRef.current) return
+    window.sessionStorage.setItem(
+      `booking:${slug}`,
+      JSON.stringify({
+        serviceIds: selectedServices.map((s) => s.id),
+        selectedDate,
+        preferredEmployeeId,
+        clientName,
+        clientEmail,
+        clientPhone,
+      })
+    )
+  }, [slug, selectedServices, selectedDate, preferredEmployeeId, clientName, clientEmail, clientPhone])
 
   // Adicionales solo aplican a una línea de servicio por turno (API actual).
   useEffect(() => {
     if (selectedServices.length <= 1) return
-    const hasAddOns = selectedServices.some((s) => s.addOns && s.addOns.length > 0)
-    if (!hasAddOns) return
+    if (!selectedServices.some((s) => s.addOns && s.addOns.length > 0)) return
     setSelectedServices((prev) => prev.map((s) => ({ ...s, addOns: undefined })))
-  }, [selectedServices.length])
+  }, [selectedServices])
 
-  // Background for service and date steps (dark or light theme)
+  // Paint html/body with the page background so overscroll matches the brand color.
   useEffect(() => {
-    if (step !== 'service' && step !== 'date') return
-    const prevHtml = document.documentElement.style.backgroundColor
-    const prevBody = document.body.style.backgroundColor
-    const prevHtmlTransition = document.documentElement.style.transition
-    const prevBodyTransition = document.body.style.transition
-    const bg = pageBackgroundColor
-    document.documentElement.style.transition = 'background-color 240ms ease-out'
-    document.body.style.transition = 'background-color 240ms ease-out'
-    document.documentElement.style.backgroundColor = bg
-    document.body.style.backgroundColor = bg
+    if (view === 'payment') return
+    const html = document.documentElement
+    const body = document.body
+    const prev = [html.style.backgroundColor, body.style.backgroundColor]
+    html.style.backgroundColor = pageBackgroundColor
+    body.style.backgroundColor = pageBackgroundColor
     return () => {
-      document.documentElement.style.backgroundColor = prevHtml
-      document.body.style.backgroundColor = prevBody
-      document.documentElement.style.transition = prevHtmlTransition
-      document.body.style.transition = prevBodyTransition
+      html.style.backgroundColor = prev[0]
+      body.style.backgroundColor = prev[1]
     }
-  }, [step, pageBackgroundColor])
+  }, [view, pageBackgroundColor])
 
-  // If we land on a deep step (form/payment) without the required state
-  // (e.g. corrupted state or direct navigation), reset to a safe starting step
-  // instead of rendering an empty screen. Prefer keeping the user inside
-  // the booking flow (service/date) instead of sending them back to hero.
+  const serviceIdsParam = selectedServices.map((s) => s.id).join(',')
+
+  // Which employees can perform ALL selected services.
   useEffect(() => {
-    if (typeof window === 'undefined') return
     if (!business) return
-
-    const hasCoreSelection = !!(selectedServices.length > 0 && selectedDate && selectedSlot)
-
-    if (!hasCoreSelection && (step === 'form' || step === 'payment')) {
-      const fallbackStep: Step = selectedServices.length > 0 ? 'date' : 'service'
-      setStep(fallbackStep)
-      window.history.replaceState({ step: fallbackStep }, '', getDisplayPath())
+    const allEmployees = business.employees ?? []
+    if (allEmployees.length === 0) {
+      setEligibleEmployeeIds(null)
       return
     }
-
-    if (step === 'payment' && !createdAppointment) {
-      const fallbackStep: Step = hasCoreSelection ? 'form' : selectedServices.length > 0 ? 'date' : 'service'
-      setStep(fallbackStep)
-      window.history.replaceState({ step: fallbackStep }, '', getDisplayPath())
+    if (!serviceIdsParam) {
+      setEligibleEmployeeIds(allEmployees.map((e) => e.id))
+      return
     }
-  }, [
-    step,
-    business,
-    selectedServices,
-    selectedDate,
-    selectedSlot,
-    createdAppointment,
-    getDisplayPath,
-  ])
+    api
+      .get<{ employeeIds: string[] }>('/availability/eligible-employees', {
+        params: { businessSlug: slug, serviceIds: serviceIdsParam },
+      })
+      .then((res) => setEligibleEmployeeIds(Array.isArray(res.data.employeeIds) ? res.data.employeeIds : []))
+      .catch(() => setEligibleEmployeeIds([]))
+  }, [business, serviceIdsParam, slug])
 
+  // Next 7 days: grey out full days and preselect the first one with free slots.
   useEffect(() => {
-    if (step !== 'date' || !business || selectedServices.length === 0) return
-    const startStr = formatDateKey(calendarMonth)
-    const { dateKey: todayStr, timeStr: currentTimeStr } = getNowInArgentina()
+    if (!business || !serviceIdsParam) {
+      setWeekAvailability({})
+      return
+    }
+    const { dateKey: todayStr } = getNowInArgentina()
     api
       .get<{ week: { date: string; hasSlots: boolean }[] }>('/availability/week', {
-        params: {
-          businessSlug: slug,
-          serviceIds: selectedServices.map((s) => s.id).join(','),
-          startDate: startStr,
-          today: todayStr,
-          currentTime: currentTimeStr,
-        },
+        params: { businessSlug: slug, serviceIds: serviceIdsParam, startDate: todayStr },
       })
       .then((res) => {
         const map: Record<string, boolean> = {}
@@ -445,70 +345,36 @@ export default function BusinessBookingPage() {
           map[w.date] = w.hasSlots
         })
         setWeekAvailability(map)
+        const firstFree = res.data.week.find((w) => w.hasSlots)?.date
+        setSelectedDate((current) => {
+          if (current && map[current] !== false) return current
+          if (firstFree) setCalendarMonth(dateKeyToDate(firstFree))
+          return firstFree ?? current
+        })
       })
       .catch(() => setWeekAvailability({}))
-  }, [step, business, selectedServices, slug, calendarMonth])
-
-  // Filter employees: only those who can perform ALL selected services/subservices.
-  useEffect(() => {
-    if (step !== 'date' || !business) return
-    const allEmployees = business.employees ?? []
-    if (allEmployees.length === 0) {
-      setEligibleEmployeeIds(null)
-      return
-    }
-    if (selectedServices.length === 0) {
-      setEligibleEmployeeIds(allEmployees.map((e) => e.id))
-      return
-    }
-    setEligibleEmployeesLoading(true)
-    api
-      .get<{ employeeIds: string[] }>('/availability/eligible-employees', {
-        params: {
-          businessSlug: slug,
-          serviceIds: selectedServices.map((s) => s.id).join(','),
-        },
-      })
-      .then((res) => {
-        setEligibleEmployeeIds(Array.isArray(res.data.employeeIds) ? res.data.employeeIds : [])
-      })
-      .catch(() => setEligibleEmployeeIds([]))
-      .finally(() => setEligibleEmployeesLoading(false))
-  }, [step, business, selectedServices, slug])
+  }, [business, serviceIdsParam, slug])
 
   useEffect(() => {
-    if (!selectedDate || selectedServices.length === 0) return
-    const businessEmployees = business?.employees ?? []
-    const businessHasEmployees = businessEmployees.length > 0
-    if (businessHasEmployees && Array.isArray(eligibleEmployeeIds) && eligibleEmployeeIds.length === 0) {
-      // Behavior 1: no eligible employees for this combo → no slots.
-      setSlots([])
-      setSlotsByEmployee({})
-      setSlotsLoading(false)
-      setSelectedSlot(null)
-      setSelectedEmployeeId(null)
-      return
-    }
-    const employees =
-      businessEmployees.length > 0 && eligibleEmployeeIds
-        ? businessEmployees.filter((e) => eligibleEmployeeIds.includes(e.id))
-        : businessEmployees
-    setSlotsLoading(true)
+    if (!business || !selectedDate || !serviceIdsParam) return
+    const businessEmployees = business.employees ?? []
     setSelectedSlot(null)
     setSelectedEmployeeId(null)
-
-    if (employees.length > 0) {
-      // Per-employee availability: fetch slots for each employee so each has their own agenda.
+    if (businessEmployees.length > 0) {
+      const employees = eligibleEmployeeIds
+        ? businessEmployees.filter((e) => eligibleEmployeeIds.includes(e.id))
+        : businessEmployees
+      if (employees.length === 0) {
+        setSlotsByEmployee({})
+        setSlotsLoading(false)
+        return
+      }
+      setSlotsLoading(true)
       Promise.all(
         employees.map((emp) =>
           api
             .get<{ slots: string[] }>('/availability', {
-              params: {
-                businessSlug: slug,
-                serviceIds: selectedServices.map((s) => s.id).join(','),
-                date: selectedDate,
-                employeeId: emp.id,
-              },
+              params: { businessSlug: slug, serviceIds: serviceIdsParam, date: selectedDate, employeeId: emp.id },
             })
             .then((res) => ({ employeeId: emp.id, slots: res.data.slots }))
             .catch(() => ({ employeeId: emp.id, slots: [] as string[] }))
@@ -520,26 +386,79 @@ export default function BusinessBookingPage() {
             byEmployee[employeeId] = s
           })
           setSlotsByEmployee(byEmployee)
-          setSlots([])
         })
         .finally(() => setSlotsLoading(false))
     } else {
+      setSlotsLoading(true)
       api
         .get<{ slots: string[] }>('/availability', {
-          params: {
-            businessSlug: slug,
-            serviceIds: selectedServices.map((s) => s.id).join(','),
-            date: selectedDate,
-          },
+          params: { businessSlug: slug, serviceIds: serviceIdsParam, date: selectedDate },
         })
-        .then((res) => {
-          setSlots(res.data.slots)
-          setSlotsByEmployee({})
-        })
+        .then((res) => setSlots(res.data.slots))
         .catch(() => setSlots([]))
         .finally(() => setSlotsLoading(false))
     }
-  }, [selectedDate, selectedServices, slug, business?.employees, eligibleEmployeeIds])
+  }, [business, selectedDate, serviceIdsParam, slug, eligibleEmployeeIds, slotsRefreshKey])
+
+  // Switching professional invalidates the chosen time.
+  useEffect(() => {
+    setSelectedSlot(null)
+    setSelectedEmployeeId(null)
+  }, [preferredEmployeeId])
+
+  // Mobile bottom bar hides once "Tu reserva" is on screen.
+  useEffect(() => {
+    const el = document.getElementById('booking-summary')
+    if (!el || typeof IntersectionObserver === 'undefined') return
+    const observer = new IntersectionObserver(([entry]) => setSummaryInView(entry.isIntersecting), {
+      threshold: 0.15,
+    })
+    observer.observe(el)
+    return () => observer.disconnect()
+  }, [business, view])
+
+  const employees = useMemo(() => business?.employees ?? [], [business?.employees])
+  const hasEmployees = employees.length > 0
+  const { dateKey: todayKey, timeStr: currentTimeArgentina } = getNowInArgentina()
+  const maxDateKey = addDaysKey(todayKey, BOOKING_WINDOW_DAYS)
+
+  /** Employees whose agenda feeds the slot grid: the preferred one, or every eligible one. */
+  const candidateEmployees = useMemo(() => {
+    const eligible = eligibleEmployeeIds ? employees.filter((e) => eligibleEmployeeIds.includes(e.id)) : employees
+    return preferredEmployeeId ? eligible.filter((e) => e.id === preferredEmployeeId) : eligible
+  }, [employees, eligibleEmployeeIds, preferredEmployeeId])
+
+  const displaySlots = useMemo(() => {
+    const raw = hasEmployees
+      ? Array.from(new Set(candidateEmployees.flatMap((e) => slotsByEmployee[e.id] ?? []))).sort()
+      : slots
+    return selectedDate === todayKey ? raw.filter((s) => s > currentTimeArgentina) : raw
+  }, [hasEmployees, candidateEmployees, slotsByEmployee, slots, selectedDate, todayKey, currentTimeArgentina])
+
+  const openWeekdays = useMemo(
+    () => new Set((business?.workingHours ?? []).filter((wh) => !wh.isClosed).map((wh) => wh.dayOfWeek)),
+    [business?.workingHours]
+  )
+
+  const handleSelectServices = (next: ServiceOption[]) => {
+    setSelectedServices(next)
+    setSubmitError(null)
+    if (next.length > selectedServices.length && !business?.settings?.allowMultipleServices) {
+      scrollToSection('booking-date')
+    }
+  }
+
+  const handleSelectSlot = (slot: string) => {
+    setSelectedSlot(slot)
+    setSubmitError(null)
+    if (hasEmployees) {
+      const assigned = candidateEmployees.find((e) => (slotsByEmployee[e.id] ?? []).includes(slot))
+      setSelectedEmployeeId(assigned?.id ?? null)
+    } else {
+      setSelectedEmployeeId(null)
+    }
+    scrollToSection('booking-summary')
+  }
 
   const createAppointment = (opts: { deferConfirmationUntilPayment: boolean; onSuccess: () => void }) => {
     if (!business || selectedServices.length === 0 || !selectedDate || !selectedSlot) return
@@ -576,11 +495,16 @@ export default function BusinessBookingPage() {
       .catch((err) => {
         const status = err.response?.status
         const msg = err.response?.data?.error
-        const isServerError = status >= 500
+        if (status === 409) {
+          // The time was taken in the meantime (or no longer applies): show why and refresh the day.
+          setSubmitError(msg || 'Ese horario se acaba de ocupar. Elegí otro, por favor.')
+          setSlotsRefreshKey((k) => k + 1)
+          return
+        }
         setSubmitError(
-          isServerError || isTechnicalError(msg)
+          status >= 500 || isTechnicalError(msg)
             ? 'No se pudo completar la reserva. Por favor intentá de nuevo.'
-            : (msg || 'No se pudo crear la cita')
+            : msg || 'No se pudo crear la cita'
         )
       })
       .finally(() => setSubmitLoading(false))
@@ -591,20 +515,15 @@ export default function BusinessBookingPage() {
     const requiresPayment = !!business?.settings?.paymentRequired
     createAppointment({
       deferConfirmationUntilPayment: requiresPayment,
-      onSuccess: () => {
-        goToStep(requiresPayment ? 'payment' : 'done')
-      },
+      onSuccess: () => goToView(requiresPayment ? 'payment' : 'done'),
     })
   }
 
   const handleSubmitAndPay = () => {
-    createAppointment({
-      deferConfirmationUntilPayment: true,
-      onSuccess: () => {
-        goToStep('payment')
-      },
-    })
+    createAppointment({ deferConfirmationUntilPayment: true, onSuccess: () => goToView('payment') })
   }
+
+  const primaryColor = business?.primaryColor || '#f5f5f5'
 
   const handleCreateMercadoPagoIntent = (payOption?: 'DEPOSIT' | 'FULL') => {
     if (!createdAppointment || selectedServices.length === 0 || !selectedDate || !selectedSlot) return
@@ -632,8 +551,6 @@ export default function BusinessBookingPage() {
           primaryColor: primaryColor,
         }
         sessionStorage.setItem('mp_booking', JSON.stringify(storage))
-        setPaymentProvider('MERCADOPAGO')
-        setPaymentIntentId(res.data.preferenceId)
         setPaymentAmount(res.data.amount)
         setMercadoPagoPreferenceId(res.data.preferenceId)
 
@@ -643,16 +560,12 @@ export default function BusinessBookingPage() {
           setMercadoPagoRedirectMode('fallback')
           return
         }
-
         setMercadoPagoRedirectMode('redirecting')
-        if (mpFallbackTimerRef.current != null) {
-          window.clearTimeout(mpFallbackTimerRef.current)
-        }
+        if (mpFallbackTimerRef.current != null) window.clearTimeout(mpFallbackTimerRef.current)
         mpFallbackTimerRef.current = window.setTimeout(() => {
           // If we stayed on this page after a short delay, redirect likely didn't happen.
           setMercadoPagoRedirectMode('fallback')
         }, 2500)
-
         try {
           window.location.href = res.data.initPoint
         } catch {
@@ -662,38 +575,35 @@ export default function BusinessBookingPage() {
       .catch((err) => {
         const status = err.response?.status
         const msg = err.response?.data?.error
-        const isServerError = status >= 500
         setPaymentError(
-          isServerError || isTechnicalError(msg)
+          status >= 500 || isTechnicalError(msg)
             ? 'No se pudo iniciar el pago. Por favor intentá de nuevo.'
-            : (msg || 'No se pudo iniciar el pago')
+            : msg || 'No se pudo iniciar el pago'
         )
         setMercadoPagoRedirectMode('idle')
       })
       .finally(() => setPaymentLoading(false))
   }
 
+  /** Leaving the payment screen releases the held slot and returns to the booking page. */
   const handleCancelPendingAndBack = async () => {
     if (createdAppointment?.id) {
       try {
-        await api.post('/payments/cancel-pending', {
-          appointmentId: createdAppointment.id,
-        })
+        await api.post('/payments/cancel-pending', { appointmentId: createdAppointment.id })
       } catch {
         // If cancellation fails, we still navigate back so user can continue.
       }
     }
     setCreatedAppointment(null)
     setMercadoPagoPreferenceId(null)
-    setPaymentProvider(null)
-    setPaymentIntentId(null)
     setPaymentAmount(null)
     setMercadoPagoRedirectMode('idle')
     if (mpFallbackTimerRef.current != null) {
       window.clearTimeout(mpFallbackTimerRef.current)
       mpFallbackTimerRef.current = null
     }
-    goToStep('date')
+    setSlotsRefreshKey((k) => k + 1)
+    goToView('booking')
   }
 
   const handleForceMercadoPagoBrick = () => {
@@ -705,301 +615,240 @@ export default function BusinessBookingPage() {
     }
   }
 
-  const primaryColor = business?.primaryColor || '#f5f5f5'
-  const showPaymentStep =
-    !!business?.settings?.paymentRequired || !!business?.settings?.paymentOptionalEnabled
-  const { dateKey: todayKey, timeStr: currentTimeArgentina } = getNowInArgentina()
-
-  // Unified calendar: unique slots across all employees, and which employees are available per slot (creation order).
-  const { unifiedSlots, employeesBySlot } = useMemo(() => {
-    const employees = business?.employees ?? []
-    if (!selectedDate || employees.length === 0) {
-      return { unifiedSlots: [] as string[], employeesBySlot: {} as Record<string, string[]> }
-    }
-    const allSlotTimesSet = new Set<string>()
-    for (const slotList of Object.values(slotsByEmployee)) {
-      for (const s of slotList) allSlotTimesSet.add(s)
-    }
-    const allSlotTimes = Array.from(allSlotTimesSet).sort()
-    const isToday = selectedDate === todayKey
-    const filteredSlots = isToday
-      ? allSlotTimes.filter((s) => s > currentTimeArgentina)
-      : allSlotTimes
-    const bySlot: Record<string, string[]> = {}
-    for (const slot of allSlotTimes) {
-      const ids: string[] = []
-      for (const emp of employees) {
-        if ((slotsByEmployee[emp.id] ?? []).includes(slot)) ids.push(emp.id)
-      }
-      bySlot[slot] = ids
-    }
-    return { unifiedSlots: filteredSlots, employeesBySlot: bySlot }
-  }, [
-    business?.employees,
-    selectedDate,
-    slotsByEmployee,
-    todayKey,
-    currentTimeArgentina,
-  ])
+  const backToBooking = useCallback(() => setView('booking'), [])
 
   if (loading) {
-    return (
-      <LoadingSpinner
-        variant={themeMode === 'DARK' ? 'dark' : 'light'}
-        bgColor="bg-neutral-100"
-      />
-    )
+    return <LoadingSpinner variant={themeMode === 'DARK' ? 'dark' : 'light'} bgColor="bg-neutral-100" />
   }
 
   if (error || !business) {
     return (
-      <main className="min-h-screen flex items-center justify-center bg-neutral-100">
+      <main className="flex min-h-screen items-center justify-center bg-neutral-100">
         <p className="text-red-600">{error || 'Negocio no encontrado'}</p>
       </main>
     )
   }
 
+  const layoutProps = {
+    businessName: business.name,
+    logo: business.logo,
+    isDarkTheme,
+    pageBackgroundColor,
+    pageBackgroundImage,
+    fontFamily: businessFontFamily,
+    onToggleTheme: toggleTheme,
+    onOpenLogin: handleOpenLogin,
+    onOpenRegister: () => router.push('/register'),
+    user,
+    onLogout: handleLogout,
+  }
+
+  const totalPrice = selectedServices.reduce((acc, s) => acc + serviceOptionTotalPrice(s), 0)
+  const selectedEmployee = employees.find((e) => e.id === selectedEmployeeId) ?? null
+  const noEligibleEmployees =
+    hasEmployees && selectedServices.length > 0 && Array.isArray(eligibleEmployeeIds) && eligibleEmployeeIds.length === 0
+  const dateLabel = selectedDate
+    ? dateKeyToDate(selectedDate).toLocaleDateString('es-AR', { weekday: 'long', day: 'numeric', month: 'long' })
+    : null
+  const slotPlaceholder =
+    selectedServices.length === 0
+      ? 'Elegí un servicio para ver los horarios.'
+      : noEligibleEmployees
+        ? 'Ningún profesional hace todos los servicios elegidos. Probá quitando alguno.'
+        : !selectedDate
+          ? 'Elegí un día en el calendario.'
+          : null
+  const canShowPayment = !!(createdAppointment && selectedDate && selectedSlot)
+
   return (
-    <main
-      className={
-        step === 'hero'
-          ? 'min-h-screen h-screen overflow-hidden bg-neutral-100 transition-colors duration-300 ease-out'
-          : 'min-h-screen overflow-x-hidden bg-neutral-100 transition-colors duration-300 ease-out'
-      }
-      style={
-        step === 'service' || step === 'date' || step === 'done'
-          ? {
-              backgroundColor: pageBackgroundColor,
-              ...(pageBackgroundImage ? { backgroundImage: pageBackgroundImage } : {}),
-              backgroundRepeat: 'no-repeat',
-              backgroundSize: 'cover',
-            }
-          : undefined
-      }
-    >
-      {step === 'hero' && (
-        <div
-          className="business-font flex min-h-screen flex-col bg-neutral-100"
-          style={{ ['--font-business' as any]: bookingFontVar }}
-        >
-          <div className="flex-1 overflow-hidden">
-            <BookingHero
+    <main className="min-h-screen overflow-x-hidden">
+      {view === 'booking' && (
+        <BookingLayout
+          {...layoutProps}
+          showBusinessName={false}
+          onGoToServices={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+          topSlot={
+            <BusinessHero
               name={business.name}
+              description={business.description}
+              logo={business.logo}
               coverPhoto={business.coverPhoto}
               coverVideo={business.coverVideo ?? null}
               coverPhotoMobile={business.coverPhotoMobile ?? null}
               coverVideoMobile={business.coverVideoMobile ?? null}
-              primaryColor={primaryColor}
-              onReservar={() => goToStep('service')}
             />
-          </div>
-          <LegalFooter className="bg-neutral-100" />
-        </div>
-      )}
-
-      {step === 'service' && (
-        <ServiceStep
-          business={business}
-          businessSlug={slug}
-          allowServiceAddOns={business.capabilities?.allowServiceAddOns === true}
-          selectedServices={selectedServices}
-          onSelectServices={setSelectedServices}
-          onContinue={() => goToStep('date')}
-          onGoToServices={() => goToStep('service')}
-          showPaymentStep={showPaymentStep}
-          primaryColor={primaryColor}
-          pageBackgroundColor={pageBackgroundColor}
-          pageBackgroundImage={pageBackgroundImage}
-          isDarkTheme={isDarkTheme}
-          onToggleTheme={() => setThemeMode((prev) => (prev === 'DARK' ? 'LIGHT' : 'DARK'))}
-          onOpenLogin={handleOpenLogin}
-          onOpenRegister={() => {
-            router.push('/register')
-          }}
-          user={user}
-          onLogout={handleLogout}
-        />
-      )}
-
-      {step === 'date' && selectedServices.length > 0 && (
-        (() => {
-          const businessEmployees = business.employees ?? []
-          const businessHasEmployees = businessEmployees.length > 0
-          const eligibleEmployees =
-            businessHasEmployees && eligibleEmployeeIds
-              ? businessEmployees.filter((e) => eligibleEmployeeIds.includes(e.id))
-              : businessEmployees
-          const noEligibleEmployeesMessage =
-            businessHasEmployees &&
-            !eligibleEmployeesLoading &&
-            Array.isArray(eligibleEmployeeIds) &&
-            eligibleEmployeeIds.length === 0
-              ? 'Ningún empleado realiza todos los servicios seleccionados. Podés volver y ajustar la selección.'
-              : null
-          return (
-        <DateStep
-          businessName={business.name}
-          logo={business.logo}
-          fontFamily={businessFontFamily}
-          selectedService={{
-            id: selectedServices.map((s) => s.id).join(','),
-            name: selectedServices.map((s) => s.name).join(' + '),
-            price: selectedServices.reduce((acc, s) => acc + serviceOptionTotalPrice(s), 0),
-            duration: selectedServices.reduce((acc, s) => acc + s.duration, 0),
-          }}
-          employees={eligibleEmployees}
-          businessHasEmployees={businessHasEmployees}
-          noEligibleEmployeesMessage={noEligibleEmployeesMessage}
-          calendarMonth={calendarMonth}
-          onCalendarMonth={setCalendarMonth}
-          weekAvailability={weekAvailability}
-          selectedDate={selectedDate}
-          onSelectedDate={setSelectedDate}
-          todayKey={todayKey}
-          currentTimeStr={currentTimeArgentina}
-          slots={slots}
-          slotsByEmployee={slotsByEmployee}
-          unifiedSlots={unifiedSlots}
-          employeesBySlot={employeesBySlot}
-          slotsLoading={slotsLoading}
-          selectedSlot={selectedSlot}
-          onSelectedSlot={(slot, employeeId) => {
-            setSelectedSlot(slot)
-            setSelectedEmployeeId(employeeId)
-          }}
-          onContinue={() => goToStep('form')}
-          onBack={handleBack}
-          onGoToServices={() => goToStep('service')}
-          showPaymentStep={showPaymentStep}
-          primaryColor={primaryColor}
-          pageBackgroundColor={pageBackgroundColor}
-          pageBackgroundImage={pageBackgroundImage}
-          isDarkTheme={isDarkTheme}
-          onToggleTheme={() => setThemeMode((prev) => (prev === 'DARK' ? 'LIGHT' : 'DARK'))}
-          onOpenLogin={handleOpenLogin}
-          onOpenRegister={() => {
-            router.push('/register')
-          }}
-          user={user}
-          onLogout={handleLogout}
-        />
-          )
-        })()
-      )}
-
-      {step === 'form' && selectedServices.length > 0 && selectedDate && selectedSlot && (
-        <ClientFormStep
-          businessName={business.name}
-          logo={business.logo}
-          fontFamily={businessFontFamily}
-          selectedService={{
-            id: selectedServices.map((s) => s.id).join(','),
-            name: selectedServices.map((s) => s.name).join(' + '),
-            price: selectedServices.reduce((acc, s) => acc + serviceOptionTotalPrice(s), 0),
-            duration: selectedServices.reduce((acc, s) => acc + s.duration, 0),
-          }}
-          selectedDate={selectedDate}
-          selectedSlot={selectedSlot}
-          clientName={clientName}
-          clientEmail={clientEmail}
-          clientPhone={clientPhone}
-          onClientName={setClientName}
-          onClientEmail={setClientEmail}
-          onClientPhone={setClientPhone}
-          onSubmit={handleSubmit}
-            onSubmitAndPay={handleSubmitAndPay}
-          submitLoading={submitLoading}
-          submitError={submitError}
-          createdAppointment={createdAppointment}
-          onContinueToPayment={
-            business.settings?.paymentRequired && createdAppointment
-              ? () => goToStep('payment')
-              : undefined
           }
-            paymentRequired={!!business.settings?.paymentRequired}
-            paymentOptionalEnabled={!!business.settings?.paymentOptionalEnabled}
-          onBack={handleBack}
-          onBackToCalendar={
-            business.settings?.paymentRequired && createdAppointment
-              ? () => {
-                  setCreatedAppointment(null)
-                  goToStep('date')
-                }
-              : undefined
-          }
-          onGoToServices={() => goToStep('service')}
-          showPaymentStep={showPaymentStep}
-          primaryColor={primaryColor}
-          pageBackgroundColor={pageBackgroundColor}
-          pageBackgroundImage={pageBackgroundImage}
-          isDarkTheme={isDarkTheme}
-          onToggleTheme={() => setThemeMode((prev) => (prev === 'DARK' ? 'LIGHT' : 'DARK'))}
-          onOpenLogin={handleOpenLogin}
-          onOpenRegister={() => {
-            router.push('/register')
-          }}
-          user={user}
-          onLogout={handleLogout}
-        />
-      )}
-
-      {step === 'payment' &&
-        createdAppointment &&
-        selectedServices.length > 0 &&
-        selectedDate &&
-        selectedSlot &&
-        business && (
-          <PaymentStep
-            businessName={business.name}
-            logo={business.logo}
-            fontFamily={businessFontFamily}
-            createdAppointment={createdAppointment}
-            selectedDate={selectedDate}
-            selectedSlot={selectedSlot}
-            paymentType={business.settings?.paymentType ?? null}
-            depositPercentage={business.settings?.depositPercentage ?? null}
-            servicePrice={selectedServices.reduce((acc, s) => acc + serviceOptionTotalPrice(s), 0)}
-            paymentAmount={paymentAmount}
-            paymentError={paymentError}
-            mercadoPagoPreferenceId={mercadoPagoPreferenceId}
-            mercadoPagoPublicKey={business.settings?.mercadoPagoPublicKey ?? null}
-            mercadoPagoRedirectMode={mercadoPagoRedirectMode}
-            paymentLoading={paymentLoading}
-            onMercadoPagoIntent={handleCreateMercadoPagoIntent}
-            onPaymentError={setPaymentError}
-            onMercadoPagoBack={handleCancelPendingAndBack}
-            onForceMercadoPagoBrick={handleForceMercadoPagoBrick}
-            onBack={handleCancelPendingAndBack}
-            onGoToServices={() => goToStep('service')}
-            showPaymentStep={showPaymentStep}
-            primaryColor={primaryColor}
-            pageBackgroundColor={pageBackgroundColor}
-            pageBackgroundImage={pageBackgroundImage}
-            isDarkTheme={isDarkTheme}
-            onToggleTheme={() => setThemeMode((prev) => (prev === 'DARK' ? 'LIGHT' : 'DARK'))}
-            onOpenLogin={handleOpenLogin}
-            onOpenRegister={() => router.push('/register')}
-            user={user}
-            onLogout={handleLogout}
-          />
-        )}
-
-      {step === 'done' && createdAppointment && (
-        <BookingLayout
-          businessName={business.name}
-          logo={business.logo}
-          isDarkTheme={isDarkTheme}
-          pageBackgroundColor={pageBackgroundColor}
-          pageBackgroundImage={pageBackgroundImage}
-          fontFamily={businessFontFamily}
-          onGoToServices={() => goToStep('service')}
-          onOpenLogin={handleOpenLogin}
-          onOpenRegister={() => {
-            router.push('/register')
-          }}
-          user={user}
-          onLogout={handleLogout}
         >
+          <div className="flex flex-col gap-5 pb-24 md:gap-6 lg:pb-0">
+            <BusinessInfoBar business={business} />
+            <TeamStrip
+              employees={employees}
+              selectedEmployeeId={preferredEmployeeId}
+              onSelect={setPreferredEmployeeId}
+              eligibleEmployeeIds={selectedServices.length > 0 ? eligibleEmployeeIds : null}
+            />
+
+            <div className="grid gap-5 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)_minmax(0,0.9fr)] lg:items-start">
+              <section id="booking-services" className={sectionCardClass} aria-labelledby="services-title">
+                <h2 id="services-title" className={sectionTitleClass}>
+                  1. Servicio
+                </h2>
+                <ServicePicker
+                  business={business}
+                  businessSlug={slug}
+                  allowServiceAddOns={business.capabilities?.allowServiceAddOns === true}
+                  selectedServices={selectedServices}
+                  onSelectServices={handleSelectServices}
+                  primaryColor={primaryColor}
+                  pageBackgroundColor={pageBackgroundColor}
+                  isDarkTheme={isDarkTheme}
+                />
+              </section>
+
+              <section id="booking-date" className={`${sectionCardClass} scroll-mt-4`} aria-labelledby="date-title">
+                <h2 id="date-title" className={sectionTitleClass}>
+                  2. Día y horario
+                </h2>
+                <MonthCalendar
+                  month={calendarMonth}
+                  onMonthChange={setCalendarMonth}
+                  selectedDate={selectedDate}
+                  onSelectDate={setSelectedDate}
+                  todayKey={todayKey}
+                  maxDateKey={maxDateKey}
+                  openWeekdays={openWeekdays}
+                  availability={weekAvailability}
+                  disabled={selectedServices.length === 0}
+                />
+                <div className="mt-5">
+                  {dateLabel && !slotPlaceholder && (
+                    <p className="mb-3 text-sm font-medium first-letter:uppercase text-[color:var(--booking-fg-muted)]">
+                      {dateLabel}
+                    </p>
+                  )}
+                  <SlotGrid
+                    slots={displaySlots}
+                    selectedSlot={selectedSlot}
+                    onSelect={handleSelectSlot}
+                    loading={slotsLoading}
+                    placeholder={slotPlaceholder}
+                  />
+                </div>
+              </section>
+
+              <section
+                id="booking-summary"
+                className={`${sectionCardClass} scroll-mt-4 lg:sticky lg:top-6`}
+                aria-labelledby="summary-title"
+              >
+                <h2 id="summary-title" className={sectionTitleClass}>
+                  3. Tu reserva
+                </h2>
+                <BookingSummary
+                  services={selectedServices}
+                  onRemoveService={
+                    business.settings?.allowMultipleServices
+                      ? (svc) =>
+                          setSelectedServices((prev) =>
+                            prev.filter(
+                              (x) => !(x.id === svc.id && (x.parentServiceId ?? '') === (svc.parentServiceId ?? ''))
+                            )
+                          )
+                      : undefined
+                  }
+                  dateLabel={selectedSlot ? dateLabel : null}
+                  slot={selectedSlot}
+                  employeeName={selectedEmployee?.name ?? null}
+                  clientName={clientName}
+                  clientEmail={clientEmail}
+                  clientPhone={clientPhone}
+                  onClientName={setClientName}
+                  onClientEmail={setClientEmail}
+                  onClientPhone={setClientPhone}
+                  onSubmit={handleSubmit}
+                  onSubmitAndPay={handleSubmitAndPay}
+                  submitLoading={submitLoading}
+                  submitError={submitError}
+                  paymentRequired={!!business.settings?.paymentRequired}
+                  paymentOptionalEnabled={!!business.settings?.paymentOptionalEnabled}
+                  primaryColor={primaryColor}
+                />
+              </section>
+            </div>
+          </div>
+
+          {selectedServices.length > 0 && !summaryInView && (
+            <div className="fixed inset-x-0 bottom-0 z-40 px-4 pb-4 lg:hidden">
+              <button
+                type="button"
+                onClick={() =>
+                  document
+                    .getElementById(selectedSlot ? 'booking-summary' : 'booking-date')
+                    ?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+                }
+                className="booking-liquid-glass booking-glass-text flex w-full items-center justify-between gap-3 rounded-2xl px-5 py-4 text-left"
+              >
+                <span className="min-w-0">
+                  <span className="block truncate text-sm font-semibold">
+                    {selectedServices.map((s) => s.name).join(' + ')}
+                  </span>
+                  <span className="block text-xs opacity-80">
+                    $ {totalPrice.toFixed(0)}
+                    {selectedSlot && dateLabel ? ` · ${dateLabel}, ${selectedSlot}` : ''}
+                  </span>
+                </span>
+                <span className="shrink-0 text-sm font-semibold">
+                  {selectedSlot ? 'Completar datos' : 'Elegir horario'} →
+                </span>
+              </button>
+            </div>
+          )}
+        </BookingLayout>
+      )}
+
+      {view === 'payment' && canShowPayment && createdAppointment && selectedDate && selectedSlot && (
+        <PaymentStep
+          businessName={business.name}
+          logo={business.logo}
+          fontFamily={businessFontFamily}
+          createdAppointment={createdAppointment}
+          selectedDate={selectedDate}
+          selectedSlot={selectedSlot}
+          paymentType={business.settings?.paymentType ?? null}
+          depositPercentage={business.settings?.depositPercentage ?? null}
+          servicePrice={totalPrice}
+          paymentAmount={paymentAmount}
+          paymentError={paymentError}
+          mercadoPagoPreferenceId={mercadoPagoPreferenceId}
+          mercadoPagoPublicKey={business.settings?.mercadoPagoPublicKey ?? null}
+          mercadoPagoRedirectMode={mercadoPagoRedirectMode}
+          paymentLoading={paymentLoading}
+          onMercadoPagoIntent={handleCreateMercadoPagoIntent}
+          onPaymentError={setPaymentError}
+          onMercadoPagoBack={handleCancelPendingAndBack}
+          onForceMercadoPagoBrick={handleForceMercadoPagoBrick}
+          onBack={handleCancelPendingAndBack}
+          onGoToServices={handleCancelPendingAndBack}
+          showPaymentStep
+          primaryColor={primaryColor}
+          pageBackgroundColor={pageBackgroundColor}
+          pageBackgroundImage={pageBackgroundImage}
+          isDarkTheme={isDarkTheme}
+          onToggleTheme={toggleTheme}
+          onOpenLogin={handleOpenLogin}
+          onOpenRegister={() => router.push('/register')}
+          user={user}
+          onLogout={handleLogout}
+        />
+      )}
+
+      {/* Payment/confirmation without an appointment (e.g. back/forward after a reload): return to booking. */}
+      {((view === 'payment' && !canShowPayment) || (view === 'done' && !createdAppointment)) && (
+        <ResetToBooking onReset={backToBooking} />
+      )}
+
+      {view === 'done' && createdAppointment && (
+        <BookingLayout {...layoutProps} onGoToServices={() => goToView('booking')}>
           <div className="flex min-h-[calc(100vh-12rem)] items-center justify-center px-4 py-12">
             <BookingDone
               appointment={createdAppointment}
@@ -1027,12 +876,17 @@ export default function BusinessBookingPage() {
             clearAdminActingShopSlug()
           }
         }}
-        onOpenRegister={() => {
-          router.push('/register')
-        }}
+        onOpenRegister={() => router.push('/register')}
         isDarkTheme={isDarkTheme}
         storeSlug={slug || null}
       />
     </main>
   )
+}
+
+function ResetToBooking({ onReset }: { onReset: () => void }) {
+  useEffect(() => {
+    onReset()
+  }, [onReset])
+  return null
 }
