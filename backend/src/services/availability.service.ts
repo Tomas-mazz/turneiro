@@ -28,10 +28,20 @@ const MINUTES_PER_DAY = 24 * 60
  */
 function argentinaDayBounds(dateStr: string): { dayStart: Date; dayEnd: Date } {
   const dayStart = fromZonedTime(`${dateStr}T00:00:00`, ARGENTINA_TIMEZONE)
-  const next = new Date(`${dateStr}T12:00:00.000Z`)
-  next.setUTCDate(next.getUTCDate() + 1)
-  const dayEnd = fromZonedTime(`${next.toISOString().slice(0, 10)}T00:00:00`, ARGENTINA_TIMEZONE)
+  const dayEnd = fromZonedTime(`${addDays(dateStr, 1)}T00:00:00`, ARGENTINA_TIMEZONE)
   return { dayStart, dayEnd }
+}
+
+/** YYYY-MM-DD plus n calendar days. */
+function addDays(dateStr: string, n: number): string {
+  const d = new Date(`${dateStr}T12:00:00.000Z`)
+  d.setUTCDate(d.getUTCDate() + n)
+  return d.toISOString().slice(0, 10)
+}
+
+/** BlockedSlot.date is stored at noon UTC so it matches by calendar date in any timezone. */
+function blockDateKey(dateStr: string): Date {
+  return new Date(dateStr + 'T12:00:00.000Z')
 }
 
 /** Merge overlapping intervals [start, end] (in minutes). Input sorted by start. */
@@ -73,156 +83,73 @@ function subtractBusyFromSegment(
   return free.filter(([a, b]) => b - a >= 0)
 }
 
+type WorkingHoursRow = {
+  dayOfWeek: number
+  isClosed: boolean
+  startTime: string
+  endTime: string
+  lunchStart: string | null
+  lunchEnd: string | null
+}
+
+type AppointmentRow = { startTime: Date; endTime: Date; employeeId?: string | null }
+
+type BlockedSlotRow = {
+  date: Date
+  type: string
+  startTime: string | null
+  endTime: string | null
+  employeeId: string | null
+}
+
 /**
- * Available time slots for a single day.
- *
- * Multi-employee model (post-MVP):
- * - Business working hours remain at business level.
- * - Each employee gets their own agenda.
- * - If employeeId is provided, we only consider:
- *   - appointments for that employee (so other employees can book the same time)
- *   - blocked slots for that employee (plus global business-wide blocks with no employeeId)
- *
- * Returns array of "HH:MM" strings. Empty if business closed, no service, or full day blocked.
- * dateStr must be YYYY-MM-DD (same as frontend sends) so BlockedSlot query is timezone-safe.
+ * Free start times ("HH:MM") for one agenda on one day, from already-loaded data.
+ * `appointments` must already be scoped to the agenda (the employee, or the whole business).
+ * Blocks without employeeId apply to everyone; employee blocks only apply to that employee.
  */
-export async function getAvailabilityService(
-  businessSlug: string,
-  serviceIdOrIds: string | string[],
-  date: Date,
-  dateStr: string,
+function computeDaySlots(input: {
+  dateStr: string
+  workingHours: WorkingHoursRow[]
+  slotInterval: number
+  duration: number
+  appointments: AppointmentRow[]
+  blockedSlots: BlockedSlotRow[]
   employeeId?: string
-): Promise<string[]> {
-  const business = await prisma.business.findUnique({
-    where: { slug: businessSlug },
-    include: {
-      workingHours: true,
-      settings: {
-        select: {
-          slotIntervalMinutes: true,
-        },
-      },
-    },
-  })
+}): string[] {
+  const { dateStr, workingHours, slotInterval, duration, appointments, blockedSlots, employeeId } = input
 
-  if (!business) return []
-
-  const requestedIds = Array.isArray(serviceIdOrIds) ? serviceIdOrIds : [serviceIdOrIds]
-  if (requestedIds.length === 0) return []
-
-  if (employeeId) {
-    const can = await employeeCanPerformSelections({
-      businessId: business.id,
-      employeeId,
-      selectionIds: requestedIds,
-      returnFalseOnMissing: true,
-    })
-    if (!can) return []
-  }
-
-  const resolved = await resolveSelectionDurations({
-    businessId: business.id,
-    selectionIds: requestedIds,
-    employeeId,
-    returnEmptyOnMissing: true,
-  })
-  if (resolved.length === 0) return []
-  const duration = resolved.reduce((acc, x) => acc + (Number.isFinite(x.duration) ? x.duration : 0), 0)
-
-  // Weekday of the calendar date itself; `date` is kept for callers but depends on server timezone.
   const dayOfWeek = new Date(`${dateStr}T12:00:00.000Z`).getUTCDay()
-  const working = business.workingHours.find((wh) => wh.dayOfWeek === dayOfWeek)
+  const working = workingHours.find((wh) => wh.dayOfWeek === dayOfWeek)
   if (!working || working.isClosed) return []
+
+  const blocks = blockedSlots.filter(
+    (b) =>
+      b.date.getTime() === blockDateKey(dateStr).getTime() &&
+      (b.employeeId === null || (!!employeeId && b.employeeId === employeeId))
+  )
+  if (blocks.some((b) => b.type === 'FULL_DAY')) return []
+
+  const { dayStart, dayEnd } = argentinaDayBounds(dateStr)
+  const busyIntervals: [number, number][] = []
+  for (const a of appointments) {
+    const start = new Date(a.startTime).getTime()
+    const end = new Date(a.endTime).getTime()
+    if (start >= dayEnd.getTime() || end <= dayStart.getTime()) continue
+    // Minutes since Argentina midnight, clamped to this day (appointments may cross midnight).
+    const startMin = Math.max(0, Math.floor((start - dayStart.getTime()) / 60000))
+    const endMin = Math.min(MINUTES_PER_DAY, Math.ceil((end - dayStart.getTime()) / 60000))
+    if (endMin > startMin) busyIntervals.push([startMin, endMin])
+  }
+  for (const b of blocks) {
+    if (b.type !== 'TIME_SLOT' || !b.startTime || !b.endTime) continue
+    busyIntervals.push([timeToMinutes(b.startTime), timeToMinutes(b.endTime)])
+  }
+  const mergedBusy = mergeIntervals(busyIntervals)
 
   const startMinutes = timeToMinutes(working.startTime)
   const endMinutes = timeToMinutes(working.endTime)
   const lunchStart = working.lunchStart ? timeToMinutes(working.lunchStart) : null
   const lunchEnd = working.lunchEnd ? timeToMinutes(working.lunchEnd) : null
-  const slotInterval =
-    business.settings?.slotIntervalMinutes && business.settings.slotIntervalMinutes > 0
-      ? business.settings.slotIntervalMinutes
-      : DEFAULT_SLOT_INTERVAL_MINUTES
-
-  const { dayStart, dayEnd } = argentinaDayBounds(dateStr)
-
-  const appointments = await prisma.appointment.findMany({
-    where: {
-      businessId: business.id,
-      status: { not: 'CANCELLED' },
-      startTime: { lt: dayEnd },
-      endTime: { gt: dayStart },
-      AND: [
-        {
-          OR: [
-            { paymentStatus: { not: 'PENDING' } },
-            { paymentHoldExpiresAt: null },
-            { paymentHoldExpiresAt: { gt: new Date() } },
-          ],
-        },
-      ],
-      ...(employeeId ? { employeeId } : {}),
-    },
-    select: { startTime: true, endTime: true },
-  })
-
-  // Use noon UTC so we match BlockedSlot rows by calendar date in any timezone
-  const dateForBlockQuery = new Date(dateStr + 'T12:00:00.000Z')
-  const blockedSlotsRaw = await prisma.blockedSlot.findMany({
-    where: {
-      businessId: business.id,
-      date: dateForBlockQuery,
-    },
-  })
-  type BlockedSlotRow = {
-    type: string
-    startTime: string | null
-    endTime: string | null
-    employeeId: string | null
-  }
-  const blockedSlots = blockedSlotsRaw as unknown as BlockedSlotRow[]
-
-  // A full-day block without employeeId blocks the whole business.
-  // A full-day block with employeeId blocks only that employee.
-  const hasFullDayBlock = blockedSlots.some((b) => {
-    if (b.type !== 'FULL_DAY') return false
-    // When no employeeId is provided (single-resource business), only business-wide
-    // blocks (employeeId === null) should apply.
-    if (!employeeId) {
-      return b.employeeId === null
-    }
-    // When an employeeId is provided, apply:
-    // - global business blocks (employeeId === null)
-    // - plus blocks specific to that employee.
-    return b.employeeId === null || b.employeeId === employeeId
-  })
-
-  if (hasFullDayBlock) {
-    return []
-  }
-
-  // Build busy intervals (minutes since midnight in Argentina timezone) from appointments and TIME_SLOT blocks
-  const busyIntervals: [number, number][] = []
-  for (const a of appointments) {
-    // Minutes since Argentina midnight, clamped to this day (appointments may cross midnight).
-    const startMin = Math.max(0, Math.floor((new Date(a.startTime).getTime() - dayStart.getTime()) / 60000))
-    const endMin = Math.min(MINUTES_PER_DAY, Math.ceil((new Date(a.endTime).getTime() - dayStart.getTime()) / 60000))
-    if (endMin > startMin) busyIntervals.push([startMin, endMin])
-  }
-  for (const b of blockedSlots) {
-    if (b.type !== 'TIME_SLOT' || !b.startTime || !b.endTime) continue
-    if (employeeId) {
-      // When an employeeId is provided, apply:
-      // - global business blocks (employeeId === null)
-      // - plus blocks specific to that employee.
-      if (b.employeeId && b.employeeId !== employeeId) continue
-    } else {
-      // When no employeeId is provided (single-resource business),
-      // only business-wide blocks (employeeId === null) should apply.
-      if (b.employeeId) continue
-    }
-    busyIntervals.push([timeToMinutes(b.startTime), timeToMinutes(b.endTime)])
-  }
-  const mergedBusy = mergeIntervals(busyIntervals)
 
   // Working segments: [startMinutes, endMinutes] possibly split by lunch
   const segments: [number, number][] = []
@@ -243,8 +170,141 @@ export async function getAvailabilityService(
       }
     }
   }
-  const slots = Array.from(slotSet).sort()
-  return slots
+  return Array.from(slotSet).sort()
+}
+
+async function loadBusinessForAvailability(businessSlug: string) {
+  return prisma.business.findUnique({
+    where: { slug: businessSlug },
+    include: {
+      workingHours: true,
+      settings: { select: { slotIntervalMinutes: true } },
+    },
+  })
+}
+
+function slotIntervalOf(business: { settings: { slotIntervalMinutes: number | null } | null }): number {
+  const configured = business.settings?.slotIntervalMinutes
+  return configured && configured > 0 ? configured : DEFAULT_SLOT_INTERVAL_MINUTES
+}
+
+/**
+ * Total duration of the selection for one agenda, or null when the agenda cannot be booked
+ * for it (employee doesn't do one of the services, or a selection doesn't exist).
+ */
+async function selectionDurationFor(
+  businessId: string,
+  selectionIds: string[],
+  employeeId?: string
+): Promise<number | null> {
+  if (employeeId) {
+    const can = await employeeCanPerformSelections({
+      businessId,
+      employeeId,
+      selectionIds,
+      returnFalseOnMissing: true,
+    })
+    if (!can) return null
+  }
+  const resolved = await resolveSelectionDurations({
+    businessId,
+    selectionIds,
+    employeeId,
+    returnEmptyOnMissing: true,
+  })
+  if (resolved.length === 0) return null
+  return resolved.reduce((acc, x) => acc + (Number.isFinite(x.duration) ? x.duration : 0), 0)
+}
+
+/** Appointments that occupy time: not cancelled, and unpaid holds only until they expire. */
+async function loadBusyAppointments(params: {
+  businessId: string
+  from: Date
+  to: Date
+  employeeIds?: string[]
+}): Promise<AppointmentRow[]> {
+  const { businessId, from, to, employeeIds } = params
+  return prisma.appointment.findMany({
+    where: {
+      businessId,
+      status: { not: 'CANCELLED' },
+      startTime: { lt: to },
+      endTime: { gt: from },
+      AND: [
+        {
+          OR: [
+            { paymentStatus: { not: 'PENDING' } },
+            { paymentHoldExpiresAt: null },
+            { paymentHoldExpiresAt: { gt: new Date() } },
+          ],
+        },
+      ],
+      ...(employeeIds ? { employeeId: { in: employeeIds } } : {}),
+    },
+    select: { startTime: true, endTime: true, employeeId: true },
+  })
+}
+
+async function loadBlockedSlots(businessId: string, fromDateStr: string, toDateStr: string) {
+  const rows = await prisma.blockedSlot.findMany({
+    where: {
+      businessId,
+      date: { gte: blockDateKey(fromDateStr), lte: blockDateKey(toDateStr) },
+    },
+  })
+  return rows as unknown as BlockedSlotRow[]
+}
+
+/**
+ * Available time slots for a single day.
+ *
+ * Multi-employee model (post-MVP):
+ * - Business working hours remain at business level.
+ * - Each employee gets their own agenda.
+ * - If employeeId is provided, we only consider:
+ *   - appointments for that employee (so other employees can book the same time)
+ *   - blocked slots for that employee (plus global business-wide blocks with no employeeId)
+ *
+ * Returns array of "HH:MM" strings. Empty if business closed, no service, or full day blocked.
+ * dateStr must be YYYY-MM-DD (same as frontend sends) so BlockedSlot query is timezone-safe.
+ * `date` is kept for callers; the calendar day comes from dateStr.
+ */
+export async function getAvailabilityService(
+  businessSlug: string,
+  serviceIdOrIds: string | string[],
+  date: Date,
+  dateStr: string,
+  employeeId?: string
+): Promise<string[]> {
+  const business = await loadBusinessForAvailability(businessSlug)
+  if (!business) return []
+
+  const requestedIds = Array.isArray(serviceIdOrIds) ? serviceIdOrIds : [serviceIdOrIds]
+  if (requestedIds.length === 0) return []
+
+  const duration = await selectionDurationFor(business.id, requestedIds, employeeId)
+  if (duration == null) return []
+
+  const { dayStart, dayEnd } = argentinaDayBounds(dateStr)
+  const [appointments, blockedSlots] = await Promise.all([
+    loadBusyAppointments({
+      businessId: business.id,
+      from: dayStart,
+      to: dayEnd,
+      employeeIds: employeeId ? [employeeId] : undefined,
+    }),
+    loadBlockedSlots(business.id, dateStr, dateStr),
+  ])
+
+  return computeDaySlots({
+    dateStr,
+    workingHours: business.workingHours,
+    slotInterval: slotIntervalOf(business),
+    duration,
+    appointments,
+    blockedSlots,
+    employeeId,
+  })
 }
 
 /**
@@ -252,54 +312,59 @@ export async function getAvailabilityService(
  * When the business has employees, hasSlots = true if at least one employee has at least one slot that day.
  * When there are no employees, uses single-resource availability (current behaviour).
  * We do not filter "today" by current time here; the frontend filters past slots when displaying.
+ *
+ * Loads the business, appointments and blocks once for the whole week (computing each day and
+ * employee separately took 7 x N x several queries and several seconds).
  */
 export async function getWeekAvailabilityService(
   businessSlug: string,
   serviceIdOrIds: string | string[],
   startDate: Date
 ): Promise<{ date: string; hasSlots: boolean }[]> {
-  const business = await prisma.business.findUnique({
-    where: { slug: businessSlug },
+  const y = startDate.getFullYear()
+  const m = String(startDate.getMonth() + 1).padStart(2, '0')
+  const d = String(startDate.getDate()).padStart(2, '0')
+  const firstDateStr = `${y}-${m}-${d}`
+  const dateStrs = Array.from({ length: 7 }, (_, i) => addDays(firstDateStr, i))
+
+  const business = await loadBusinessForAvailability(businessSlug)
+  const requestedIds = Array.isArray(serviceIdOrIds) ? serviceIdOrIds : [serviceIdOrIds]
+  if (!business || requestedIds.length === 0) {
+    return dateStrs.map((date) => ({ date, hasSlots: false }))
+  }
+
+  const employees = await prisma.employee.findMany({
+    where: { businessId: business.id },
     select: { id: true },
   })
-  const employeeIds: string[] = []
-  if (business) {
-    const employees = await prisma.employee.findMany({
-      where: { businessId: business.id },
-      select: { id: true },
-    })
-    employeeIds.push(...employees.map((e) => e.id))
-  }
+  // One agenda per employee, or a single business-wide agenda when there are no employees.
+  const agendas: (string | undefined)[] = employees.length > 0 ? employees.map((e) => e.id) : [undefined]
 
-  const result: { date: string; hasSlots: boolean }[] = []
-  for (let i = 0; i < 7; i++) {
-    const d = new Date(startDate)
-    d.setDate(d.getDate() + i)
-    const y = d.getFullYear()
-    const m = String(d.getMonth() + 1).padStart(2, '0')
-    const day = String(d.getDate()).padStart(2, '0')
-    const dateStr = `${y}-${m}-${day}`
+  const { dayStart: from } = argentinaDayBounds(dateStrs[0])
+  const { dayEnd: to } = argentinaDayBounds(dateStrs[dateStrs.length - 1])
+  const [durations, appointments, blockedSlots] = await Promise.all([
+    Promise.all(agendas.map((employeeId) => selectionDurationFor(business.id, requestedIds, employeeId))),
+    loadBusyAppointments({ businessId: business.id, from, to }),
+    loadBlockedSlots(business.id, dateStrs[0], dateStrs[dateStrs.length - 1]),
+  ])
 
-    let hasSlots = false
-    if (employeeIds.length > 0) {
-      for (const employeeId of employeeIds) {
-        const slots = await getAvailabilityService(
-          businessSlug,
-          serviceIdOrIds,
-          d,
+  const slotInterval = slotIntervalOf(business)
+  return dateStrs.map((dateStr) => ({
+    date: dateStr,
+    hasSlots: agendas.some((employeeId, i) => {
+      const duration = durations[i]
+      if (duration == null) return false
+      return (
+        computeDaySlots({
           dateStr,
-          employeeId
-        )
-        if (slots.length > 0) {
-          hasSlots = true
-          break
-        }
-      }
-    } else {
-      const slots = await getAvailabilityService(businessSlug, serviceIdOrIds, d, dateStr)
-      hasSlots = slots.length > 0
-    }
-    result.push({ date: dateStr, hasSlots })
-  }
-  return result
+          workingHours: business.workingHours,
+          slotInterval,
+          duration,
+          appointments: employeeId ? appointments.filter((a) => a.employeeId === employeeId) : appointments,
+          blockedSlots,
+          employeeId,
+        }).length > 0
+      )
+    }),
+  }))
 }

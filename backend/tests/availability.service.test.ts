@@ -49,7 +49,8 @@ function matchesAppointmentWhere(a: AppointmentRow, where: any): boolean {
   if (where.status?.not && a.status === where.status.not) return false
   if (where.startTime?.lt && !(a.startTime < where.startTime.lt)) return false
   if (where.endTime?.gt && !(a.endTime > where.endTime.gt)) return false
-  if (where.employeeId && a.employeeId !== where.employeeId) return false
+  if (typeof where.employeeId === 'string' && a.employeeId !== where.employeeId) return false
+  if (where.employeeId?.in && !where.employeeId.in.includes(a.employeeId)) return false
   for (const clause of where.AND ?? []) {
     const ok = (clause.OR ?? []).some((cond: any) => {
       if (cond.paymentStatus?.not) return a.paymentStatus !== cond.paymentStatus.not
@@ -82,14 +83,17 @@ vi.mock('../src/lib/prisma', () => ({
       findMany: vi.fn(async ({ where }: any) =>
         db.appointments
           .filter((a) => matchesAppointmentWhere(a, where))
-          .map(({ startTime, endTime }) => ({ startTime, endTime })),
+          .map(({ startTime, endTime, employeeId }) => ({ startTime, endTime, employeeId })),
       ),
     },
     blockedSlot: {
       findMany: vi.fn(async ({ where }: any) =>
-        db.blockedSlots.filter(
-          (b) => b.businessId === where.businessId && b.date.getTime() === where.date.getTime(),
-        ),
+        db.blockedSlots.filter((b) => {
+          if (b.businessId !== where.businessId) return false
+          const t = b.date.getTime()
+          if (where.date instanceof Date) return t === where.date.getTime()
+          return t >= where.date.gte.getTime() && t <= where.date.lte.getTime()
+        }),
       ),
     },
   },
