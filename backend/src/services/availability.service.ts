@@ -1,5 +1,5 @@
 import { prisma } from '../lib/prisma'
-import { toZonedTime } from 'date-fns-tz'
+import { fromZonedTime } from 'date-fns-tz'
 import { resolveSelectionDurations } from './selectionDurations.service'
 import { employeeCanPerformSelections } from './employeeServiceRestrictions.service'
 
@@ -19,6 +19,20 @@ function minutesToTime(m: number): string {
 }
 
 const DEFAULT_SLOT_INTERVAL_MINUTES = 15
+const MINUTES_PER_DAY = 24 * 60
+
+/**
+ * Bounds of a calendar day (YYYY-MM-DD) in Argentina, as UTC instants.
+ * Must not depend on the server timezone: Vercel runs in UTC, where a local
+ * midnight would be 21:00 of the previous day in Argentina.
+ */
+function argentinaDayBounds(dateStr: string): { dayStart: Date; dayEnd: Date } {
+  const dayStart = fromZonedTime(`${dateStr}T00:00:00`, ARGENTINA_TIMEZONE)
+  const next = new Date(`${dateStr}T12:00:00.000Z`)
+  next.setUTCDate(next.getUTCDate() + 1)
+  const dayEnd = fromZonedTime(`${next.toISOString().slice(0, 10)}T00:00:00`, ARGENTINA_TIMEZONE)
+  return { dayStart, dayEnd }
+}
 
 /** Merge overlapping intervals [start, end] (in minutes). Input sorted by start. */
 function mergeIntervals(intervals: [number, number][]): [number, number][] {
@@ -115,7 +129,8 @@ export async function getAvailabilityService(
   if (resolved.length === 0) return []
   const duration = resolved.reduce((acc, x) => acc + (Number.isFinite(x.duration) ? x.duration : 0), 0)
 
-  const dayOfWeek = date.getDay()
+  // Weekday of the calendar date itself; `date` is kept for callers but depends on server timezone.
+  const dayOfWeek = new Date(`${dateStr}T12:00:00.000Z`).getUTCDay()
   const working = business.workingHours.find((wh) => wh.dayOfWeek === dayOfWeek)
   if (!working || working.isClosed) return []
 
@@ -128,10 +143,7 @@ export async function getAvailabilityService(
       ? business.settings.slotIntervalMinutes
       : DEFAULT_SLOT_INTERVAL_MINUTES
 
-  const dayStart = new Date(date)
-  dayStart.setHours(0, 0, 0, 0)
-  const dayEnd = new Date(date)
-  dayEnd.setHours(23, 59, 59, 999)
+  const { dayStart, dayEnd } = argentinaDayBounds(dateStr)
 
   const appointments = await prisma.appointment.findMany({
     where: {
@@ -191,12 +203,9 @@ export async function getAvailabilityService(
   // Build busy intervals (minutes since midnight in Argentina timezone) from appointments and TIME_SLOT blocks
   const busyIntervals: [number, number][] = []
   for (const a of appointments) {
-    const aStartArg = toZonedTime(new Date(a.startTime), ARGENTINA_TIMEZONE)
-    const aEndArg = toZonedTime(new Date(a.endTime), ARGENTINA_TIMEZONE)
-    const dayStartMin = 0
-    const dayEndMin = 24 * 60
-    const startMin = Math.max(dayStartMin, aStartArg.getHours() * 60 + aStartArg.getMinutes())
-    const endMin = Math.min(dayEndMin, aEndArg.getHours() * 60 + aEndArg.getMinutes())
+    // Minutes since Argentina midnight, clamped to this day (appointments may cross midnight).
+    const startMin = Math.max(0, Math.floor((new Date(a.startTime).getTime() - dayStart.getTime()) / 60000))
+    const endMin = Math.min(MINUTES_PER_DAY, Math.ceil((new Date(a.endTime).getTime() - dayStart.getTime()) / 60000))
     if (endMin > startMin) busyIntervals.push([startMin, endMin])
   }
   for (const b of blockedSlots) {
