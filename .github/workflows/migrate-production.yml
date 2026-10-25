@@ -42,11 +42,20 @@ jobs:
 
       - name: Pending migrations
         id: status
+        # `migrate status` exits non-zero both for pending migrations and for connection
+        # errors, so decide from its output and fail on anything else.
         run: |
-          if npx prisma migrate status; then
+          set +e
+          output=$(npx prisma migrate status 2>&1)
+          set -e
+          echo "$output"
+          if echo "$output" | grep -q "Database schema is up to date"; then
             echo "pending=false" >> "$GITHUB_OUTPUT"
-          else
+          elif echo "$output" | grep -q "have not yet been applied"; then
             echo "pending=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "::error::Could not read migration status (see output above)"
+            exit 1
           fi
 
       - name: Backup before migrating
