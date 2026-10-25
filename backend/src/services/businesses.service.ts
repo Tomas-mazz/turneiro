@@ -723,6 +723,28 @@ export interface BusinessImages {
   coverVideo: string | null
   coverPhotoMobile: string | null
   coverVideoMobile: string | null
+  galleryImages: string[]
+}
+
+const BUSINESS_IMAGES_SELECT = {
+  logo: true,
+  coverPhoto: true,
+  coverVideo: true,
+  coverPhotoMobile: true,
+  coverVideoMobile: true,
+  galleryImages: true,
+} as const
+
+export const MAX_GALLERY_IMAGES = 12
+
+/** Keeps unique http(s) URLs, in order, up to MAX_GALLERY_IMAGES. */
+function sanitizeGalleryImages(input: unknown): string[] {
+  if (!Array.isArray(input)) return []
+  const urls = input
+    .filter((u): u is string => typeof u === 'string')
+    .map((u) => u.trim())
+    .filter((u) => /^https?:\/\//i.test(u) && u.length <= 1000)
+  return Array.from(new Set(urls)).slice(0, MAX_GALLERY_IMAGES)
 }
 
 export async function getBusinessImagesService(
@@ -730,13 +752,7 @@ export async function getBusinessImagesService(
 ): Promise<BusinessImages | null> {
   const business = await prisma.business.findUnique({
     where: { id: businessId },
-    select: {
-      logo: true,
-      coverPhoto: true,
-      coverVideo: true,
-      coverPhotoMobile: true,
-      coverVideoMobile: true,
-    },
+    select: BUSINESS_IMAGES_SELECT,
   })
   return business
 }
@@ -747,6 +763,7 @@ export interface UpdateBusinessImagesInput {
   coverVideo?: string | null
   coverPhotoMobile?: string | null
   coverVideoMobile?: string | null
+  galleryImages?: unknown
 }
 
 export async function updateBusinessImagesService(
@@ -767,14 +784,9 @@ export async function updateBusinessImagesService(
       ...(data.coverVideo !== undefined && { coverVideo: data.coverVideo?.trim() || null }),
       ...(data.coverPhotoMobile !== undefined && { coverPhotoMobile: data.coverPhotoMobile?.trim() || null }),
       ...(data.coverVideoMobile !== undefined && { coverVideoMobile: data.coverVideoMobile?.trim() || null }),
+      ...(data.galleryImages !== undefined && { galleryImages: sanitizeGalleryImages(data.galleryImages) }),
     },
-    select: {
-      logo: true,
-      coverPhoto: true,
-      coverVideo: true,
-      coverPhotoMobile: true,
-      coverVideoMobile: true,
-    },
+    select: BUSINESS_IMAGES_SELECT,
   })
   return updated
 }

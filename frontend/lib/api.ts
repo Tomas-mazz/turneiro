@@ -791,6 +791,7 @@ export interface BusinessImages {
   coverVideo: string | null
   coverPhotoMobile: string | null
   coverVideoMobile: string | null
+  galleryImages: string[]
 }
 
 export async function getBusinessImages(): Promise<BusinessImages> {
@@ -804,6 +805,7 @@ export async function updateBusinessImages(body: {
   coverVideo?: string | null
   coverPhotoMobile?: string | null
   coverVideoMobile?: string | null
+  galleryImages?: string[]
 }): Promise<BusinessImages> {
   const { data } = await api.patch<BusinessImages>('/businesses/images', body)
   return data

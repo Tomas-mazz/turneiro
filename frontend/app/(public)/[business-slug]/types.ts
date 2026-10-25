@@ -32,6 +32,7 @@ export type Business = {
   facebook?: string | null
   mapsUrl?: string | null
   googleReviewsUrl?: string | null
+  galleryImages?: string[]
   services: {
     id: string
     name: string

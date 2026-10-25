@@ -31,6 +31,8 @@ model Business {
   facebook          String? // full https URL
   mapsUrl           String? // Google Maps link for the address
   googleReviewsUrl  String?
+  /// "Nuestros trabajos": photos of the shop's work shown on the booking page (max 12).
+  galleryImages     String[] @default([])
   /// If present, indicates this business was created by a platform SELLER user.
   createdBySellerId String?
   createdAt         DateTime @default(now())

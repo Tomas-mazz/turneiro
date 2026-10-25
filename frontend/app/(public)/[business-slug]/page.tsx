@@ -25,6 +25,7 @@ import {
   ServicePicker,
   SlotGrid,
   TeamStrip,
+  WorkGallery,
 } from './components'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
 import { resolvePublicPageBackground } from '@/lib/publicPageBackground'
@@ -880,6 +881,8 @@ export default function BusinessBookingPage() {
                 />
               </section>
             </div>
+
+            <WorkGallery images={business.galleryImages ?? []} businessName={business.name} />
           </div>
 
           {selectedServices.length > 0 && !summaryInView && (
