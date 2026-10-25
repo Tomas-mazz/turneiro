@@ -11,13 +11,15 @@ type TeamStripProps = {
   onSelect: (employeeId: string | null) => void
   /** Employees who can do the selected services; others are shown dimmed. null = all. */
   eligibleEmployeeIds: string[] | null
+  /** Tapping a professional opens their profile (from the card's position) instead of selecting. */
+  onOpenProfile?: (employeeId: string, origin: { x: number; y: number; width: number; height: number }) => void
 }
 
 const cardBase =
   'relative flex w-[112px] shrink-0 snap-start flex-col overflow-hidden rounded-2xl border text-left transition-colors md:w-[128px]'
 
 function cardClass(selected: boolean, disabled: boolean) {
-  if (disabled) return `${cardBase} cursor-not-allowed border-[color:var(--booking-border-soft)] opacity-40`
+  if (disabled) return `${cardBase} border-[color:var(--booking-border-soft)] opacity-40`
   return selected
     ? `${cardBase} border-[color:var(--booking-fg)] bg-[color:var(--booking-card-bg)] shadow-sm ring-1 ring-[color:var(--booking-fg)]`
     : `${cardBase} border-[color:var(--booking-card-border)] bg-[color:var(--booking-card-bg)] shadow-sm hover:border-[color:var(--booking-border)]`
@@ -32,7 +34,13 @@ function SelectedBadge() {
 }
 
 /** Team picker: choose a professional or let the shop assign the first one available. */
-export function TeamStrip({ employees, selectedEmployeeId, onSelect, eligibleEmployeeIds }: TeamStripProps) {
+export function TeamStrip({
+  employees,
+  selectedEmployeeId,
+  onSelect,
+  eligibleEmployeeIds,
+  onOpenProfile,
+}: TeamStripProps) {
   if (employees.length < 2) return null
 
   return (
@@ -64,8 +72,12 @@ export function TeamStrip({ employees, selectedEmployeeId, onSelect, eligibleEmp
             <button
               key={emp.id}
               type="button"
-              disabled={disabled}
-              onClick={() => onSelect(emp.id)}
+              disabled={disabled && !onOpenProfile}
+              onClick={(e) => {
+                if (!onOpenProfile) return onSelect(emp.id)
+                const r = e.currentTarget.getBoundingClientRect()
+                onOpenProfile(emp.id, { x: r.left, y: r.top, width: r.width, height: r.height })
+              }}
               aria-pressed={selected}
               title={disabled ? `${emp.name} no realiza este servicio` : undefined}
               className={cardClass(selected, disabled)}

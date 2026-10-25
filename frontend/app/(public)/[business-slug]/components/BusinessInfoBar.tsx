@@ -6,12 +6,12 @@ import type { Business } from '../types'
 import { BOOKING_TIMEZONE } from '../utils'
 import { FacebookIcon, InstagramIcon, WhatsAppIcon } from './BrandIcons'
 
-const DAY_NAMES = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado']
-const DAY_ORDER = [1, 2, 3, 4, 5, 6, 0]
+export const DAY_NAMES = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado']
+export const DAY_ORDER = [1, 2, 3, 4, 5, 6, 0]
 
 type WorkingHours = Business['workingHours'][number]
 
-function hoursLabel(wh: WorkingHours | undefined): string {
+export function hoursLabel(wh: WorkingHours | undefined): string {
   if (!wh || wh.isClosed) return 'Cerrado'
   if (wh.lunchStart && wh.lunchEnd) {
     return `${wh.startTime} a ${wh.lunchStart} y ${wh.lunchEnd} a ${wh.endTime}`
@@ -19,7 +19,7 @@ function hoursLabel(wh: WorkingHours | undefined): string {
   return `${wh.startTime} a ${wh.endTime}`
 }
 
-function todayDayOfWeek(): number {
+export function todayDayOfWeek(): number {
   const weekday = new Date().toLocaleDateString('en-US', { timeZone: BOOKING_TIMEZONE, weekday: 'short' })
   return ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].indexOf(weekday)
 }

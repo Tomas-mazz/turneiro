@@ -26,7 +26,9 @@ import {
   SlotGrid,
   TeamStrip,
   WorkGallery,
+  EmployeeProfileCard,
 } from './components'
+import type { CardOrigin } from './components/EmployeeProfileCard'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
 import { resolvePublicPageBackground } from '@/lib/publicPageBackground'
 import { bookingDerivedBackground } from '@/lib/booking'
@@ -118,6 +120,8 @@ export default function BusinessBookingPage() {
   /** Earliest free slot of the first service, offered in the cover as a one-tap booking. */
   const [nextFree, setNextFree] = useState<NextFreeSlot | null>(null)
   const [nextFreeLoading, setNextFreeLoading] = useState(false)
+  /** Professional whose profile card is open, and the team card it flies out from. */
+  const [profile, setProfile] = useState<{ employeeId: string; origin: CardOrigin } | null>(null)
   /** Slot to select once the day's slots load (set by the "Próximo turno libre" shortcut). */
   const pendingPickRef = useRef<{ date: string; slot: string; employeeId: string | null } | null>(null)
 
@@ -540,6 +544,18 @@ export default function BusinessBookingPage() {
     setSlotsRefreshKey((k) => k + 1)
   }
 
+  const closeProfile = useCallback(() => setProfile(null), [])
+
+  const handleBookWith = (employeeId: string) => {
+    // The chosen services may not be done by this professional: start the service choice over.
+    const keepServices =
+      selectedServices.length > 0 && (!eligibleEmployeeIds || eligibleEmployeeIds.includes(employeeId))
+    if (!keepServices) setSelectedServices([])
+    setPreferredEmployeeId(employeeId)
+    setProfile(null)
+    scrollToSection(keepServices ? 'booking-date' : 'booking-services', { always: true })
+  }
+
   const handleSelectSlot = (slot: string) => {
     setSelectedSlot(slot)
     setSubmitError(null)
@@ -791,6 +807,7 @@ export default function BusinessBookingPage() {
               employees={employees}
               selectedEmployeeId={preferredEmployeeId}
               onSelect={setPreferredEmployeeId}
+              onOpenProfile={(employeeId, origin) => setProfile({ employeeId, origin })}
               eligibleEmployeeIds={selectedServices.length > 0 ? eligibleEmployeeIds : null}
             />
 
@@ -883,6 +900,13 @@ export default function BusinessBookingPage() {
             </div>
 
             <WorkGallery images={business.galleryImages ?? []} businessName={business.name} />
+            <EmployeeProfileCard
+              employee={profile ? employees.find((e) => e.id === profile.employeeId) ?? null : null}
+              origin={profile?.origin ?? null}
+              business={business}
+              onClose={closeProfile}
+              onBookWith={handleBookWith}
+            />
           </div>
 
           {selectedServices.length > 0 && !summaryInView && (

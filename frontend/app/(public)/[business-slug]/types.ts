@@ -3,6 +3,8 @@ export type Employee = {
   name: string
   photoUrl: string | null
   bio?: string | null
+  /** Services/subservices this employee does NOT do. */
+  serviceRestrictions?: { serviceId: string | null; subServiceId: string | null }[]
   isOwner: boolean
 }
 

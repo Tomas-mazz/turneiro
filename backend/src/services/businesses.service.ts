@@ -98,6 +98,8 @@ export async function getBusinessBySlugService(slug: string) {
           photoUrl: true,
           bio: true,
           isOwner: true,
+          // Services the employee does NOT do; the booking page lists the rest on their profile.
+          serviceRestrictions: { select: { serviceId: true, subServiceId: true } },
         },
       },
     },
