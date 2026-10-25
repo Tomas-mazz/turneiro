@@ -34,6 +34,8 @@ type ThemeMode = 'DARK' | 'LIGHT'
 /** The whole selection happens in 'booking'; payment and confirmation get their own screen. */
 type View = 'booking' | 'payment' | 'done'
 
+type NextFreeSlot = { service: ServiceOption; date: string; slot: string; employeeId: string | null }
+
 /** How far ahead clients can book. */
 const BOOKING_WINDOW_DAYS = 60
 
@@ -52,8 +54,8 @@ function dateKeyToDate(dateKey: string): Date {
 }
 
 /** On phones the sections are stacked: bring the next one into view after a choice. */
-function scrollToSection(id: string) {
-  if (typeof window === 'undefined' || window.innerWidth >= 1024) return
+function scrollToSection(id: string, opts: { always?: boolean } = {}) {
+  if (typeof window === 'undefined' || (!opts.always && window.innerWidth >= 1024)) return
   window.setTimeout(() => {
     document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
   }, 60)
@@ -112,6 +114,11 @@ export default function BusinessBookingPage() {
   const [user, setUser] = useState(() => (typeof window !== 'undefined' ? getAuthUser() : null))
   const [summaryInView, setSummaryInView] = useState(false)
   const restoredRef = useRef(false)
+  /** Earliest free slot of the first service, offered in the cover as a one-tap booking. */
+  const [nextFree, setNextFree] = useState<NextFreeSlot | null>(null)
+  const [nextFreeLoading, setNextFreeLoading] = useState(false)
+  /** Slot to select once the day's slots load (set by the "Próximo turno libre" shortcut). */
+  const pendingPickRef = useRef<{ date: string; slot: string; employeeId: string | null } | null>(null)
 
   useEffect(() => {
     setUser(getAuthUser())
@@ -386,6 +393,7 @@ export default function BusinessBookingPage() {
             byEmployee[employeeId] = s
           })
           setSlotsByEmployee(byEmployee)
+          applyPendingPick((employeeId) => (employeeId ? byEmployee[employeeId] ?? [] : []))
         })
         .finally(() => setSlotsLoading(false))
     } else {
@@ -394,11 +402,81 @@ export default function BusinessBookingPage() {
         .get<{ slots: string[] }>('/availability', {
           params: { businessSlug: slug, serviceIds: serviceIdsParam, date: selectedDate },
         })
-        .then((res) => setSlots(res.data.slots))
+        .then((res) => {
+          setSlots(res.data.slots)
+          applyPendingPick(() => res.data.slots)
+        })
         .catch(() => setSlots([]))
         .finally(() => setSlotsLoading(false))
     }
+
+    function applyPendingPick(slotsOf: (employeeId: string | null) => string[]) {
+      const pick = pendingPickRef.current
+      if (!pick || pick.date !== selectedDate) return
+      pendingPickRef.current = null
+      if (!slotsOf(pick.employeeId).includes(pick.slot)) return
+      setSelectedSlot(pick.slot)
+      setSelectedEmployeeId(pick.employeeId)
+      scrollToSection('booking-summary', { always: true })
+    }
   }, [business, selectedDate, serviceIdsParam, slug, eligibleEmployeeIds, slotsRefreshKey])
+
+  // Find the earliest free slot of the first service for the cover shortcut.
+  useEffect(() => {
+    if (!business) return
+    const service = business.services.find((s) => !(s.subServices && s.subServices.length > 0))
+    if (!service) return
+    let cancelled = false
+    const { dateKey: today, timeStr: now } = getNowInArgentina()
+    const employeesToCheck = business.employees ?? []
+    const slotsFor = (date: string, employeeId?: string) =>
+      api
+        .get<{ slots: string[] }>('/availability', {
+          params: { businessSlug: slug, serviceIds: service.id, date, ...(employeeId ? { employeeId } : {}) },
+        })
+        .then((res) => res.data.slots)
+        .catch(() => [] as string[])
+
+    setNextFreeLoading(true)
+    ;(async () => {
+      try {
+        const { data } = await api.get<{ week: { date: string; hasSlots: boolean }[] }>('/availability/week', {
+          params: { businessSlug: slug, serviceIds: service.id, startDate: today },
+        })
+        // Today's free slots may all be in the past, so check up to two candidate days.
+        for (const day of data.week.filter((w) => w.hasSlots).slice(0, 2)) {
+          const lists =
+            employeesToCheck.length > 0
+              ? await Promise.all(
+                  employeesToCheck.map(async (e) => ({ employeeId: e.id as string | null, slots: await slotsFor(day.date, e.id) }))
+                )
+              : [{ employeeId: null, slots: await slotsFor(day.date) }]
+          let best: { slot: string; employeeId: string | null } | null = null
+          for (const { employeeId, slots: list } of lists) {
+            const first = list.find((s) => day.date !== today || s > now)
+            if (first && (!best || first < best.slot)) best = { slot: first, employeeId }
+          }
+          if (best) {
+            if (!cancelled) {
+              setNextFree({
+                service: { id: service.id, name: service.name, price: service.price, duration: service.duration },
+                date: day.date,
+                ...best,
+              })
+            }
+            return
+          }
+        }
+      } catch {
+        // The shortcut is optional; the regular flow still works.
+      } finally {
+        if (!cancelled) setNextFreeLoading(false)
+      }
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [business, slug])
 
   // Switching professional invalidates the chosen time.
   useEffect(() => {
@@ -446,6 +524,19 @@ export default function BusinessBookingPage() {
     if (next.length > selectedServices.length && !business?.settings?.allowMultipleServices) {
       scrollToSection('booking-date')
     }
+  }
+
+  /** "Próximo turno libre": select service, day, time and professional in one tap. */
+  const handleQuickBook = () => {
+    if (!nextFree) return
+    pendingPickRef.current = { date: nextFree.date, slot: nextFree.slot, employeeId: nextFree.employeeId }
+    setPreferredEmployeeId(null)
+    setSelectedServices([nextFree.service])
+    setSelectedDate(nextFree.date)
+    setCalendarMonth(dateKeyToDate(nextFree.date))
+    setSubmitError(null)
+    // Refetch even when service and day were already selected, so the pick gets applied.
+    setSlotsRefreshKey((k) => k + 1)
   }
 
   const handleSelectSlot = (slot: string) => {
@@ -660,6 +751,18 @@ export default function BusinessBookingPage() {
           : null
   const canShowPayment = !!(createdAppointment && selectedDate && selectedSlot)
 
+  const nextFreeLabel = (() => {
+    if (!nextFree) return null
+    const day =
+      nextFree.date === todayKey
+        ? 'hoy'
+        : nextFree.date === addDaysKey(todayKey, 1)
+          ? 'mañana'
+          : dateKeyToDate(nextFree.date).toLocaleDateString('es-AR', { weekday: 'short', day: 'numeric' })
+    const who = employees.length > 1 ? employees.find((e) => e.id === nextFree.employeeId)?.name : null
+    return `${nextFree.service.name} · ${day} ${nextFree.slot}${who ? ` con ${who}` : ''}`
+  })()
+
   return (
     <main className="min-h-screen overflow-x-hidden">
       {view === 'booking' && (
@@ -676,6 +779,8 @@ export default function BusinessBookingPage() {
               coverVideo={business.coverVideo ?? null}
               coverPhotoMobile={business.coverPhotoMobile ?? null}
               coverVideoMobile={business.coverVideoMobile ?? null}
+              nextSlot={nextFreeLabel ? { label: nextFreeLabel, onClick: handleQuickBook } : null}
+              nextSlotLoading={nextFreeLoading}
             />
           }
         >
