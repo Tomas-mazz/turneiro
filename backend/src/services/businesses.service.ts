@@ -4,6 +4,7 @@ import type { Prisma } from '@prisma/client'
 import { ensureOwnerEmployee } from './ownerEmployee.service'
 import { getBusinessCapabilities, type IndustryCapabilities } from '../lib/industryCapabilities'
 import { attachPublicEstimatedDurations } from './publicEstimatedDurations.service'
+import type { UpdateBusinessInfoInput } from '../lib/schemas'
 
 export interface MyBusinessInfo {
   name: string
@@ -90,10 +91,12 @@ export async function getBusinessBySlugService(slug: string) {
         },
       },
       employees: {
+        orderBy: [{ isOwner: 'desc' }, { createdAt: 'asc' }],
         select: {
           id: true,
           name: true,
           photoUrl: true,
+          bio: true,
           isOwner: true,
         },
       },
@@ -686,6 +689,31 @@ export async function deleteBusinessForAdmin(businessId: string): Promise<void> 
   }
   await prisma.business.delete({
     where: { id: businessId },
+  })
+}
+
+const BUSINESS_INFO_SELECT = {
+  name: true,
+  description: true,
+  phone: true,
+  address: true,
+  whatsapp: true,
+  instagram: true,
+  facebook: true,
+  mapsUrl: true,
+  googleReviewsUrl: true,
+} as const
+
+export async function getBusinessInfoService(businessId: string) {
+  return prisma.business.findUnique({ where: { id: businessId }, select: BUSINESS_INFO_SELECT })
+}
+
+/** Fields are already trimmed/normalized by updateBusinessInfoSchema; undefined means "leave as is". */
+export async function updateBusinessInfoService(businessId: string, data: UpdateBusinessInfoInput) {
+  return prisma.business.update({
+    where: { id: businessId },
+    data,
+    select: BUSINESS_INFO_SELECT,
   })
 }
 
