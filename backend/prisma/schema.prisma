@@ -25,6 +25,12 @@ model Business {
   phone             String?
   email             String?
   address           String?
+  /// Public contact / social links shown on the booking page.
+  whatsapp          String? // digits with country code, e.g. 5493511234567
+  instagram         String? // handle without @
+  facebook          String? // full https URL
+  mapsUrl           String? // Google Maps link for the address
+  googleReviewsUrl  String?
   /// If present, indicates this business was created by a platform SELLER user.
   createdBySellerId String?
   createdAt         DateTime @default(now())
@@ -51,6 +57,8 @@ model Employee {
   id         String   @id @default(cuid())
   name       String
   photoUrl   String?
+  /// Short public description shown on the booking page (e.g. specialty).
+  bio        String?
   businessId String
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
