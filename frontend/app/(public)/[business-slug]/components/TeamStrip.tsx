@@ -26,7 +26,7 @@ export function TeamStrip({ employees, selectedEmployeeId, onSelect, onOpenProfi
       <h2 id="team-title" className="mb-3 text-lg font-semibold text-[color:var(--booking-fg)] md:text-center md:text-xl">
         {title}
       </h2>
-      <div className="-mx-4 flex snap-x gap-3 overflow-x-auto px-4 pb-2 md:mx-0 md:flex-wrap md:justify-center md:overflow-visible md:px-0">
+      <div className="-mx-4 flex snap-x scroll-px-4 gap-3 overflow-x-auto px-4 pb-2 md:mx-0 md:flex-wrap md:justify-center md:overflow-visible md:px-0">
         {employees.map((emp) => {
           const selected = selectedEmployeeId === emp.id
           return (

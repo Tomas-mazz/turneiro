@@ -31,7 +31,7 @@ export function WorkGallery({ images, businessName }: { images: string[]; busine
       <h2 id="gallery-title" className="mb-3 text-lg font-semibold text-[color:var(--booking-fg)] md:text-center md:text-xl">
         Nuestros trabajos
       </h2>
-      <ul className="-mx-4 flex snap-x gap-3 overflow-x-auto px-4 pb-2 md:mx-0 md:grid md:grid-cols-4 md:overflow-visible md:px-0 lg:grid-cols-6">
+      <ul className="-mx-4 flex snap-x scroll-px-4 gap-3 overflow-x-auto px-4 pb-2 md:mx-0 md:grid md:grid-cols-4 md:overflow-visible md:px-0 lg:grid-cols-6">
         {images.map((src, i) => (
           <li key={src} className="w-[42%] shrink-0 snap-start sm:w-[30%] md:w-auto">
             <button
