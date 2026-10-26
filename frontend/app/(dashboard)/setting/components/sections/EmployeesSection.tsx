@@ -31,6 +31,8 @@ type Editing = {
   staffEmail: string
   staffPassword: string
   ownerCalendarColorId: string
+  /** Short line shown on the booking page ("Especialista en fades"). */
+  bio?: string
 }
 
 type Props = {
@@ -260,6 +262,7 @@ export function EmployeesSection({
               const photoUrl = ed.photoUrl ?? emp.photoUrl ?? ''
               const staffEmail = ed.staffEmail ?? emp.staffEmail ?? ''
               const staffPassword = ed.staffPassword ?? ''
+              const bio = ed.bio ?? emp.bio ?? ''
               const ownerCalendarColorId = ed.ownerCalendarColorId ?? (emp.ownerCalendarColorId ?? '')
 
               const canDelete = true
@@ -333,6 +336,22 @@ export function EmployeesSection({
                                 <span className="text-xs text-neutral-500">{photoUrl ? 'Foto cargada' : 'Sin foto'}</span>
                               </div>
                             </div>
+
+                            <label className="flex flex-col gap-1 text-sm text-neutral-800 md:col-span-2">
+                              Descripción corta
+                              <input
+                                value={bio}
+                                maxLength={160}
+                                placeholder="Ej.: Especialista en fades y barbas"
+                                onChange={(e) =>
+                                  setEditing((p) => ({ ...p, [emp.id]: { ...p[emp.id], bio: e.target.value } }))
+                                }
+                                className="rounded-lg border border-neutral-300 px-3 py-2"
+                              />
+                              <span className="text-xs text-neutral-500">
+                                Se muestra en su tarjeta y su perfil en tu página de reservas.
+                              </span>
+                            </label>
 
                             <label className="flex flex-col gap-1 text-sm text-neutral-800">
                               Color en tu Google Calendar
