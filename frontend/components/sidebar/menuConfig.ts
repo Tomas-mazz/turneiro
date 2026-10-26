@@ -95,6 +95,13 @@ export const SHOP_MENU_DEF: SidebarMenuDefinition = {
       roles: ['OWNER', 'ADMIN'],
       items: [
         {
+          id: 'business-info',
+          label: 'Información y redes',
+          path: '/setting/branding',
+          icon: 'building2',
+          roles: ['OWNER', 'ADMIN'],
+        },
+        {
           id: 'appearance',
           label: 'Fuentes y Colores',
           path: '/setting/appearance',
