@@ -24,6 +24,8 @@ type BookingSummaryProps = {
   paymentRequired: boolean
   paymentOptionalEnabled: boolean
   primaryColor: string
+  /** The business has a team and no professional was chosen yet (first step). */
+  employeeMissing?: boolean
 }
 
 const inputClass =
@@ -49,13 +51,15 @@ export function BookingSummary({
   submitError,
   paymentRequired,
   paymentOptionalEnabled,
+  employeeMissing = false,
 }: BookingSummaryProps) {
   const totalPrice = services.reduce((acc, s) => acc + serviceOptionTotalPrice(s), 0)
   const totalDuration = services.reduce((acc, s) => acc + s.duration, 0)
-  const ready = services.length > 0 && !!dateLabel && !!slot
-  const hint =
-    services.length === 0
-      ? 'Elegí un servicio para empezar.'
+  const ready = !employeeMissing && services.length > 0 && !!dateLabel && !!slot
+  const hint = employeeMissing
+    ? 'Elegí un profesional para empezar.'
+    : services.length === 0
+      ? 'Elegí un servicio.'
       : !dateLabel || !slot
         ? 'Elegí el día y el horario.'
         : null

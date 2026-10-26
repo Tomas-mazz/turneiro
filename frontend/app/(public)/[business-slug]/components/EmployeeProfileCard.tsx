@@ -4,6 +4,7 @@ import { useEffect } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import { Clock, Scissors, X } from 'lucide-react'
 import type { Business, Employee } from '../types'
+import { servicesForEmployee } from '../utils'
 import { DAY_NAMES, DAY_ORDER, hoursLabel, todayDayOfWeek } from './BusinessInfoBar'
 
 /** Where the card starts: the team card that was tapped (viewport coordinates). */
@@ -14,31 +15,17 @@ type EmployeeProfileCardProps = {
   origin: CardOrigin | null
   business: Business
   onClose: () => void
-  onBookWith: (employeeId: string) => void
 }
 
 const CARD_WIDTH = 380
 
 /** Services (or subservices) the employee does, with price and duration. */
 function servicesFor(employee: Employee, business: Business) {
-  const restrictions = employee.serviceRestrictions ?? []
-  const blockedServices = new Set(restrictions.map((r) => r.serviceId).filter(Boolean))
-  const blockedSubServices = new Set(restrictions.map((r) => r.subServiceId).filter(Boolean))
-  const out: { id: string; name: string; price: number; duration: number }[] = []
-  for (const s of business.services) {
-    if (blockedServices.has(s.id)) continue
+  return servicesForEmployee(business.services, employee).flatMap((s) => {
     const subs = s.subServices ?? []
-    if (subs.length === 0) {
-      out.push({ id: s.id, name: s.name, price: s.price, duration: s.duration })
-      continue
-    }
-    for (const sub of subs) {
-      if (!blockedSubServices.has(sub.id)) {
-        out.push({ id: sub.id, name: `${s.name} - ${sub.name}`, price: sub.price, duration: sub.duration })
-      }
-    }
-  }
-  return out
+    if (subs.length === 0) return [{ id: s.id, name: s.name, price: s.price, duration: s.duration }]
+    return subs.map((sub) => ({ id: sub.id, name: `${s.name} - ${sub.name}`, price: sub.price, duration: sub.duration }))
+  })
 }
 
 function Avatar({ employee, className }: { employee: Employee; className: string }) {
@@ -57,9 +44,9 @@ function Avatar({ employee, className }: { employee: Employee; className: string
 
 /**
  * Professional profile. The card flies from the tapped team card to the center while flipping:
- * the front is the photo, the back is the profile (services, hours, book button).
+ * the front is the photo, the back is the profile (bio, services, hours).
  */
-export function EmployeeProfileCard({ employee, origin, business, onClose, onBookWith }: EmployeeProfileCardProps) {
+export function EmployeeProfileCard({ employee, origin, business, onClose }: EmployeeProfileCardProps) {
   useEffect(() => {
     if (!employee) return
     const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onClose()
@@ -198,16 +185,6 @@ export function EmployeeProfileCard({ employee, origin, business, onClose, onBoo
                     </ul>
                   </section>
                 )}
-              </div>
-
-              <div className="border-t border-[color:var(--booking-divide)] p-4">
-                <button
-                  type="button"
-                  onClick={() => onBookWith(employee.id)}
-                  className="w-full rounded-xl bg-[color:var(--booking-cta-bg)] py-3 font-semibold text-[color:var(--booking-cta-fg)] shadow-sm transition-opacity hover:opacity-90"
-                >
-                  Reservar con {employee.name}
-                </button>
               </div>
             </div>
           </motion.div>

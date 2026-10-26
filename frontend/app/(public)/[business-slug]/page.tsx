@@ -12,7 +12,8 @@ import {
   clearAdminActingShopSlug,
 } from '@/lib/auth'
 import type { Business, ServiceOption, CreatedAppointment } from './types'
-import { formatDateKey, getNowInArgentina, serviceOptionTotalPrice } from './utils'
+import { formatDateKey, getNowInArgentina, serviceOptionTotalPrice, servicesForEmployee } from './utils'
+import { Lock } from 'lucide-react'
 import {
   BookingDone,
   BookingLayout,
@@ -79,22 +80,17 @@ export default function BusinessBookingPage() {
   const [view, setView] = useState<View>('booking')
 
   const [selectedServices, setSelectedServices] = useState<ServiceOption[]>([])
-  /** Professional chosen by the client; null = "Cualquiera". */
+  /** Professional chosen by the client (first step; required when the business has a team). */
   const [preferredEmployeeId, setPreferredEmployeeId] = useState<string | null>(null)
   const [calendarMonth, setCalendarMonth] = useState(() => new Date())
   const [weekAvailability, setWeekAvailability] = useState<Record<string, boolean>>({})
   const [selectedDate, setSelectedDate] = useState<string | null>(null)
-  /** Slots when the business has no employees (single agenda). */
+  /** Free times of the chosen professional (or of the single agenda when there is no team). */
   const [slots, setSlots] = useState<string[]>([])
-  /** Slots per employee; the backend scopes availability per employee. */
-  const [slotsByEmployee, setSlotsByEmployee] = useState<Record<string, string[]>>({})
   const [slotsLoading, setSlotsLoading] = useState(false)
   /** Bumped to refetch the day's slots (e.g. after a time was taken by someone else). */
   const [slotsRefreshKey, setSlotsRefreshKey] = useState(0)
-  const [eligibleEmployeeIds, setEligibleEmployeeIds] = useState<string[] | null>(null)
   const [selectedSlot, setSelectedSlot] = useState<string | null>(null)
-  /** Employee the appointment is booked with (preferred one, or first free one for "Cualquiera"). */
-  const [selectedEmployeeId, setSelectedEmployeeId] = useState<string | null>(null)
 
   const [clientName, setClientName] = useState('')
   const [clientEmail, setClientEmail] = useState('')
@@ -240,14 +236,25 @@ export default function BusinessBookingPage() {
         clientEmail?: string
         clientPhone?: string
       }
+      const team = business.employees ?? []
+      const teamSize = team.length
+      const restoredEmployee =
+        teamSize === 1 ? team[0] : team.find((e) => e.id === parsed.preferredEmployeeId) ?? null
+      if (restoredEmployee) setPreferredEmployeeId(restoredEmployee.id)
+      if (parsed.clientName) setClientName(parsed.clientName)
+      if (parsed.clientEmail) setClientEmail(parsed.clientEmail)
+      if (parsed.clientPhone) setClientPhone(parsed.clientPhone)
+      // Later steps only make sense once the professional is known.
+      if (teamSize > 1 && !restoredEmployee) return
+      const services = restoredEmployee ? servicesForEmployee(business.services, restoredEmployee) : business.services
       const restored: ServiceOption[] = []
       for (const rid of parsed.serviceIds ?? []) {
-        const topLevel = business.services.find((s) => s.id === rid)
+        const topLevel = services.find((s) => s.id === rid && !(s.subServices && s.subServices.length > 0))
         if (topLevel) {
           restored.push({ id: topLevel.id, name: topLevel.name, price: topLevel.price, duration: topLevel.duration })
           continue
         }
-        for (const s of business.services) {
+        for (const s of services) {
           const sub = (s.subServices ?? []).find((x) => x.id === rid)
           if (sub) {
             restored.push({
@@ -262,21 +269,13 @@ export default function BusinessBookingPage() {
           }
         }
       }
-      if (restored.length > 0) setSelectedServices(restored)
+      if (restored.length === 0) return
+      setSelectedServices(restored)
       const { dateKey: today } = getNowInArgentina()
       if (parsed.selectedDate && parsed.selectedDate >= today) {
         setSelectedDate(parsed.selectedDate)
         setCalendarMonth(dateKeyToDate(parsed.selectedDate))
       }
-      if (
-        parsed.preferredEmployeeId &&
-        (business.employees ?? []).some((e) => e.id === parsed.preferredEmployeeId)
-      ) {
-        setPreferredEmployeeId(parsed.preferredEmployeeId)
-      }
-      if (parsed.clientName) setClientName(parsed.clientName)
-      if (parsed.clientEmail) setClientEmail(parsed.clientEmail)
-      if (parsed.clientPhone) setClientPhone(parsed.clientPhone)
     } catch {
       // Ignore corrupted storage.
     }
@@ -320,111 +319,95 @@ export default function BusinessBookingPage() {
 
   const serviceIdsParam = selectedServices.map((s) => s.id).join(',')
 
-  // Which employees can perform ALL selected services.
+  // With a team of one there is nothing to choose: that professional is the first step done.
   useEffect(() => {
-    if (!business) return
-    const allEmployees = business.employees ?? []
-    if (allEmployees.length === 0) {
-      setEligibleEmployeeIds(null)
-      return
-    }
-    if (!serviceIdsParam) {
-      setEligibleEmployeeIds(allEmployees.map((e) => e.id))
-      return
-    }
-    api
-      .get<{ employeeIds: string[] }>('/availability/eligible-employees', {
-        params: { businessSlug: slug, serviceIds: serviceIdsParam },
-      })
-      .then((res) => setEligibleEmployeeIds(Array.isArray(res.data.employeeIds) ? res.data.employeeIds : []))
-      .catch(() => setEligibleEmployeeIds([]))
-  }, [business, serviceIdsParam, slug])
+    const team = business?.employees ?? []
+    if (team.length === 1) setPreferredEmployeeId(team[0].id)
+  }, [business])
 
-  // Next 7 days: grey out full days and preselect the first one with free slots.
+  const teamRequired = (business?.employees ?? []).length > 0
+  /** Agenda the availability is read from: the chosen professional, or the business when it has no team. */
+  const agendaReady = !teamRequired || !!preferredEmployeeId
+
+  // Next 7 days of the chosen professional: grey out full days and open the month of the first free one.
   useEffect(() => {
-    if (!business || !serviceIdsParam) {
+    if (!business || !serviceIdsParam || !agendaReady) {
       setWeekAvailability({})
       return
     }
+    let cancelled = false
     const { dateKey: todayStr } = getNowInArgentina()
     api
       .get<{ week: { date: string; hasSlots: boolean }[] }>('/availability/week', {
-        params: { businessSlug: slug, serviceIds: serviceIdsParam, startDate: todayStr },
+        params: {
+          businessSlug: slug,
+          serviceIds: serviceIdsParam,
+          startDate: todayStr,
+          ...(preferredEmployeeId ? { employeeId: preferredEmployeeId } : {}),
+        },
       })
       .then((res) => {
+        if (cancelled) return
         const map: Record<string, boolean> = {}
         res.data.week.forEach((w) => {
           map[w.date] = w.hasSlots
         })
         setWeekAvailability(map)
         const firstFree = res.data.week.find((w) => w.hasSlots)?.date
+        // The day is the client's choice: keep it if still free, otherwise clear it.
         setSelectedDate((current) => {
           if (current && map[current] !== false) return current
           if (firstFree) setCalendarMonth(dateKeyToDate(firstFree))
-          return firstFree ?? current
+          return null
         })
       })
-      .catch(() => setWeekAvailability({}))
-  }, [business, serviceIdsParam, slug])
+      .catch(() => {
+        if (!cancelled) setWeekAvailability({})
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [business, serviceIdsParam, slug, agendaReady, preferredEmployeeId])
 
   useEffect(() => {
-    if (!business || !selectedDate || !serviceIdsParam) return
-    const businessEmployees = business.employees ?? []
     setSelectedSlot(null)
-    setSelectedEmployeeId(null)
-    if (businessEmployees.length > 0) {
-      const employees = eligibleEmployeeIds
-        ? businessEmployees.filter((e) => eligibleEmployeeIds.includes(e.id))
-        : businessEmployees
-      if (employees.length === 0) {
-        setSlotsByEmployee({})
-        setSlotsLoading(false)
-        return
-      }
-      setSlotsLoading(true)
-      Promise.all(
-        employees.map((emp) =>
-          api
-            .get<{ slots: string[] }>('/availability', {
-              params: { businessSlug: slug, serviceIds: serviceIdsParam, date: selectedDate, employeeId: emp.id },
-            })
-            .then((res) => ({ employeeId: emp.id, slots: res.data.slots }))
-            .catch(() => ({ employeeId: emp.id, slots: [] as string[] }))
-        )
-      )
-        .then((results) => {
-          const byEmployee: Record<string, string[]> = {}
-          results.forEach(({ employeeId, slots: s }) => {
-            byEmployee[employeeId] = s
-          })
-          setSlotsByEmployee(byEmployee)
-          applyPendingPick((employeeId) => (employeeId ? byEmployee[employeeId] ?? [] : []))
-        })
-        .finally(() => setSlotsLoading(false))
-    } else {
-      setSlotsLoading(true)
-      api
-        .get<{ slots: string[] }>('/availability', {
-          params: { businessSlug: slug, serviceIds: serviceIdsParam, date: selectedDate },
-        })
-        .then((res) => {
-          setSlots(res.data.slots)
-          applyPendingPick(() => res.data.slots)
-        })
-        .catch(() => setSlots([]))
-        .finally(() => setSlotsLoading(false))
+    if (!business || !selectedDate || !serviceIdsParam || !agendaReady) {
+      setSlots([])
+      return
     }
-
-    function applyPendingPick(slotsOf: (employeeId: string | null) => string[]) {
-      const pick = pendingPickRef.current
-      if (!pick || pick.date !== selectedDate) return
-      pendingPickRef.current = null
-      if (!slotsOf(pick.employeeId).includes(pick.slot)) return
-      setSelectedSlot(pick.slot)
-      setSelectedEmployeeId(pick.employeeId)
-      scrollToSection('booking-summary', { always: true })
+    let cancelled = false
+    setSlotsLoading(true)
+    api
+      .get<{ slots: string[] }>('/availability', {
+        params: {
+          businessSlug: slug,
+          serviceIds: serviceIdsParam,
+          date: selectedDate,
+          ...(preferredEmployeeId ? { employeeId: preferredEmployeeId } : {}),
+        },
+      })
+      .then((res) => {
+        if (cancelled) return
+        setSlots(res.data.slots)
+        const pick = pendingPickRef.current
+        if (pick && pick.date === selectedDate && pick.employeeId === preferredEmployeeId) {
+          pendingPickRef.current = null
+          if (res.data.slots.includes(pick.slot)) {
+            setSelectedSlot(pick.slot)
+            scrollToSection('booking-summary', { always: true })
+          }
+        }
+      })
+      .catch(() => {
+        if (!cancelled) setSlots([])
+      })
+      .finally(() => {
+        if (!cancelled) setSlotsLoading(false)
+      })
+    return () => {
+      cancelled = true
     }
-  }, [business, selectedDate, serviceIdsParam, slug, eligibleEmployeeIds, slotsRefreshKey])
+  }, [business, selectedDate, serviceIdsParam, slug, agendaReady, preferredEmployeeId, slotsRefreshKey])
 
   // Find the earliest free slot of the first service for the cover shortcut.
   useEffect(() => {
@@ -483,12 +466,6 @@ export default function BusinessBookingPage() {
     }
   }, [business, slug])
 
-  // Switching professional invalidates the chosen time.
-  useEffect(() => {
-    setSelectedSlot(null)
-    setSelectedEmployeeId(null)
-  }, [preferredEmployeeId])
-
   // Mobile bottom bar hides once "Tu reserva" is on screen.
   useEffect(() => {
     const el = document.getElementById('booking-summary')
@@ -501,22 +478,23 @@ export default function BusinessBookingPage() {
   }, [business, view])
 
   const employees = useMemo(() => business?.employees ?? [], [business?.employees])
-  const hasEmployees = employees.length > 0
+  const preferredEmployee = employees.find((e) => e.id === preferredEmployeeId) ?? null
   const { dateKey: todayKey, timeStr: currentTimeArgentina } = getNowInArgentina()
   const maxDateKey = addDaysKey(todayKey, BOOKING_WINDOW_DAYS)
 
-  /** Employees whose agenda feeds the slot grid: the preferred one, or every eligible one. */
-  const candidateEmployees = useMemo(() => {
-    const eligible = eligibleEmployeeIds ? employees.filter((e) => eligibleEmployeeIds.includes(e.id)) : employees
-    return preferredEmployeeId ? eligible.filter((e) => e.id === preferredEmployeeId) : eligible
-  }, [employees, eligibleEmployeeIds, preferredEmployeeId])
+  /** Only what the chosen professional does is offered. */
+  const bookableBusiness = useMemo(
+    () =>
+      business && preferredEmployee
+        ? { ...business, services: servicesForEmployee(business.services, preferredEmployee) }
+        : business,
+    [business, preferredEmployee]
+  )
 
-  const displaySlots = useMemo(() => {
-    const raw = hasEmployees
-      ? Array.from(new Set(candidateEmployees.flatMap((e) => slotsByEmployee[e.id] ?? []))).sort()
-      : slots
-    return selectedDate === todayKey ? raw.filter((s) => s > currentTimeArgentina) : raw
-  }, [hasEmployees, candidateEmployees, slotsByEmployee, slots, selectedDate, todayKey, currentTimeArgentina])
+  const displaySlots = useMemo(
+    () => (selectedDate === todayKey ? slots.filter((s) => s > currentTimeArgentina) : slots),
+    [slots, selectedDate, todayKey, currentTimeArgentina]
+  )
 
   const openWeekdays = useMemo(
     () => new Set((business?.workingHours ?? []).filter((wh) => !wh.isClosed).map((wh) => wh.dayOfWeek)),
@@ -535,7 +513,7 @@ export default function BusinessBookingPage() {
   const handleQuickBook = () => {
     if (!nextFree) return
     pendingPickRef.current = { date: nextFree.date, slot: nextFree.slot, employeeId: nextFree.employeeId }
-    setPreferredEmployeeId(null)
+    if (nextFree.employeeId) setPreferredEmployeeId(nextFree.employeeId)
     setSelectedServices([nextFree.service])
     setSelectedDate(nextFree.date)
     setCalendarMonth(dateKeyToDate(nextFree.date))
@@ -546,25 +524,26 @@ export default function BusinessBookingPage() {
 
   const closeProfile = useCallback(() => setProfile(null), [])
 
-  const handleBookWith = (employeeId: string) => {
-    // The chosen services may not be done by this professional: start the service choice over.
-    const keepServices =
-      selectedServices.length > 0 && (!eligibleEmployeeIds || eligibleEmployeeIds.includes(employeeId))
-    if (!keepServices) setSelectedServices([])
+  const handleSelectEmployee = (employeeId: string) => {
+    if (employeeId === preferredEmployeeId) return
+    const employee = employees.find((e) => e.id === employeeId)
+    if (!employee) return
+    // Keep only the services this professional does.
+    const offered = servicesForEmployee(business?.services ?? [], employee)
+    const doesIt = (s: ServiceOption) =>
+      s.parentServiceId
+        ? offered.some((o) => o.id === s.parentServiceId && (o.subServices ?? []).some((sub) => sub.id === s.id))
+        : offered.some((o) => o.id === s.id)
+    const kept = selectedServices.filter(doesIt)
+    if (kept.length !== selectedServices.length) setSelectedServices(kept)
     setPreferredEmployeeId(employeeId)
-    setProfile(null)
-    scrollToSection(keepServices ? 'booking-date' : 'booking-services', { always: true })
+    setSubmitError(null)
+    scrollToSection(kept.length > 0 ? 'booking-date' : 'booking-services')
   }
 
   const handleSelectSlot = (slot: string) => {
     setSelectedSlot(slot)
     setSubmitError(null)
-    if (hasEmployees) {
-      const assigned = candidateEmployees.find((e) => (slotsByEmployee[e.id] ?? []).includes(slot))
-      setSelectedEmployeeId(assigned?.id ?? null)
-    } else {
-      setSelectedEmployeeId(null)
-    }
     scrollToSection('booking-summary')
   }
 
@@ -593,7 +572,7 @@ export default function BusinessBookingPage() {
         clientName: clientName.trim(),
         clientEmail: email,
         clientPhone: clientPhone.trim(),
-        employeeId: selectedEmployeeId,
+        employeeId: preferredEmployeeId,
         deferConfirmationUntilPayment: opts.deferConfirmationUntilPayment,
       })
       .then((res) => {
@@ -752,20 +731,21 @@ export default function BusinessBookingPage() {
   }
 
   const totalPrice = selectedServices.reduce((acc, s) => acc + serviceOptionTotalPrice(s), 0)
-  const selectedEmployee = employees.find((e) => e.id === selectedEmployeeId) ?? null
-  const noEligibleEmployees =
-    hasEmployees && selectedServices.length > 0 && Array.isArray(eligibleEmployeeIds) && eligibleEmployeeIds.length === 0
   const dateLabel = selectedDate
     ? dateKeyToDate(selectedDate).toLocaleDateString('es-AR', { weekday: 'long', day: 'numeric', month: 'long' })
     : null
-  const slotPlaceholder =
-    selectedServices.length === 0
-      ? 'Elegí un servicio para ver los horarios.'
-      : noEligibleEmployees
-        ? 'Ningún profesional hace todos los servicios elegidos. Probá quitando alguno.'
-        : !selectedDate
-          ? 'Elegí un día en el calendario.'
-          : null
+  // Steps go in order: professional → service → day → time → details. Each one unlocks the next.
+  const showTeamStep = employees.length > 1
+  const stepOffset = showTeamStep ? 1 : 0
+  const servicesLocked = !agendaReady
+  const dateLocked = servicesLocked || selectedServices.length === 0
+  const slotPlaceholder = servicesLocked
+    ? 'Elegí un profesional para empezar.'
+    : selectedServices.length === 0
+      ? 'Elegí un servicio para ver los días disponibles.'
+      : !selectedDate
+        ? 'Elegí un día en el calendario.'
+        : null
   const canShowPayment = !!(createdAppointment && selectedDate && selectedSlot)
 
   const nextFreeLabel = (() => {
@@ -806,31 +786,48 @@ export default function BusinessBookingPage() {
             <TeamStrip
               employees={employees}
               selectedEmployeeId={preferredEmployeeId}
-              onSelect={setPreferredEmployeeId}
+              onSelect={handleSelectEmployee}
               onOpenProfile={(employeeId, origin) => setProfile({ employeeId, origin })}
-              eligibleEmployeeIds={selectedServices.length > 0 ? eligibleEmployeeIds : null}
+              title="1. Elegí tu profesional"
             />
 
             <div className="grid gap-5 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)_minmax(0,0.9fr)] lg:items-start">
-              <section id="booking-services" className={sectionCardClass} aria-labelledby="services-title">
+              <section
+                id="booking-services"
+                className={`${sectionCardClass} scroll-mt-4`}
+                aria-labelledby="services-title"
+              >
                 <h2 id="services-title" className={sectionTitleClass}>
-                  1. Servicio
+                  {stepOffset + 1}. Servicio
+                  {preferredEmployee && showTeamStep && (
+                    <span className="ml-2 text-sm font-normal text-[color:var(--booking-fg-muted)]">
+                      con {preferredEmployee.name}
+                    </span>
+                  )}
                 </h2>
-                <ServicePicker
-                  business={business}
-                  businessSlug={slug}
-                  allowServiceAddOns={business.capabilities?.allowServiceAddOns === true}
-                  selectedServices={selectedServices}
-                  onSelectServices={handleSelectServices}
-                  primaryColor={primaryColor}
-                  pageBackgroundColor={pageBackgroundColor}
-                  isDarkTheme={isDarkTheme}
-                />
+                {servicesLocked ? (
+                  <LockedStep>Primero elegí con quién te querés atender.</LockedStep>
+                ) : (
+                  <ServicePicker
+                    business={bookableBusiness ?? business}
+                    businessSlug={slug}
+                    allowServiceAddOns={business.capabilities?.allowServiceAddOns === true}
+                    selectedServices={selectedServices}
+                    onSelectServices={handleSelectServices}
+                    primaryColor={primaryColor}
+                    pageBackgroundColor={pageBackgroundColor}
+                    isDarkTheme={isDarkTheme}
+                  />
+                )}
               </section>
 
-              <section id="booking-date" className={`${sectionCardClass} scroll-mt-4`} aria-labelledby="date-title">
+              <section
+                id="booking-date"
+                className={`${sectionCardClass} scroll-mt-4 transition-opacity ${dateLocked ? 'opacity-60' : ''}`}
+                aria-labelledby="date-title"
+              >
                 <h2 id="date-title" className={sectionTitleClass}>
-                  2. Día y horario
+                  {stepOffset + 2}. Día y horario
                 </h2>
                 <MonthCalendar
                   month={calendarMonth}
@@ -841,7 +838,7 @@ export default function BusinessBookingPage() {
                   maxDateKey={maxDateKey}
                   openWeekdays={openWeekdays}
                   availability={weekAvailability}
-                  disabled={selectedServices.length === 0}
+                  disabled={dateLocked}
                 />
                 <div className="mt-5">
                   {dateLabel && !slotPlaceholder && (
@@ -865,7 +862,7 @@ export default function BusinessBookingPage() {
                 aria-labelledby="summary-title"
               >
                 <h2 id="summary-title" className={sectionTitleClass}>
-                  3. Tu reserva
+                  {stepOffset + 3}. Tu reserva
                 </h2>
                 <BookingSummary
                   services={selectedServices}
@@ -881,7 +878,8 @@ export default function BusinessBookingPage() {
                   }
                   dateLabel={selectedSlot ? dateLabel : null}
                   slot={selectedSlot}
-                  employeeName={selectedEmployee?.name ?? null}
+                  employeeName={showTeamStep ? preferredEmployee?.name ?? null : null}
+                  employeeMissing={servicesLocked}
                   clientName={clientName}
                   clientEmail={clientEmail}
                   clientPhone={clientPhone}
@@ -905,7 +903,6 @@ export default function BusinessBookingPage() {
               origin={profile?.origin ?? null}
               business={business}
               onClose={closeProfile}
-              onBookWith={handleBookWith}
             />
           </div>
 
@@ -1013,6 +1010,16 @@ export default function BusinessBookingPage() {
         storeSlug={slug || null}
       />
     </main>
+  )
+}
+
+/** Placeholder for a step that unlocks once the previous one is done. */
+function LockedStep({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="flex items-center gap-3 rounded-xl border border-dashed border-[color:var(--booking-border)] px-4 py-6 text-sm text-[color:var(--booking-fg-muted)]">
+      <Lock className="h-4 w-4 shrink-0" aria-hidden />
+      <span>{children}</span>
+    </div>
   )
 }
 
