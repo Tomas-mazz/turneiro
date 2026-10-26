@@ -319,7 +319,8 @@ export async function getAvailabilityService(
 export async function getWeekAvailabilityService(
   businessSlug: string,
   serviceIdOrIds: string | string[],
-  startDate: Date
+  startDate: Date,
+  employeeId?: string
 ): Promise<{ date: string; hasSlots: boolean }[]> {
   const y = startDate.getFullYear()
   const m = String(startDate.getMonth() + 1).padStart(2, '0')
@@ -334,9 +335,13 @@ export async function getWeekAvailabilityService(
   }
 
   const employees = await prisma.employee.findMany({
-    where: { businessId: business.id },
+    where: { businessId: business.id, ...(employeeId ? { id: employeeId } : {}) },
     select: { id: true },
   })
+  // An unknown professional has no agenda (instead of falling back to the whole business).
+  if (employeeId && employees.length === 0) {
+    return dateStrs.map((date) => ({ date, hasSlots: false }))
+  }
   // One agenda per employee, or a single business-wide agenda when there are no employees.
   const agendas: (string | undefined)[] = employees.length > 0 ? employees.map((e) => e.id) : [undefined]
 

@@ -76,7 +76,7 @@ vi.mock('../src/lib/prisma', () => ({
     },
     employee: {
       findMany: vi.fn(async ({ where }: any) =>
-        db.employees.filter((e) => e.businessId === where.businessId),
+        db.employees.filter((e) => e.businessId === where.businessId && (!where.id || e.id === where.id)),
       ),
     },
     appointment: {
@@ -324,5 +324,17 @@ describe('getWeekAvailabilityService', () => {
     block({ type: 'FULL_DAY', employeeId: 'emp_b' })
     const mondayAllBlocked = (await getWeekAvailabilityService(SLUG, 'svc_1', new Date(MONDAY + 'T12:00:00')))[0]
     expect(mondayAllBlocked).toEqual({ date: MONDAY, hasSlots: false })
+  })
+
+  it('only looks at the chosen professional when employeeId is given', async () => {
+    db.employees = [
+      { id: 'emp_a', businessId: BUSINESS_ID },
+      { id: 'emp_b', businessId: BUSINESS_ID },
+    ]
+    block({ type: 'FULL_DAY', employeeId: 'emp_a' })
+    const start = new Date(MONDAY + 'T12:00:00')
+    expect((await getWeekAvailabilityService(SLUG, 'svc_1', start, 'emp_a'))[0].hasSlots).toBe(false)
+    expect((await getWeekAvailabilityService(SLUG, 'svc_1', start, 'emp_b'))[0].hasSlots).toBe(true)
+    expect((await getWeekAvailabilityService(SLUG, 'svc_1', start, 'emp_unknown'))[0].hasSlots).toBe(false)
   })
 })
