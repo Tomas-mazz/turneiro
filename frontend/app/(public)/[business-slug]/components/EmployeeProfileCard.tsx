@@ -1,8 +1,8 @@
 'use client'
 
-import { useEffect } from 'react'
-import { AnimatePresence, motion } from 'framer-motion'
-import { Clock, Scissors, X } from 'lucide-react'
+import { useEffect, useState } from 'react'
+import { AnimatePresence, motion, useMotionValue, useTransform } from 'framer-motion'
+import { ChevronDown, Clock, Scissors, X } from 'lucide-react'
 import type { Business, Employee } from '../types'
 import { servicesForEmployee } from '../utils'
 import { DAY_NAMES, DAY_ORDER, hoursLabel, todayDayOfWeek } from './BusinessInfoBar'
@@ -19,14 +19,8 @@ type EmployeeProfileCardProps = {
 
 const CARD_WIDTH = 380
 
-/** Services (or subservices) the employee does, with price and duration. */
-function servicesFor(employee: Employee, business: Business) {
-  return servicesForEmployee(business.services, employee).flatMap((s) => {
-    const subs = s.subServices ?? []
-    if (subs.length === 0) return [{ id: s.id, name: s.name, price: s.price, duration: s.duration }]
-    return subs.map((sub) => ({ id: sub.id, name: `${s.name} - ${sub.name}`, price: sub.price, duration: sub.duration }))
-  })
-}
+/** Turn duration and easing; the faces swap exactly at 90° (see `frontOpacity`). */
+const FLIP_TRANSITION = { duration: 0.5, ease: [0.22, 1, 0.36, 1] as const }
 
 function Avatar({ employee, className }: { employee: Employee; className: string }) {
   return (
@@ -47,8 +41,16 @@ function Avatar({ employee, className }: { employee: Employee; className: string
  * the front is the photo, the back is the profile (bio, services, hours).
  */
 export function EmployeeProfileCard({ employee, origin, business, onClose }: EmployeeProfileCardProps) {
+  const [hoursOpen, setHoursOpen] = useState(false)
+  // Which face shows is driven by the angle itself, not by backface-visibility,
+  // so no browser keeps painting the front once the card has turned.
+  const rotateY = useMotionValue(0)
+  const frontOpacity = useTransform(rotateY, (deg) => (deg < 90 ? 1 : 0))
+  const backOpacity = useTransform(rotateY, (deg) => (deg < 90 ? 0 : 1))
+
   useEffect(() => {
     if (!employee) return
+    setHoursOpen(false)
     const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onClose()
     window.addEventListener('keydown', onKey)
     const prevOverflow = document.body.style.overflow
@@ -72,8 +74,8 @@ export function EmployeeProfileCard({ employee, origin, business, onClose }: Emp
 
   const today = todayDayOfWeek()
   const byDay = new Map(business.workingHours.map((wh) => [wh.dayOfWeek, wh]))
-  const services = employee ? servicesFor(employee, business) : []
-  const faceClass = 'col-start-1 row-start-1 [backface-visibility:hidden] [-webkit-backface-visibility:hidden]'
+  const serviceNames = employee ? servicesForEmployee(business.services, employee).map((s) => s.name) : []
+  const faceClass = 'col-start-1 row-start-1'
 
   return (
     <AnimatePresence>
@@ -90,30 +92,36 @@ export function EmployeeProfileCard({ employee, origin, business, onClose }: Emp
             role="dialog"
             aria-modal="true"
             aria-labelledby="employee-profile-name"
-            className="grid w-full [transform-style:preserve-3d]"
-            style={{ maxWidth: CARD_WIDTH }}
-            initial={{ ...from, rotateY: 0, opacity: 0.6 }}
-            animate={{ x: 0, y: 0, scale: 1, rotateY: 180, opacity: 1 }}
+            className="grid w-full"
+            style={{ maxWidth: CARD_WIDTH, rotateY }}
+            initial={{ ...from, rotateY: 0 }}
+            animate={{ x: 0, y: 0, scale: 1, rotateY: 180 }}
             exit={{ ...from, rotateY: 0, opacity: 0 }}
-            transition={{ type: 'spring', stiffness: 120, damping: 18, mass: 0.9 }}
+            transition={{
+              default: { type: 'spring', stiffness: 170, damping: 24, mass: 0.9 },
+              rotateY: FLIP_TRANSITION,
+              opacity: { duration: 0.2, delay: 0.3 },
+            }}
             onClick={(e) => e.stopPropagation()}
           >
             {/* Front: the same look as the team card. */}
-            <div
-              className={`${faceClass} flex flex-col overflow-hidden rounded-3xl border border-[color:var(--booking-card-border)] [background:linear-gradient(var(--booking-card-bg),var(--booking-card-bg)),var(--booking-page-bg)] shadow-2xl`}
+            <motion.div
+              className={`${faceClass} flex flex-col self-start overflow-hidden rounded-3xl border border-[color:var(--booking-card-border)] [background:linear-gradient(var(--booking-card-bg),var(--booking-card-bg)),var(--booking-page-bg)] shadow-2xl`}
+              style={{ opacity: frontOpacity }}
               aria-hidden
             >
               <Avatar employee={employee} className="aspect-square w-full text-7xl" />
               <p className="px-5 py-4 text-xl font-semibold text-[color:var(--booking-fg)]">{employee.name}</p>
-            </div>
+            </motion.div>
 
             {/* Back: the profile. */}
-            <div
-              className={`${faceClass} flex max-h-[85vh] flex-col overflow-hidden rounded-3xl border border-[color:var(--booking-card-border)] [background:linear-gradient(var(--booking-card-bg),var(--booking-card-bg)),var(--booking-page-bg)] text-[color:var(--booking-fg)] shadow-2xl [transform:rotateY(180deg)]`}
+            <motion.div
+              className={`${faceClass} flex max-h-[85vh] flex-col self-start overflow-hidden rounded-3xl border border-[color:var(--booking-card-border)] [background:linear-gradient(var(--booking-card-bg),var(--booking-card-bg)),var(--booking-page-bg)] text-[color:var(--booking-fg)] shadow-2xl [transform:rotateY(180deg)]`}
+              style={{ opacity: backOpacity }}
             >
               <div className="relative flex items-center gap-4 border-b border-[color:var(--booking-divide)] p-5">
                 <Avatar employee={employee} className="h-16 w-16 shrink-0 rounded-2xl text-2xl" />
-                <div className="min-w-0">
+                <div className="min-w-0 pr-8">
                   <p className="text-xs font-semibold uppercase tracking-wide text-[color:var(--booking-cta-bg)]">
                     {employee.isOwner ? 'Dueño · Profesional' : 'Profesional'}
                   </p>
@@ -140,19 +148,16 @@ export function EmployeeProfileCard({ employee, origin, business, onClose }: Emp
                     <Scissors className="h-4 w-4 text-[color:var(--booking-cta-bg)]" aria-hidden />
                     Servicios que realiza
                   </h4>
-                  {services.length === 0 ? (
+                  {serviceNames.length === 0 ? (
                     <p className="text-sm text-[color:var(--booking-fg-muted)]">Sin servicios asignados.</p>
                   ) : (
-                    <ul className="space-y-1.5">
-                      {services.map((s) => (
+                    <ul className="flex flex-wrap gap-2">
+                      {serviceNames.map((name) => (
                         <li
-                          key={s.id}
-                          className="flex items-center justify-between gap-3 rounded-xl border border-[color:var(--booking-border-soft)] bg-[color:var(--booking-control-bg)] px-3 py-2 text-sm"
+                          key={name}
+                          className="rounded-full border border-[color:var(--booking-border-soft)] bg-[color:var(--booking-control-bg)] px-3 py-1 text-sm"
                         >
-                          <span className="min-w-0 truncate">{s.name}</span>
-                          <span className="shrink-0 text-[color:var(--booking-fg-muted)]">
-                            {s.duration} min · $ {s.price.toFixed(0)}
-                          </span>
+                          {name}
                         </li>
                       ))}
                     </ul>
@@ -161,32 +166,58 @@ export function EmployeeProfileCard({ employee, origin, business, onClose }: Emp
 
                 {business.workingHours.length > 0 && (
                   <section>
-                    <h4 className="mb-2 flex items-center gap-2 text-sm font-semibold">
-                      <Clock className="h-4 w-4 text-[color:var(--booking-cta-bg)]" aria-hidden />
-                      Horario
-                    </h4>
-                    <ul className="space-y-1 text-sm">
-                      {DAY_ORDER.map((d) => (
-                        <li
-                          key={d}
-                          className={`flex justify-between gap-4 rounded-lg px-3 py-1.5 ${
-                            d === today
-                              ? 'bg-[color:var(--booking-control-bg)] font-medium text-[color:var(--booking-fg)]'
-                              : 'text-[color:var(--booking-fg-muted)]'
-                          }`}
+                    <button
+                      type="button"
+                      onClick={() => setHoursOpen((open) => !open)}
+                      aria-expanded={hoursOpen}
+                      aria-controls="employee-profile-hours"
+                      className="flex w-full items-center gap-2 rounded-xl border border-[color:var(--booking-border-soft)] bg-[color:var(--booking-control-bg)] px-3 py-2.5 text-left text-sm transition-colors hover:bg-[color:var(--booking-control-hover)]"
+                    >
+                      <Clock className="h-4 w-4 shrink-0 text-[color:var(--booking-cta-bg)]" aria-hidden />
+                      <span className="font-semibold">Horario</span>
+                      <span className="min-w-0 flex-1 truncate text-[color:var(--booking-fg-muted)]">
+                        · Hoy {hoursLabel(byDay.get(today))}
+                      </span>
+                      <ChevronDown
+                        className={`h-4 w-4 shrink-0 text-[color:var(--booking-fg-muted)] transition-transform ${
+                          hoursOpen ? 'rotate-180' : ''
+                        }`}
+                        aria-hidden
+                      />
+                    </button>
+                    <AnimatePresence initial={false}>
+                      {hoursOpen && (
+                        <motion.ul
+                          id="employee-profile-hours"
+                          className="overflow-hidden text-sm"
+                          initial={{ height: 0, opacity: 0 }}
+                          animate={{ height: 'auto', opacity: 1 }}
+                          exit={{ height: 0, opacity: 0 }}
+                          transition={{ duration: 0.2 }}
                         >
-                          <span>
-                            {DAY_NAMES[d]}
-                            {d === today ? ' · hoy' : ''}
-                          </span>
-                          <span className="text-right">{hoursLabel(byDay.get(d))}</span>
-                        </li>
-                      ))}
-                    </ul>
+                          {DAY_ORDER.map((d, i) => (
+                            <li
+                              key={d}
+                              className={`flex justify-between gap-4 rounded-lg px-3 py-1.5 ${i === 0 ? 'mt-2' : 'mt-1'} ${
+                                d === today
+                                  ? 'bg-[color:var(--booking-control-bg)] font-medium text-[color:var(--booking-fg)]'
+                                  : 'text-[color:var(--booking-fg-muted)]'
+                              }`}
+                            >
+                              <span>
+                                {DAY_NAMES[d]}
+                                {d === today ? ' · hoy' : ''}
+                              </span>
+                              <span className="text-right">{hoursLabel(byDay.get(d))}</span>
+                            </li>
+                          ))}
+                        </motion.ul>
+                      )}
+                    </AnimatePresence>
                   </section>
                 )}
               </div>
-            </div>
+            </motion.div>
           </motion.div>
         </motion.div>
       )}
