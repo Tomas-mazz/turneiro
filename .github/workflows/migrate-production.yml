@@ -62,7 +62,10 @@ jobs:
         if: steps.status.outputs.pending == 'true'
         run: |
           # pg_dump must be at least the server's major version (Supabase runs Postgres 17).
-          sudo apt-get update -qq && sudo apt-get install -y -qq postgresql-client-17
+          # Ubuntu's own repo only ships 16, so add the official PostgreSQL apt repo first.
+          sudo apt-get update -qq && sudo apt-get install -y -qq postgresql-common
+          sudo /usr/share/postgresql-common/pgdg/apt.postgresql.org.sh -y
+          sudo apt-get install -y -qq postgresql-client-17
           /usr/lib/postgresql/17/bin/pg_dump "$DIRECT_URL" --format=custom --no-owner --schema=public --file "$RUNNER_TEMP/prod-backup.dump"
 
       - uses: actions/upload-artifact@v4
