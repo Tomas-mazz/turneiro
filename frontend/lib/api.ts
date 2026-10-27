@@ -333,6 +333,7 @@ export async function updateOwnerEmployee(
     staffEmail?: string
     staffPassword?: string
     ownerCalendarColorId?: string | null
+    bio?: string | null
   }
 ): Promise<OwnerEmployeeListItem> {
   const { data } = await api.patch<OwnerEmployeeListItem>(`/businesses/employees/${employeeId}`, body)
@@ -791,6 +792,7 @@ export interface BusinessImages {
   coverVideo: string | null
   coverPhotoMobile: string | null
   coverVideoMobile: string | null
+  galleryImages: string[]
 }
 
 export async function getBusinessImages(): Promise<BusinessImages> {
@@ -804,8 +806,32 @@ export async function updateBusinessImages(body: {
   coverVideo?: string | null
   coverPhotoMobile?: string | null
   coverVideoMobile?: string | null
+  galleryImages?: string[]
 }): Promise<BusinessImages> {
   const { data } = await api.patch<BusinessImages>('/businesses/images', body)
+  return data
+}
+
+/** Public info of the business shown on the booking page (contact and social links). */
+export type BusinessInfo = {
+  name: string
+  description: string | null
+  phone: string | null
+  address: string | null
+  whatsapp: string | null
+  instagram: string | null
+  facebook: string | null
+  mapsUrl: string | null
+  googleReviewsUrl: string | null
+}
+
+export async function getBusinessInfo(): Promise<BusinessInfo> {
+  const { data } = await api.get<BusinessInfo>('/businesses/info')
+  return data
+}
+
+export async function updateBusinessInfo(body: Partial<BusinessInfo>): Promise<BusinessInfo> {
+  const { data } = await api.patch<BusinessInfo>('/businesses/info', body)
   return data
 }
 

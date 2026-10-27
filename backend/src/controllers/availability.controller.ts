@@ -53,11 +53,12 @@ export async function getAvailability(req: Request, res: Response, next: NextFun
 
 export async function getWeekAvailability(req: Request, res: Response, next: NextFunction) {
   try {
-    const { businessSlug, serviceId, serviceIds, startDate: startDateStr } = req.query as {
+    const { businessSlug, serviceId, serviceIds, startDate: startDateStr, employeeId } = req.query as {
       businessSlug?: string
       serviceId?: string
       serviceIds?: string
       startDate?: string
+      employeeId?: string
     }
     const hasSingle = !!serviceId?.trim()
     const hasMany = !!serviceIds?.trim()
@@ -86,7 +87,8 @@ export async function getWeekAvailability(req: Request, res: Response, next: Nex
     const week = await getWeekAvailabilityService(
       businessSlug.trim(),
       serviceParam,
-      startDate
+      startDate,
+      employeeId?.trim() || undefined
     )
     res.json({ week })
   } catch (err) {

@@ -471,16 +471,76 @@ export const updateOwnerEmployeeSchema = z
     staffEmail: z.union([z.string().email(), z.literal('')]).optional(),
     staffPassword: z.union([z.string().min(6), z.literal('')]).optional(),
     ownerCalendarColorId: optionalColorId,
+    bio: z.string().max(160, 'Máximo 160 caracteres').nullable().optional(),
   })
   .refine(
     (data) =>
       data.name !== undefined ||
       data.photoUrl !== undefined ||
+      data.bio !== undefined ||
       data.staffEmail !== undefined ||
       data.staffPassword !== undefined ||
       data.ownerCalendarColorId !== undefined,
     { message: 'Debe enviar al menos un campo para actualizar' }
   )
+
+/** Trims strings and turns '' into null, so clearing a field in the dashboard removes it. */
+const emptyToNull = (v: unknown) => {
+  if (typeof v !== 'string') return v
+  const t = v.trim()
+  return t === '' ? null : t
+}
+
+const nullableText = (max: number) => z.preprocess(emptyToNull, z.string().max(max).nullable()).optional()
+
+const nullableHttpUrl = z
+  .preprocess(
+    emptyToNull,
+    z
+      .string()
+      .max(500)
+      .url('Debe ser un link válido (https://...)')
+      .refine((s) => /^https?:\/\//i.test(s), 'Debe empezar con https://')
+      .nullable(),
+  )
+  .optional()
+
+/** Accepts "5493511234567", "+54 9 351 123-4567" or a wa.me link; stores digits only. */
+const whatsappNumber = z
+  .preprocess((v) => {
+    const t = emptyToNull(v)
+    return typeof t === 'string' ? t.replace(/^https?:\/\/(?:api\.)?wa\.me\//i, '').replace(/\D/g, '') : t
+  }, z.string().regex(/^\d{8,15}$/, 'WhatsApp: ingresá el número con código de país, ej. 5493511234567').nullable())
+  .optional()
+
+/** Accepts "barberia", "@barberia" or an instagram.com link; stores the handle. */
+const instagramHandle = z
+  .preprocess((v) => {
+    const t = emptyToNull(v)
+    if (typeof t !== 'string') return t
+    return t
+      .replace(/^https?:\/\/(?:www\.)?instagram\.com\//i, '')
+      .replace(/^@/, '')
+      .replace(/[/?#].*$/, '')
+  }, z.string().regex(/^[A-Za-z0-9._]{1,30}$/, 'Instagram: ingresá tu usuario, ej. @tubarberia').nullable())
+  .optional()
+
+/** Fields a business owner can edit about their public page. */
+export const updateBusinessInfoSchema = z
+  .object({
+    name: z.preprocess(emptyToNull, z.string().min(1, 'El nombre es obligatorio').max(200)).optional(),
+    description: nullableText(1000),
+    phone: nullableText(50),
+    address: nullableText(300),
+    whatsapp: whatsappNumber,
+    instagram: instagramHandle,
+    facebook: nullableHttpUrl,
+    mapsUrl: nullableHttpUrl,
+    googleReviewsUrl: nullableHttpUrl,
+  })
+  .strict()
+
+export type UpdateBusinessInfoInput = z.infer<typeof updateBusinessInfoSchema>
 
 export type CreateOwnerEmployeeInput = z.infer<typeof createOwnerEmployeeSchema>
 export type UpdateOwnerEmployeeInput = z.infer<typeof updateOwnerEmployeeSchema>

@@ -5,6 +5,8 @@ import {
   getMyBusinessService,
   getBusinessImagesService,
   updateBusinessImagesService,
+  getBusinessInfoService,
+  updateBusinessInfoService,
   getBusinessSettingsService,
   updateBusinessSettingsService,
 } from '../services/businesses.service'
@@ -138,6 +140,33 @@ export async function updateMyProfile(req: AuthRequest, res: Response, next: Nex
   }
 }
 
+export async function getBusinessInfo(req: AuthRequest, res: Response, next: NextFunction) {
+  try {
+    const ctx = getBusinessContextOrRespond(req, res)
+    if (!ctx) return
+    const info = await getBusinessInfoService(ctx.businessId)
+    if (!info) {
+      res.status(404).json({ error: 'Negocio no encontrado' })
+      return
+    }
+    res.json(info)
+  } catch (err) {
+    next(err)
+  }
+}
+
+/** Body is validated and normalized by updateBusinessInfoSchema in the route. */
+export async function updateBusinessInfo(req: AuthRequest, res: Response, next: NextFunction) {
+  try {
+    const ctx = getBusinessContextOrRespond(req, res)
+    if (!ctx) return
+    const updated = await updateBusinessInfoService(ctx.businessId, req.body)
+    res.json(updated)
+  } catch (err) {
+    next(err)
+  }
+}
+
 export async function getBusinessImages(req: AuthRequest, res: Response, next: NextFunction) {
   try {
     const ctx = getBusinessContextOrRespond(req, res)
@@ -159,13 +188,14 @@ export async function updateBusinessImages(req: AuthRequest, res: Response, next
     const ctx = getBusinessContextOrRespond(req, res)
     if (!ctx) return
     const { businessId } = ctx
-    const { logo, coverPhoto, coverVideo, coverPhotoMobile, coverVideoMobile } = req.body
+    const { logo, coverPhoto, coverVideo, coverPhotoMobile, coverVideoMobile, galleryImages } = req.body
     const updated = await updateBusinessImagesService(businessId, {
       logo,
       coverPhoto,
       coverVideo,
       coverPhotoMobile,
       coverVideoMobile,
+      galleryImages,
     })
     res.json(updated)
   } catch (err) {

@@ -175,6 +175,7 @@ export interface OwnerEmployeeListItem {
   isOwner: boolean
   staffEmail: string | null
   ownerCalendarColorId: string | null
+  bio?: string | null
 }
 
 export type EmployeeServiceDurationItem = {

@@ -34,7 +34,8 @@ export function capabilitiesForCategory(category: string | null | undefined): In
   if (c === 'barbershop') {
     return {
       allowSubServices: false,
-      allowBrandingAdvanced: false,
+      // Each shop needs its own look on the public page (brand color, backgrounds).
+      allowBrandingAdvanced: true,
       allowServiceAddOns: false,
     }
   }

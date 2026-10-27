@@ -1,4 +1,22 @@
-import type { ServiceOption } from './types'
+import type { Business, Employee, ServiceOption } from './types'
+
+/**
+ * Services (and subservices) a professional does: drops the ones blocked by their restrictions,
+ * and parents whose subservices are all blocked.
+ */
+export function servicesForEmployee(services: Business['services'], employee: Employee): Business['services'] {
+  const restrictions = employee.serviceRestrictions ?? []
+  if (restrictions.length === 0) return services
+  const blockedServices = new Set(restrictions.map((r) => r.serviceId).filter(Boolean))
+  const blockedSubServices = new Set(restrictions.map((r) => r.subServiceId).filter(Boolean))
+  return services.flatMap((s) => {
+    if (blockedServices.has(s.id)) return []
+    const subs = s.subServices ?? []
+    if (subs.length === 0) return [s]
+    const allowed = subs.filter((sub) => !blockedSubServices.has(sub.id))
+    return allowed.length > 0 ? [{ ...s, subServices: allowed }] : []
+  })
+}
 
 /** Base service/subservicio price plus optional adicionales. */
 export function serviceOptionTotalPrice(s: ServiceOption): number {

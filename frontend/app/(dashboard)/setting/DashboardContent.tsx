@@ -216,6 +216,7 @@ export function DashboardContent({ section = 'all' }: { section?: DashboardSecti
         staffEmail: string
         staffPassword: string
         ownerCalendarColorId: string
+        bio: string
       }>
     >
   >({})
@@ -722,6 +723,7 @@ export function DashboardContent({ section = 'all' }: { section?: DashboardSecti
     if (changes.photoUrl !== undefined) payload.photoUrl = changes.photoUrl.trim() || null
     if (changes.staffEmail !== undefined) payload.staffEmail = changes.staffEmail.trim()
     if (changes.staffPassword !== undefined) payload.staffPassword = changes.staffPassword
+    if (changes.bio !== undefined) payload.bio = changes.bio.trim() || null
     if (changes.ownerCalendarColorId !== undefined) {
       payload.ownerCalendarColorId = changes.ownerCalendarColorId || null
     }

@@ -15,7 +15,6 @@ Short backlog of **ideas**. Not commitments, not implementation plans, not UI sp
 
 ## Engineering ideas
 
-- Automated tests around `getAvailabilityService` (hours, lunch, blocks, appointments, interval changes)
 - Keep extracting oversized admin/dashboard pages only when touching them
 - Move industry definitions from code map → DB when the category set grows
 

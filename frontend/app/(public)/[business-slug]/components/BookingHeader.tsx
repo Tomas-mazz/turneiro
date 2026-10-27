@@ -17,6 +17,10 @@ type BookingHeaderProps = {
   onOpenRegister?: () => void
   user?: AuthUser | null
   onLogout?: () => void
+  /** Hide the name next to the logo (the one-page booking shows it in the cover instead). */
+  showBusinessName?: boolean
+  /** Transparent header floating over the cover photo (white text, glass buttons). */
+  overlay?: boolean
 }
 
 const headerControlBtn =
@@ -64,7 +68,12 @@ export function BookingHeader({
   onOpenRegister,
   user = null,
   onLogout,
+  showBusinessName = true,
+  overlay = false,
 }: BookingHeaderProps) {
+  const controlBtn = overlay
+    ? 'border border-white/25 bg-white/15 text-white backdrop-blur-md hover:bg-white/25'
+    : headerControlBtn
   const params = useParams()
   const router = useRouter()
   const storeSlug =
@@ -72,7 +81,7 @@ export function BookingHeader({
   const [authMenuOpen, setAuthMenuOpen] = useState(false)
   const authMenuRef = useRef<HTMLDivElement>(null)
   const displayName = useTypewriter(businessName)
-  const btnClass = `rounded-xl transition-all duration-300 ease-out h-10 sm:h-11 px-3 sm:px-4 text-sm font-medium shrink-0 ${headerControlBtn} ${headerFocusRing}`
+  const btnClass = `rounded-xl transition-all duration-300 ease-out h-10 sm:h-11 px-3 sm:px-4 text-sm font-medium shrink-0 ${controlBtn} ${headerFocusRing}`
 
   const isStaffOrOwner = user?.role === 'OWNER' || user?.role === 'STAFF'
   const displayUserName = user?.name?.trim() || user?.email || 'Usuario'
@@ -112,7 +121,9 @@ export function BookingHeader({
   const showGuestAuth = !user && (onOpenLogin ?? onOpenRegister)
 
   return (
-    <header className="w-full border-b border-[color:var(--booking-border)] py-4 md:py-6">
+    <header
+      className={overlay ? 'w-full py-4 md:py-5' : 'w-full border-b border-[color:var(--booking-border)] py-4 md:py-6'}
+    >
       <div className="mx-auto flex max-w-4xl items-center justify-between gap-3 px-4 md:px-6 lg:max-w-6xl lg:px-8">
         <button
           type="button"
@@ -127,10 +138,12 @@ export function BookingHeader({
               className="h-10 w-10 shrink-0 rounded-full object-cover md:h-12 md:w-12"
             />
           )}
-          <span className="truncate text-2xl font-bold text-[color:var(--booking-fg)] md:text-3xl">
-            {displayName}
-            <span className="animate-pulse">|</span>
-          </span>
+          {showBusinessName && (
+            <span className="truncate text-2xl font-bold text-[color:var(--booking-fg)] md:text-3xl">
+              {displayName}
+              <span className="animate-pulse">|</span>
+            </span>
+          )}
         </button>
         <div className="flex items-center gap-2 sm:gap-3">
           {/* Logged-in: user name + role and dropdown */}
@@ -139,7 +152,7 @@ export function BookingHeader({
               <button
                 type="button"
                 onClick={() => setAuthMenuOpen((o) => !o)}
-                className={`flex items-center justify-center gap-2 rounded-xl transition-all duration-300 ease-out h-10 w-10 shrink-0 md:h-11 md:w-auto md:min-w-0 md:max-w-[12rem] md:px-3 md:justify-start lg:max-w-[14rem] lg:px-4 text-sm font-medium ${headerControlBtn} ${headerFocusRing}`}
+                className={`flex items-center justify-center gap-2 rounded-xl transition-all duration-300 ease-out h-10 w-10 shrink-0 md:h-11 md:w-auto md:min-w-0 md:max-w-[12rem] md:px-3 md:justify-start lg:max-w-[14rem] lg:px-4 text-sm font-medium ${controlBtn} ${headerFocusRing}`}
                 aria-label="Menú de cuenta"
                 aria-expanded={authMenuOpen}
               >
@@ -232,7 +245,7 @@ export function BookingHeader({
               <button
                 type="button"
                 onClick={() => setAuthMenuOpen((o) => !o)}
-                className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl transition-all duration-300 ease-out sm:h-11 sm:w-11 ${headerControlBtn} ${headerFocusRing}`}
+                className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl transition-all duration-300 ease-out sm:h-11 sm:w-11 ${controlBtn} ${headerFocusRing}`}
                 aria-label="Cuenta"
                 aria-expanded={authMenuOpen}
               >
@@ -282,7 +295,7 @@ export function BookingHeader({
             <button
               type="button"
               onClick={onToggleTheme}
-              className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl transition-all duration-300 ease-out sm:h-11 sm:w-11 ${headerControlBtn} ${headerFocusRing}`}
+              className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl transition-all duration-300 ease-out sm:h-11 sm:w-11 ${controlBtn} ${headerFocusRing}`}
               aria-label={isDarkTheme ? 'Cambiar a modo claro' : 'Cambiar a modo oscuro'}
               title={isDarkTheme ? 'Modo oscuro' : 'Modo claro'}
             >

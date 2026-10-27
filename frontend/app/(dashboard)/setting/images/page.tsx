@@ -8,6 +8,9 @@ import type { BusinessImages } from '@/lib/api'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
 import { useBusinessLogo } from '@/lib/businessLogoContext'
 
+/** Same limit as the API (businesses.service MAX_GALLERY_IMAGES). */
+const MAX_GALLERY_IMAGES = 12
+
 export default function ImagesPage() {
   const router = useRouter()
   const businessLogo = useBusinessLogo()
@@ -22,6 +25,9 @@ export default function ImagesPage() {
   const [coverVideo, setCoverVideo] = useState<string | null>(null)
   const [coverPhotoMobile, setCoverPhotoMobile] = useState<string | null>(null)
   const [coverVideoMobile, setCoverVideoMobile] = useState<string | null>(null)
+  const [galleryImages, setGalleryImages] = useState<string[]>([])
+  const [galleryUploading, setGalleryUploading] = useState(false)
+  const [galleryUploadError, setGalleryUploadError] = useState<string | null>(null)
 
   const [logoUploading, setLogoUploading] = useState(false)
   const [logoUploadError, setLogoUploadError] = useState<string | null>(null)
@@ -49,6 +55,7 @@ export default function ImagesPage() {
         setCoverVideo(img.coverVideo)
         setCoverPhotoMobile(img.coverPhotoMobile)
         setCoverVideoMobile(img.coverVideoMobile)
+        setGalleryImages(img.galleryImages ?? [])
       })
       .catch((err) => {
         const msg = err?.response?.data?.error || 'Error al cargar las imágenes'
@@ -56,6 +63,35 @@ export default function ImagesPage() {
       })
       .finally(() => setLoading(false))
   }, [router])
+
+  const handleGalleryUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files ?? [])
+    e.target.value = ''
+    if (files.length === 0) return
+    if (files.some((f) => !f.type.startsWith('image/'))) {
+      setGalleryUploadError('Solo se permiten imágenes')
+      return
+    }
+    const room = MAX_GALLERY_IMAGES - galleryImages.length
+    if (room <= 0) {
+      setGalleryUploadError(`Máximo ${MAX_GALLERY_IMAGES} fotos`)
+      return
+    }
+    setGalleryUploadError(files.length > room ? `Solo se agregaron ${room} (máximo ${MAX_GALLERY_IMAGES})` : null)
+    setGalleryUploading(true)
+    try {
+      const uploaded: string[] = []
+      for (const file of files.slice(0, room)) {
+        const { url } = await uploadAdminFile(file)
+        uploaded.push(url)
+      }
+      setGalleryImages((prev) => [...prev, ...uploaded].slice(0, MAX_GALLERY_IMAGES))
+    } catch {
+      setGalleryUploadError('Error al subir el archivo')
+    } finally {
+      setGalleryUploading(false)
+    }
+  }
 
   const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
@@ -134,8 +170,10 @@ export default function ImagesPage() {
         coverVideo,
         coverPhotoMobile,
         coverVideoMobile,
+        galleryImages,
       })
       setImages(updated)
+      setGalleryImages(updated.galleryImages ?? [])
       setLogo(updated.logo)
       setCoverPhoto(updated.coverPhoto)
       setCoverVideo(updated.coverVideo)
@@ -311,6 +349,44 @@ export default function ImagesPage() {
           />
           {mobileUploading && <p className="mt-1 text-sm text-neutral-500">Subiendo...</p>}
           {mobileUploadError && <p className="mt-1 text-sm text-red-600">{mobileUploadError}</p>}
+        </div>
+
+        <div>
+          <label className="mb-1 block text-sm font-medium text-neutral-700">
+            Nuestros trabajos ({galleryImages.length}/{MAX_GALLERY_IMAGES})
+          </label>
+          <p className="mb-3 text-xs text-neutral-500">
+            Fotos de cortes y trabajos que se muestran en tu página de reservas.
+          </p>
+          {galleryImages.length > 0 && (
+            <ul className="mb-3 grid grid-cols-3 gap-2">
+              {galleryImages.map((url, i) => (
+                <li key={url} className="group relative aspect-square overflow-hidden rounded-lg border border-neutral-200">
+                  <img src={url} alt={`Trabajo ${i + 1}`} className="h-full w-full object-cover" />
+                  <button
+                    type="button"
+                    onClick={() => setGalleryImages((prev) => prev.filter((u) => u !== url))}
+                    className="absolute right-1 top-1 flex h-7 w-7 items-center justify-center rounded-full bg-black/60 text-white hover:bg-black/80"
+                    aria-label={`Quitar foto ${i + 1}`}
+                  >
+                    ×
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+          {galleryImages.length < MAX_GALLERY_IMAGES && (
+            <input
+              type="file"
+              accept="image/*"
+              multiple
+              onChange={handleGalleryUpload}
+              disabled={galleryUploading}
+              className="block w-full text-sm text-neutral-600 file:mr-3 file:rounded-lg file:border-0 file:bg-neutral-100 file:px-4 file:py-2 file:text-sm file:font-medium file:text-neutral-700 hover:file:bg-neutral-200"
+            />
+          )}
+          {galleryUploading && <p className="mt-1 text-sm text-neutral-500">Subiendo...</p>}
+          {galleryUploadError && <p className="mt-1 text-sm text-red-600">{galleryUploadError}</p>}
         </div>
 
         {error && (

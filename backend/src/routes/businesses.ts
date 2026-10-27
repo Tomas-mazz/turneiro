@@ -9,12 +9,15 @@ import {
   updateBusinessImages,
   getBusinessSettings,
   updateBusinessSettings,
+  getBusinessInfo,
+  updateBusinessInfo,
 } from '../controllers/businesses.controller'
 import { requireBusinessOwner, requireOwnerOrAdminActing } from '../middleware/auth'
 import { requireBusinessContext } from '../middleware/businessContext'
 import { validateRequest } from '../middleware/validation'
 import {
   createOwnerEmployeeSchema,
+  updateBusinessInfoSchema,
   updateOwnerCalendarColorSchema,
   updateOwnerEmployeeSchema,
 } from '../lib/schemas'
@@ -47,6 +50,15 @@ router.patch('/images', requireOwnerOrAdminActing, requireBusinessContext, updat
 
 router.get('/settings', requireOwnerOrAdminActing, requireBusinessContext, getBusinessSettings)
 router.patch('/settings', requireOwnerOrAdminActing, requireBusinessContext, updateBusinessSettings)
+
+router.get('/info', requireOwnerOrAdminActing, requireBusinessContext, getBusinessInfo)
+router.patch(
+  '/info',
+  requireOwnerOrAdminActing,
+  requireBusinessContext,
+  validateRequest(updateBusinessInfoSchema),
+  updateBusinessInfo
+)
 
 // Owner dashboard: employees CRUD (OWNER or ADMIN acting as shop)
 router.get('/employees', requireOwnerOrAdminActing, requireBusinessContext, listOwnerEmployees)

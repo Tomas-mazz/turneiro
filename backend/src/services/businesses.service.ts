@@ -4,6 +4,7 @@ import type { Prisma } from '@prisma/client'
 import { ensureOwnerEmployee } from './ownerEmployee.service'
 import { getBusinessCapabilities, type IndustryCapabilities } from '../lib/industryCapabilities'
 import { attachPublicEstimatedDurations } from './publicEstimatedDurations.service'
+import type { UpdateBusinessInfoInput } from '../lib/schemas'
 
 export interface MyBusinessInfo {
   name: string
@@ -90,11 +91,15 @@ export async function getBusinessBySlugService(slug: string) {
         },
       },
       employees: {
+        orderBy: [{ isOwner: 'desc' }, { createdAt: 'asc' }],
         select: {
           id: true,
           name: true,
           photoUrl: true,
+          bio: true,
           isOwner: true,
+          // Services the employee does NOT do; the booking page lists the rest on their profile.
+          serviceRestrictions: { select: { serviceId: true, subServiceId: true } },
         },
       },
     },
@@ -689,12 +694,59 @@ export async function deleteBusinessForAdmin(businessId: string): Promise<void> 
   })
 }
 
+const BUSINESS_INFO_SELECT = {
+  name: true,
+  description: true,
+  phone: true,
+  address: true,
+  whatsapp: true,
+  instagram: true,
+  facebook: true,
+  mapsUrl: true,
+  googleReviewsUrl: true,
+} as const
+
+export async function getBusinessInfoService(businessId: string) {
+  return prisma.business.findUnique({ where: { id: businessId }, select: BUSINESS_INFO_SELECT })
+}
+
+/** Fields are already trimmed/normalized by updateBusinessInfoSchema; undefined means "leave as is". */
+export async function updateBusinessInfoService(businessId: string, data: UpdateBusinessInfoInput) {
+  return prisma.business.update({
+    where: { id: businessId },
+    data,
+    select: BUSINESS_INFO_SELECT,
+  })
+}
+
 export interface BusinessImages {
   logo: string | null
   coverPhoto: string | null
   coverVideo: string | null
   coverPhotoMobile: string | null
   coverVideoMobile: string | null
+  galleryImages: string[]
+}
+
+const BUSINESS_IMAGES_SELECT = {
+  logo: true,
+  coverPhoto: true,
+  coverVideo: true,
+  coverPhotoMobile: true,
+  coverVideoMobile: true,
+  galleryImages: true,
+} as const
+
+export const MAX_GALLERY_IMAGES = 12
+
+/** Keeps unique http(s) URLs, in order, up to MAX_GALLERY_IMAGES. */
+function sanitizeGalleryImages(input: unknown): string[] {
+  if (!Array.isArray(input)) return []
+  const urls = input
+    .filter((u): u is string => typeof u === 'string')
+    .map((u) => u.trim())
+    .filter((u) => /^https?:\/\//i.test(u) && u.length <= 1000)
+  return Array.from(new Set(urls)).slice(0, MAX_GALLERY_IMAGES)
 }
 
 export async function getBusinessImagesService(
@@ -702,13 +754,7 @@ export async function getBusinessImagesService(
 ): Promise<BusinessImages | null> {
   const business = await prisma.business.findUnique({
     where: { id: businessId },
-    select: {
-      logo: true,
-      coverPhoto: true,
-      coverVideo: true,
-      coverPhotoMobile: true,
-      coverVideoMobile: true,
-    },
+    select: BUSINESS_IMAGES_SELECT,
   })
   return business
 }
@@ -719,6 +765,7 @@ export interface UpdateBusinessImagesInput {
   coverVideo?: string | null
   coverPhotoMobile?: string | null
   coverVideoMobile?: string | null
+  galleryImages?: unknown
 }
 
 export async function updateBusinessImagesService(
@@ -739,14 +786,9 @@ export async function updateBusinessImagesService(
       ...(data.coverVideo !== undefined && { coverVideo: data.coverVideo?.trim() || null }),
       ...(data.coverPhotoMobile !== undefined && { coverPhotoMobile: data.coverPhotoMobile?.trim() || null }),
       ...(data.coverVideoMobile !== undefined && { coverVideoMobile: data.coverVideoMobile?.trim() || null }),
+      ...(data.galleryImages !== undefined && { galleryImages: sanitizeGalleryImages(data.galleryImages) }),
     },
-    select: {
-      logo: true,
-      coverPhoto: true,
-      coverVideo: true,
-      coverPhotoMobile: true,
-      coverVideoMobile: true,
-    },
+    select: BUSINESS_IMAGES_SELECT,
   })
   return updated
 }

@@ -14,6 +14,8 @@ Product and technical choices that should survive UI refactors. Update this file
 8. **STAFF scope:** Staff only manage **their** appointments (and related blocks/calendar). Owners manage the whole shop. Backend must enforce.
 9. **Seller scope:** Sellers only touch businesses they created (`createdBySellerId` or equivalent).
 10. **Marketing access:** Landing “Solicitar acceso” is sales-led (email contact), not open self-serve OWNER signup.
+11. **Client picks the professional:** With more than one employee, the client must choose who does the job before picking a service; there is no "anyone" option and no random/automatic assignment (it would push bookings onto some barbers). Services shown are the ones that professional does (`EmployeeServiceRestriction`), and availability is that professional's only. With a single employee the step is skipped.
+12. **Business public info is owner-editable:** Owners edit name, description, phone, address and social links (WhatsApp, Instagram, Facebook, Maps, Google reviews) from the dashboard; empty fields are hidden on the public page.
 
 ## Technical rules
 

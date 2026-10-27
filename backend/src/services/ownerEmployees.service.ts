@@ -16,6 +16,7 @@ export type OwnerEmployeeListItem = {
   isOwner: boolean
   staffEmail: string | null
   ownerCalendarColorId: string | null
+  bio: string | null
 }
 
 export class OwnerEmployeeNotFoundError extends Error {
@@ -52,6 +53,7 @@ export async function listOwnerEmployeesService(params: {
       id: true,
       name: true,
       photoUrl: true,
+      bio: true,
       isOwner: true,
       ownerCalendarColorId: true,
       user: { select: { email: true } },
@@ -65,6 +67,7 @@ export async function listOwnerEmployeesService(params: {
     isOwner: e.isOwner,
     staffEmail: e.user?.email ?? null,
     ownerCalendarColorId: e.ownerCalendarColorId ?? null,
+    bio: e.bio ?? null,
   }))
 }
 
@@ -161,6 +164,7 @@ export async function createOwnerEmployeeService(params: {
         id: true,
         name: true,
         photoUrl: true,
+        bio: true,
         isOwner: true,
         ownerCalendarColorId: true,
         user: { select: { email: true } },
@@ -177,6 +181,7 @@ export async function createOwnerEmployeeService(params: {
     isOwner: created.isOwner,
     staffEmail: created.user?.email ?? null,
     ownerCalendarColorId: created.ownerCalendarColorId ?? null,
+    bio: created.bio ?? null,
   }
 }
 
@@ -186,10 +191,12 @@ export async function updateOwnerEmployeeService(params: {
   name?: string
   photoUrl?: string | null
   ownerCalendarColorId?: string | null
+  bio?: string | null
   staffEmail?: string
   staffPassword?: string
 }): Promise<OwnerEmployeeListItem> {
-  const { businessId, employeeId, name, photoUrl, ownerCalendarColorId, staffEmail, staffPassword } = params
+  const { businessId, employeeId, name, photoUrl, ownerCalendarColorId, bio, staffEmail, staffPassword } = params
+  const bioData = bio !== undefined ? { bio: bio?.trim() || null } : {}
 
   const updated = await prisma.$transaction(async (tx) => {
     const existing = await tx.employee.findFirst({
@@ -208,11 +215,13 @@ export async function updateOwnerEmployeeService(params: {
           ...(ownerCalendarColorId !== undefined && {
             ownerCalendarColorId: ownerCalendarColorId?.trim() ? ownerCalendarColorId.trim() : null,
           }),
+          ...bioData,
         },
         select: {
           id: true,
           name: true,
           photoUrl: true,
+          bio: true,
           isOwner: true,
           ownerCalendarColorId: true,
           user: { select: { email: true } },
@@ -279,11 +288,13 @@ export async function updateOwnerEmployeeService(params: {
           ownerCalendarColorId: ownerCalendarColorId?.trim() ? ownerCalendarColorId.trim() : null,
         }),
         ...(existing.userId && !existing.isOwner ? {} : {}),
+        ...bioData,
       },
       select: {
         id: true,
         name: true,
         photoUrl: true,
+        bio: true,
         isOwner: true,
         ownerCalendarColorId: true,
         user: { select: { email: true } },
@@ -312,6 +323,7 @@ export async function updateOwnerEmployeeService(params: {
     isOwner: updated.isOwner,
     staffEmail: updated.user?.email ?? null,
     ownerCalendarColorId: updated.ownerCalendarColorId ?? null,
+    bio: updated.bio ?? null,
   }
 }
 
