@@ -15,7 +15,7 @@ type TeamStripProps = {
 }
 
 const cardBase =
-  'relative flex w-[112px] shrink-0 snap-start flex-col overflow-hidden rounded-2xl border bg-[color:var(--booking-card-bg)] shadow-sm transition-colors md:w-[128px]'
+  'group relative flex w-[112px] shrink-0 snap-start flex-col overflow-hidden rounded-2xl border bg-[color:var(--booking-card-bg)] shadow-sm transition-[transform,box-shadow,border-color] duration-200 ease-out hover:-translate-y-1 hover:scale-[1.04] hover:shadow-xl motion-reduce:transform-none md:w-[128px]'
 
 /** Team picker: the client must choose who does the job before anything else. */
 export function TeamStrip({ employees, selectedEmployeeId, onSelect, onOpenProfile, title }: TeamStripProps) {
@@ -26,7 +26,7 @@ export function TeamStrip({ employees, selectedEmployeeId, onSelect, onOpenProfi
       <h2 id="team-title" className="mb-3 text-lg font-semibold text-[color:var(--booking-fg)] md:text-center md:text-xl">
         {title}
       </h2>
-      <div className="-mx-4 flex snap-x scroll-px-4 gap-3 overflow-x-auto px-4 pb-2 md:mx-0 md:flex-wrap md:justify-center md:overflow-visible md:px-0">
+      <div className="-mx-4 flex snap-x scroll-px-4 gap-3 overflow-x-auto px-4 pb-3 pt-2 md:mx-0 md:flex-wrap md:justify-center md:overflow-visible md:px-0">
         {employees.map((emp) => {
           const selected = selectedEmployeeId === emp.id
           return (
@@ -56,11 +56,13 @@ export function TeamStrip({ employees, selectedEmployeeId, onSelect, onOpenProfi
                       alt=""
                       width={128}
                       height={128}
-                      className="h-full w-full object-cover"
+                      className="h-full w-full object-cover transition-transform duration-300 ease-out group-hover:scale-110 motion-reduce:transform-none"
                       unoptimized
                     />
                   ) : (
-                    emp.name.charAt(0).toUpperCase()
+                    <span className="transition-transform duration-300 ease-out group-hover:scale-110 motion-reduce:transform-none">
+                      {emp.name.charAt(0).toUpperCase()}
+                    </span>
                   )}
                 </div>
                 <div className="px-3 pb-1 pt-2">
