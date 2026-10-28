@@ -73,7 +73,7 @@ export function BookingDone({
 
         <div className="mb-5 rounded-xl border border-[color:var(--booking-card-border,#262626)] px-4 py-3 text-sm">
           <p className="mb-1 font-medium">{appointment.serviceName}</p>
-          <p className="capitalize">{dateLabel}</p>
+          <p className="first-letter:uppercase">{dateLabel}</p>
           <p>{timeLabel} hs</p>
         </div>
 

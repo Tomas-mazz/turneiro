@@ -32,6 +32,35 @@ export const createAppointmentSchema = z.object({
 
 export type CreateAppointmentInput = z.infer<typeof createAppointmentSchema>
 
+/** Checkout step 1: hold the slot for a few minutes; the client fills in their details next. */
+export const holdAppointmentSchema = z.object({
+  businessSlug: z.string().min(1, 'El slug del negocio es obligatorio'),
+  serviceId: z.string().min(1).optional(),
+  serviceIds: z.array(z.string().min(1)).min(1).optional(),
+  date: z.string().regex(dateRegex, 'La fecha debe ser AAAA-MM-DD'),
+  slotTime: z.string().regex(timeRegex, 'El horario debe ser HH:MM'),
+  employeeId: z.string().cuid().optional().nullable(),
+  addOnIds: z.array(z.string().min(1)).optional(),
+}).refine((data) => !!data.serviceId?.trim() || (data.serviceIds?.length ?? 0) > 0, {
+  message: 'Debe enviar serviceId o serviceIds',
+  path: ['serviceId'],
+})
+
+export type HoldAppointmentInput = z.infer<typeof holdAppointmentSchema>
+
+/** Checkout step 2: the client's details and how they pay (online now, or at the shop). */
+export const completeCheckoutSchema = z.object({
+  cancellationToken: z.string().min(1),
+  clientName: z.string().trim().min(1, 'El nombre es obligatorio').max(100),
+  clientEmail: z.string().trim().email('Ingresá un email válido'),
+  clientPhone: z.string().trim().regex(phoneRegex, {
+    message: 'El teléfono debe ser internacional (+1234567890) o formato local',
+  }),
+  payAt: z.enum(['ONLINE', 'SHOP']),
+})
+
+export type CompleteCheckoutInput = z.infer<typeof completeCheckoutSchema>
+
 export const cancelAppointmentSchema = z.object({
   token: z.string().min(1, 'El token de cancelación es obligatorio'),
 })

@@ -6,7 +6,7 @@ import { prisma } from '../lib/prisma'
 import { getAvailabilityService } from './availability.service'
 import { resolveSelectionDurations } from './selectionDurations.service'
 import { employeeCanPerformSelections } from './employeeServiceRestrictions.service'
-import type { CreateAppointmentInput } from '../lib/schemas'
+import type { CompleteCheckoutInput, CreateAppointmentInput, HoldAppointmentInput } from '../lib/schemas'
 import * as mercadopagoService from './mercadopago.service'
 import * as googleCalendarService from './google-calendar.service'
 import {
@@ -37,6 +37,14 @@ interface PreloadedOwnerWithCalendar extends PreloadedOwner {
   id: string
   googleRefreshToken: string | null
   googleCalendarId: string | null
+}
+
+/** A checkout that can no longer be completed (expired hold, wrong token, payment rules). */
+export class CheckoutError extends Error {
+  constructor(message: string, public status: 400 | 404 | 410) {
+    super(message)
+    this.name = 'CheckoutError'
+  }
 }
 
 export class SlotUnavailableError extends Error {
@@ -731,12 +739,89 @@ export async function createAppointmentService(data: CreateAppointmentInput) {
     price: appointment.price,
     status: appointment.status,
     cancellationToken: appointment.cancellationToken,
+    paymentHoldExpiresAt: appointment.paymentHoldExpiresAt,
+  }
+}
+
+/**
+ * Checkout step 1: reserve the slot for PAYMENT_HOLD_MINUTES without the client's details.
+ * Held appointments are hidden from agendas and free the slot once the hold expires.
+ */
+export async function holdAppointmentForCheckoutService(data: HoldAppointmentInput) {
+  return createAppointmentService({
+    ...data,
+    clientName: '',
+    clientEmail: '',
+    clientPhone: '',
+    deferConfirmationUntilPayment: true,
+  })
+}
+
+/**
+ * Checkout step 2: save the client's details. Paying at the shop confirms the booking now
+ * (only when the business doesn't require payment); paying online keeps the hold until the
+ * payment is confirmed.
+ */
+export async function completeCheckoutService(appointmentId: string, input: CompleteCheckoutInput) {
+  const appointment = await prisma.appointment.findUnique({
+    where: { id: appointmentId },
+    include: { business: { include: { settings: true } } },
+  })
+  if (!appointment || appointment.cancellationToken !== input.cancellationToken) {
+    throw new CheckoutError('Reserva no encontrada', 404)
+  }
+  if (appointment.paymentStatus === 'PAID') {
+    throw new CheckoutError('Esta reserva ya está pagada', 400)
+  }
+  const holdExpired =
+    !appointment.paymentHoldExpiresAt || appointment.paymentHoldExpiresAt.getTime() <= Date.now()
+  if (appointment.status === 'CANCELLED' || holdExpired) {
+    throw new CheckoutError('Se terminó el tiempo para confirmar. Elegí el horario de nuevo.', 410)
+  }
+  if (input.payAt === 'SHOP' && appointment.business.settings?.paymentRequired) {
+    throw new CheckoutError('Este negocio pide pagar online para reservar', 400)
+  }
+
+  const updated = await prisma.appointment.update({
+    where: { id: appointmentId },
+    data: {
+      clientName: input.clientName,
+      clientEmail: input.clientEmail,
+      clientPhone: input.clientPhone,
+      // Paying at the shop: a regular unpaid booking (no hold), like the free flow.
+      ...(input.payAt === 'SHOP' ? { paymentHoldExpiresAt: null } : {}),
+    },
+  })
+  if (input.payAt === 'SHOP') await sendBookingConfirmationsService(appointmentId)
+
+  return {
+    id: updated.id,
+    startTime: updated.startTime,
+    endTime: updated.endTime,
+    serviceName: updated.serviceName,
+    price: updated.price,
+    status: updated.status,
+    cancellationToken: updated.cancellationToken,
+    paymentHoldExpiresAt: updated.paymentHoldExpiresAt,
   }
 }
 
 export async function finalizeAppointmentAfterPaymentService(
   appointmentId: string
 ): Promise<void> {
+  const appointment = await prisma.appointment.findUnique({
+    where: { id: appointmentId },
+    select: { paymentStatus: true },
+  })
+  if (appointment?.paymentStatus !== 'PAID') return
+  await sendBookingConfirmationsService(appointmentId)
+}
+
+/**
+ * Emails, Google Calendar and reminders for a confirmed booking whose confirmation was deferred
+ * (paid online, or chosen to pay at the shop). Skips what was already done.
+ */
+async function sendBookingConfirmationsService(appointmentId: string): Promise<void> {
   const appointment = await prisma.appointment.findUnique({
     where: { id: appointmentId },
     include: {
@@ -748,9 +833,7 @@ export async function finalizeAppointmentAfterPaymentService(
       },
     },
   })
-
   if (!appointment) return
-  if (appointment.paymentStatus !== 'PAID') return
 
   const preloadedOwner = await prisma.user.findFirst({
     where: { businessId: appointment.businessId, role: 'OWNER' },
@@ -793,7 +876,7 @@ export async function finalizeAppointmentAfterPaymentService(
       })
     } else {
       console.error(
-        'enqueueAppointmentJobs failed after payment for appointment',
+        'enqueueAppointmentJobs failed after confirming appointment',
         appointmentId
       )
     }
