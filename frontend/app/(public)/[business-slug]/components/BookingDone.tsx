@@ -4,7 +4,6 @@ import type { CreatedAppointment } from '../types'
 
 type BookingDoneProps = {
   appointment: CreatedAppointment
-  primaryColor: string
   businessName?: string
   businessAddress?: string | null
 }
@@ -33,7 +32,6 @@ const buildGoogleCalendarUrl = (
 
 export function BookingDone({
   appointment,
-  primaryColor,
   businessName,
   businessAddress,
 }: BookingDoneProps) {
@@ -50,6 +48,7 @@ export function BookingDone({
   const timeOptions: Intl.DateTimeFormatOptions = {
     hour: '2-digit',
     minute: '2-digit',
+    hourCycle: 'h23',
     timeZone: BOOKING_TIME_ZONE,
   }
   const timeLabel = `${start.toLocaleTimeString('es-AR', timeOptions)} – ${end.toLocaleTimeString(
@@ -58,39 +57,36 @@ export function BookingDone({
   )}`
 
   return (
-    <div className="w-full max-w-md text-neutral-50">
-      <div className="rounded-2xl border border-neutral-800 bg-neutral-900/95 px-6 py-8 shadow-lg sm:px-8 sm:py-10">
+    <div className="w-full max-w-md text-[color:var(--booking-fg,#fafafa)]">
+      <div className="rounded-2xl border border-[color:var(--booking-card-border,#262626)] bg-[color:var(--booking-card-bg,rgba(23,23,23,0.95))] px-6 py-8 shadow-lg sm:px-8 sm:py-10">
         <div className="mb-4 flex items-center gap-2">
           <div className="flex h-8 w-8 items-center justify-center rounded-full bg-emerald-500/15">
-            <span className="text-lg text-emerald-400">✓</span>
+            <span className="text-lg text-emerald-500">✓</span>
           </div>
-          <h2 className="text-xl sm:text-2xl font-semibold text-white">
-            Tu turno fue agendado
-          </h2>
+          <h2 className="text-xl font-semibold sm:text-2xl">Tu turno fue agendado</h2>
         </div>
 
-        <p className="mb-4 text-sm text-neutral-300 sm:text-base">
+        <p className="mb-4 text-sm text-[color:var(--booking-fg-muted,#d4d4d4)] sm:text-base">
           Te enviamos un correo con la confirmación de tu turno. Si no lo ves, revisá la carpeta de
           spam.
         </p>
 
-        <div className="mb-5 rounded-xl border border-neutral-800 bg-neutral-800/80 px-4 py-3 text-sm text-neutral-100">
+        <div className="mb-5 rounded-xl border border-[color:var(--booking-card-border,#262626)] px-4 py-3 text-sm">
           <p className="mb-1 font-medium">{appointment.serviceName}</p>
           <p className="capitalize">{dateLabel}</p>
-          <p>{timeLabel}</p>
+          <p>{timeLabel} hs</p>
         </div>
 
         <a
           href={buildGoogleCalendarUrl(appointment, businessName, businessAddress)}
           target="_blank"
           rel="noopener noreferrer"
-          className="inline-flex w-full items-center justify-center rounded-full px-5 py-3 text-sm font-semibold text-black shadow-sm transition hover:opacity-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-neutral-200 focus-visible:ring-offset-2 focus-visible:ring-offset-neutral-900"
-          style={{ backgroundColor: primaryColor }}
+          className="inline-flex w-full items-center justify-center rounded-full bg-[color:var(--booking-cta-bg,#3B82F6)] px-5 py-3 text-sm font-semibold text-[color:var(--booking-cta-fg,#ffffff)] shadow-sm transition hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--booking-cta-bg,#3B82F6)] focus-visible:ring-offset-2"
         >
           Agregar a Google Calendar
         </a>
 
-        <p className="mt-4 text-xs leading-relaxed text-neutral-400">
+        <p className="mt-4 text-xs leading-relaxed text-[color:var(--booking-fg-muted,#a3a3a3)]">
           En el correo de confirmación tenés el enlace para cancelar el turno si lo necesitás.
         </p>
       </div>
