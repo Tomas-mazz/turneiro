@@ -92,6 +92,8 @@ type WorkingHoursRow = {
   lunchEnd: string | null
 }
 
+type EmployeeWorkingHoursRow = WorkingHoursRow & { employeeId: string }
+
 type AppointmentRow = { startTime: Date; endTime: Date; employeeId?: string | null }
 
 type BlockedSlotRow = {
@@ -171,6 +173,35 @@ function computeDaySlots(input: {
     }
   }
   return Array.from(slotSet).sort()
+}
+
+/**
+ * Schedule of one agenda: the employee's own hours for the days they set,
+ * the business hours for the rest (and for the business-wide agenda).
+ */
+export function effectiveWorkingHours(
+  businessHours: WorkingHoursRow[],
+  employeeHours: WorkingHoursRow[]
+): WorkingHoursRow[] {
+  if (employeeHours.length === 0) return businessHours
+  const own = new Set(employeeHours.map((wh) => wh.dayOfWeek))
+  return [...employeeHours, ...businessHours.filter((wh) => !own.has(wh.dayOfWeek))]
+}
+
+async function loadEmployeeWorkingHours(employeeIds: string[]): Promise<EmployeeWorkingHoursRow[]> {
+  if (employeeIds.length === 0) return []
+  return prisma.employeeWorkingHours.findMany({
+    where: { employeeId: { in: employeeIds } },
+    select: {
+      employeeId: true,
+      dayOfWeek: true,
+      isClosed: true,
+      startTime: true,
+      endTime: true,
+      lunchStart: true,
+      lunchEnd: true,
+    },
+  })
 }
 
 async function loadBusinessForAvailability(businessSlug: string) {
@@ -258,9 +289,8 @@ async function loadBlockedSlots(businessId: string, fromDateStr: string, toDateS
 /**
  * Available time slots for a single day.
  *
- * Multi-employee model (post-MVP):
- * - Business working hours remain at business level.
- * - Each employee gets their own agenda.
+ * Multi-employee model:
+ * - Each employee gets their own agenda, with their own hours where set (business hours otherwise).
  * - If employeeId is provided, we only consider:
  *   - appointments for that employee (so other employees can book the same time)
  *   - blocked slots for that employee (plus global business-wide blocks with no employeeId)
@@ -286,7 +316,7 @@ export async function getAvailabilityService(
   if (duration == null) return []
 
   const { dayStart, dayEnd } = argentinaDayBounds(dateStr)
-  const [appointments, blockedSlots] = await Promise.all([
+  const [appointments, blockedSlots, employeeHours] = await Promise.all([
     loadBusyAppointments({
       businessId: business.id,
       from: dayStart,
@@ -294,11 +324,12 @@ export async function getAvailabilityService(
       employeeIds: employeeId ? [employeeId] : undefined,
     }),
     loadBlockedSlots(business.id, dateStr, dateStr),
+    loadEmployeeWorkingHours(employeeId ? [employeeId] : []),
   ])
 
   return computeDaySlots({
     dateStr,
-    workingHours: business.workingHours,
+    workingHours: effectiveWorkingHours(business.workingHours, employeeHours),
     slotInterval: slotIntervalOf(business),
     duration,
     appointments,
@@ -347,13 +378,20 @@ export async function getWeekAvailabilityService(
 
   const { dayStart: from } = argentinaDayBounds(dateStrs[0])
   const { dayEnd: to } = argentinaDayBounds(dateStrs[dateStrs.length - 1])
-  const [durations, appointments, blockedSlots] = await Promise.all([
+  const [durations, appointments, blockedSlots, employeeHours] = await Promise.all([
     Promise.all(agendas.map((employeeId) => selectionDurationFor(business.id, requestedIds, employeeId))),
     loadBusyAppointments({ businessId: business.id, from, to }),
     loadBlockedSlots(business.id, dateStrs[0], dateStrs[dateStrs.length - 1]),
+    loadEmployeeWorkingHours(employees.map((e) => e.id)),
   ])
 
   const slotInterval = slotIntervalOf(business)
+  const hoursByAgenda = agendas.map((employeeId) =>
+    effectiveWorkingHours(
+      business.workingHours,
+      employeeHours.filter((wh) => wh.employeeId === employeeId)
+    )
+  )
   return dateStrs.map((dateStr) => ({
     date: dateStr,
     hasSlots: agendas.some((employeeId, i) => {
@@ -362,7 +400,7 @@ export async function getWeekAvailabilityService(
       return (
         computeDaySlots({
           dateStr,
-          workingHours: business.workingHours,
+          workingHours: hoursByAgenda[i],
           slotInterval,
           duration,
           appointments: employeeId ? appointments.filter((a) => a.employeeId === employeeId) : appointments,
