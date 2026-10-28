@@ -2,6 +2,9 @@ import { Request, Response, NextFunction } from 'express'
 import { ZodError } from 'zod'
 import {
   createAppointmentService,
+  holdAppointmentForCheckoutService,
+  completeCheckoutService,
+  CheckoutError,
   cancelAppointmentService,
   getAppointmentsService,
   getAppointmentsByPhoneService,
@@ -12,6 +15,8 @@ import {
 } from '../services/appointments.service'
 import {
   createAppointmentSchema,
+  holdAppointmentSchema,
+  completeCheckoutSchema,
   cancelAppointmentSchema,
   ownerCancelAppointmentSchema,
 } from '../lib/schemas'
@@ -36,6 +41,38 @@ export async function createAppointment(
   } catch (err) {
     if (err instanceof SlotUnavailableError) {
       return res.status(409).json({ error: err.message })
+    }
+    next(err)
+  }
+}
+
+/** Checkout step 1: hold the slot while the client fills in their details and pays. */
+export async function holdAppointment(req: Request, res: Response, next: NextFunction) {
+  try {
+    const parsed = holdAppointmentSchema.safeParse(req.body)
+    if (!parsed.success) {
+      return res.status(400).json({ error: 'Error de validación', details: parsed.error.errors })
+    }
+    return res.status(201).json(await holdAppointmentForCheckoutService(parsed.data))
+  } catch (err) {
+    if (err instanceof SlotUnavailableError) {
+      return res.status(409).json({ error: err.message })
+    }
+    next(err)
+  }
+}
+
+/** Checkout step 2: client details + pay online or at the shop. */
+export async function completeCheckout(req: Request, res: Response, next: NextFunction) {
+  try {
+    const parsed = completeCheckoutSchema.safeParse(req.body)
+    if (!parsed.success) {
+      return res.status(400).json({ error: 'Error de validación', details: parsed.error.errors })
+    }
+    return res.json(await completeCheckoutService(req.params.id, parsed.data))
+  } catch (err) {
+    if (err instanceof CheckoutError) {
+      return res.status(err.status).json({ error: err.message })
     }
     next(err)
   }

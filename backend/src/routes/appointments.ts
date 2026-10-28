@@ -1,6 +1,8 @@
 import { Router } from 'express'
 import {
   createAppointment,
+  holdAppointment,
+  completeCheckout,
   getAppointments,
   getAppointmentLookup,
   cancelAppointment,
@@ -14,6 +16,8 @@ import { createAppointmentLimiter } from '../middleware/rateLimit'
 const router = Router()
 
 router.post('/', createAppointmentLimiter, createAppointment)
+router.post('/hold', createAppointmentLimiter, holdAppointment)
+router.post('/:id/checkout', createAppointmentLimiter, completeCheckout)
 router.post('/cancel', cancelAppointment)
 router.get('/by-token/:token', getAppointmentByToken)
 router.get('/', requireBusinessOwner, requireBusinessContext, getAppointments)

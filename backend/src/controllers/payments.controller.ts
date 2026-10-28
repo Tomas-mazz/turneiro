@@ -67,6 +67,9 @@ function mercadoPagoPaymentBelongsToAppointment(
 /**
  * Create payment preference (Mercado Pago)
  */
+/** Hold kept while the client pays on Mercado Pago (the checkout timer itself is shorter). */
+const ONLINE_PAYMENT_HOLD_MINUTES = 15
+
 export async function createPaymentIntent(req: Request, res: Response) {
   try {
     const { appointmentId, provider, payOption } = req.body
@@ -113,6 +116,10 @@ export async function createPaymentIntent(req: Request, res: Response) {
         data: { status: 'CANCELLED' },
       })
       return res.status(410).json({ error: 'La reserva de pago expiró. Debes reservar nuevamente.' })
+    }
+
+    if (!appointment.clientName.trim() || !appointment.clientPhone.trim()) {
+      return res.status(400).json({ error: 'Completá tus datos antes de pagar' })
     }
 
     // Get business settings
@@ -178,6 +185,8 @@ export async function createPaymentIntent(req: Request, res: Response) {
         paymentProvider: 'MERCADOPAGO',
         paymentIntentId: preferenceId,
         paymentAmount,
+        // Leave time to pay on Mercado Pago; a payment that arrives after the hold is rejected.
+        paymentHoldExpiresAt: new Date(Date.now() + ONLINE_PAYMENT_HOLD_MINUTES * 60 * 1000),
       },
     })
 
