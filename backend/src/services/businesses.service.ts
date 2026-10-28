@@ -194,6 +194,7 @@ export interface AdminBusinessDetail {
   slotIntervalMinutes: number
   } | null
   owner: { id: string; email: string } | null
+  ownerName: string | null
 }
 
 /** Shape returned by getBusinessByIdForAdmin query (schema has theme, coverVideo, settings, users). */
@@ -230,6 +231,7 @@ type BusinessByIdAdminRow = {
   slotIntervalMinutes: number
   } | null
   users: { id: string; email: string }[]
+  employees: { name: string }[]
 }
 
 /**
@@ -281,6 +283,11 @@ export async function getBusinessByIdForAdmin(
         take: 1,
         select: { id: true, email: true },
       },
+      employees: {
+        where: { isOwner: true },
+        take: 1,
+        select: { name: true },
+      },
     } as Prisma.BusinessSelect,
   }) as BusinessByIdAdminRow | null
 
@@ -307,6 +314,7 @@ export async function getBusinessByIdForAdmin(
     updatedAt: business.updatedAt.toISOString(),
     settings: business.settings,
     owner,
+    ownerName: business.employees[0]?.name ?? null,
   }
 }
 
@@ -325,6 +333,7 @@ export interface CreateBusinessForAdminInput {
   coverVideoMobile?: string | null
   theme?: 'DARK' | 'LIGHT'
   paymentRequired: boolean
+  ownerName: string
   ownerEmail?: string
   ownerPassword?: string
 }
@@ -392,7 +401,7 @@ export async function createBusinessForAdmin(
     }
 
     // Ensure the owner profile exists even if owner credentials are added later.
-    await ensureOwnerEmployee(tx, b.id, { fallbackName: input.name })
+    await ensureOwnerEmployee(tx, b.id, { fallbackName: input.ownerName })
 
     if (
       input.ownerEmail &&
@@ -414,12 +423,13 @@ export async function createBusinessForAdmin(
         data: {
           email: ownerEmail,
           password: hashed,
+          name: input.ownerName,
           role: 'OWNER',
           businessId: b.id,
         },
         select: { id: true },
       })
-      await ensureOwnerEmployee(tx, b.id, { ownerUserId: ownerUser.id, fallbackName: input.name })
+      await ensureOwnerEmployee(tx, b.id, { ownerUserId: ownerUser.id, fallbackName: input.ownerName })
     }
 
     return b
@@ -456,6 +466,7 @@ export interface UpdateBusinessForAdminInput {
   slotIntervalMinutes?: number
   showServiceConfirmModal?: boolean
   allowMultipleServices?: boolean
+  ownerName?: string
   ownerEmail?: string
   ownerPassword?: string
 }
@@ -629,6 +640,14 @@ export async function updateBusinessForAdmin(
           allowMultipleServices,
         },
       })
+    }
+
+    if (input.ownerName !== undefined) {
+      // Clients see the owner by this name on the booking page.
+      await ensureOwnerEmployee(tx, businessId, { fallbackName: input.ownerName })
+      await tx.employee.updateMany({ where: { businessId, isOwner: true }, data: { name: input.ownerName } })
+      const ownerUser = existing.users[0]
+      if (ownerUser) await tx.user.update({ where: { id: ownerUser.id }, data: { name: input.ownerName } })
     }
 
     const ownerEmail =

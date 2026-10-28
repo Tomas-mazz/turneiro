@@ -64,6 +64,7 @@ export async function createSellerBusiness(req: AuthRequest, res: Response, next
       coverPhotoMobile: body.coverPhotoMobile,
       coverVideoMobile: body.coverVideoMobile,
       theme: body.theme,
+      ownerName: body.ownerName,
       ownerEmail: body.ownerEmail,
       ownerPassword: body.ownerPassword,
     })

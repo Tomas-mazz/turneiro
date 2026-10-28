@@ -36,14 +36,10 @@ export class OwnerEmployeeOperationNotAllowedError extends Error {
 export async function listOwnerEmployeesService(params: {
   businessId: string
   ownerUserId?: string
-  ownerName?: string | null
 }): Promise<OwnerEmployeeListItem[]> {
-  const { businessId, ownerUserId, ownerName } = params
+  const { businessId, ownerUserId } = params
   await prisma.$transaction(async (tx) => {
-    await ensureOwnerEmployee(tx, businessId, {
-      ...(ownerUserId ? { ownerUserId } : {}),
-      fallbackName: ownerName ?? undefined,
-    })
+    await ensureOwnerEmployee(tx, businessId, ownerUserId ? { ownerUserId } : undefined)
   })
 
   const employees = await prisma.employee.findMany({
@@ -74,14 +70,10 @@ export async function listOwnerEmployeesService(params: {
 export async function getOwnerCalendarColorService(params: {
   businessId: string
   ownerUserId?: string
-  ownerName?: string | null
 }): Promise<{ ownerCalendarColorId: string | null }> {
-  const { businessId, ownerUserId, ownerName } = params
+  const { businessId, ownerUserId } = params
   await prisma.$transaction(async (tx) => {
-    await ensureOwnerEmployee(tx, businessId, {
-      ...(ownerUserId ? { ownerUserId } : {}),
-      fallbackName: ownerName ?? undefined,
-    })
+    await ensureOwnerEmployee(tx, businessId, ownerUserId ? { ownerUserId } : undefined)
   })
 
   const ownerEmp = await prisma.employee.findFirst({
@@ -94,15 +86,11 @@ export async function getOwnerCalendarColorService(params: {
 export async function updateOwnerCalendarColorService(params: {
   businessId: string
   ownerUserId?: string
-  ownerName?: string | null
   ownerCalendarColorId: string | null
 }): Promise<{ ownerCalendarColorId: string | null }> {
-  const { businessId, ownerUserId, ownerName, ownerCalendarColorId } = params
+  const { businessId, ownerUserId, ownerCalendarColorId } = params
   await prisma.$transaction(async (tx) => {
-    await ensureOwnerEmployee(tx, businessId, {
-      ...(ownerUserId ? { ownerUserId } : {}),
-      fallbackName: ownerName ?? undefined,
-    })
+    await ensureOwnerEmployee(tx, businessId, ownerUserId ? { ownerUserId } : undefined)
 
     const ownerEmp = await tx.employee.findFirst({
       where: { businessId, isOwner: true },

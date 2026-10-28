@@ -106,6 +106,7 @@ export async function createBusiness(req: AuthRequest, res: Response, next: Next
       coverVideoMobile: body.coverVideoMobile,
       theme: body.theme,
       paymentRequired: !!body.paymentRequired,
+      ownerName: body.ownerName,
       ownerEmail: body.ownerEmail,
       ownerPassword: body.ownerPassword,
     })
@@ -155,6 +156,7 @@ export async function updateBusiness(req: AuthRequest, res: Response, next: Next
       bufferTime: body.bufferTime,
       slotIntervalMinutes: body.slotIntervalMinutes,
       showServiceConfirmModal: body.showServiceConfirmModal,
+      ownerName: body.ownerName,
       ownerEmail: body.ownerEmail,
       ownerPassword: body.ownerPassword,
     })

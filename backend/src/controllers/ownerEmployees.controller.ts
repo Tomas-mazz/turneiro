@@ -25,7 +25,6 @@ export async function listOwnerEmployees(
     const list = await listOwnerEmployeesService({
       businessId,
       ownerUserId: r.user?.role === 'OWNER' ? userId : undefined,
-      ownerName: r.user?.email ?? null,
     })
     res.json(list)
   } catch (err) {
@@ -42,7 +41,6 @@ export async function getOwnerCalendarColor(req: unknown, res: Response, next: N
     const payload = await getOwnerCalendarColorService({
       businessId,
       ownerUserId: r.user?.role === 'OWNER' ? userId : undefined,
-      ownerName: r.user?.email ?? null,
     })
     res.json(payload)
   } catch (err) {
@@ -60,7 +58,6 @@ export async function updateOwnerCalendarColor(req: unknown, res: Response, next
     const updated = await updateOwnerCalendarColorService({
       businessId,
       ownerUserId: r.user?.role === 'OWNER' ? userId : undefined,
-      ownerName: r.user?.email ?? null,
       ownerCalendarColorId: body.ownerCalendarColorId ?? null,
     })
     res.json(updated)

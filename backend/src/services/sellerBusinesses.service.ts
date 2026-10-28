@@ -63,6 +63,7 @@ export type SellerBusinessDetail = {
   createdAt: string
   updatedAt: string
   owner: { id: string; email: string } | null
+  ownerName: string | null
 }
 
 export async function getBusinessForSeller(
@@ -93,6 +94,11 @@ export async function getBusinessForSeller(
         take: 1,
         select: { id: true, email: true },
       },
+      employees: {
+        where: { isOwner: true },
+        take: 1,
+        select: { name: true },
+      },
     } as Prisma.BusinessSelect,
   })
 
@@ -116,6 +122,7 @@ export async function getBusinessForSeller(
     createdAt: business.createdAt.toISOString(),
     updatedAt: business.updatedAt.toISOString(),
     owner,
+    ownerName: (business as { employees?: { name: string }[] }).employees?.[0]?.name ?? null,
   }
 }
 
@@ -133,6 +140,7 @@ export type CreateBusinessForSellerInput = {
   coverPhotoMobile?: string | null
   coverVideoMobile?: string | null
   theme?: 'DARK' | 'LIGHT'
+  ownerName: string
   ownerEmail?: string
   ownerPassword?: string
 }
@@ -201,7 +209,7 @@ export async function createBusinessForSeller(
     }
 
     // Ensure the owner profile exists even if owner credentials are added later.
-    await ensureOwnerEmployee(tx, b.id, { fallbackName: input.name })
+    await ensureOwnerEmployee(tx, b.id, { fallbackName: input.ownerName })
 
     if (
       input.ownerEmail &&
@@ -221,12 +229,13 @@ export async function createBusinessForSeller(
         data: {
           email: ownerEmail,
           password: hashed,
+          name: input.ownerName,
           role: 'OWNER',
           businessId: b.id,
         },
         select: { id: true },
       })
-      await ensureOwnerEmployee(tx, b.id, { ownerUserId: ownerUser.id, fallbackName: input.name })
+      await ensureOwnerEmployee(tx, b.id, { ownerUserId: ownerUser.id, fallbackName: input.ownerName })
     }
 
     return b
@@ -249,6 +258,7 @@ export type UpdateBusinessForSellerInput = {
   coverPhotoMobile?: string | null
   coverVideoMobile?: string | null
   theme?: 'DARK' | 'LIGHT'
+  ownerName?: string
   ownerEmail?: string
   ownerPassword?: string
 }
@@ -295,6 +305,14 @@ export async function updateBusinessForSeller(
         where: { id: businessId },
         data: updateData as Prisma.BusinessUpdateInput,
       })
+    }
+
+    if (input.ownerName !== undefined) {
+      // Clients see the owner by this name on the booking page.
+      await ensureOwnerEmployee(tx, businessId, { fallbackName: input.ownerName })
+      await tx.employee.updateMany({ where: { businessId, isOwner: true }, data: { name: input.ownerName } })
+      const ownerUser = existing.users[0]
+      if (ownerUser) await tx.user.update({ where: { id: ownerUser.id }, data: { name: input.ownerName } })
     }
 
     const ownerEmail =
