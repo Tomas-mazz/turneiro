@@ -6,7 +6,7 @@ import type { ServiceOption } from '../types'
 import { serviceOptionTotalPrice } from '../utils'
 import { ClientFields } from './ClientFields'
 import { MercadoPagoBrick } from './MercadoPagoBrick'
-import { MercadoPagoLogo } from './MercadoPagoLogo'
+import { MercadoPagoBadge } from './MercadoPagoLogo'
 
 type PayChoice = 'ONLINE' | 'SHOP'
 type OnlineAmount = 'DEPOSIT' | 'FULL'
@@ -137,13 +137,13 @@ export function CheckoutView({
             </h2>
             {timerLabel && (
               <span
-                className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-sm font-semibold tabular-nums ${
-                  secondsLeft! <= 60 ? 'bg-red-500/15 text-red-500' : 'bg-[color:var(--booking-control-bg)] text-[color:var(--booking-fg)]'
+                className={`inline-flex items-center gap-1.5 rounded-full bg-red-600 px-3.5 py-1.5 text-base font-bold tabular-nums text-white shadow-md shadow-red-600/30 ${
+                  secondsLeft! <= 60 ? 'animate-pulse' : ''
                 }`}
                 role="timer"
                 aria-label={`Tiempo para confirmar: ${timerLabel}`}
               >
-                <Timer className="h-4 w-4" aria-hidden />
+                <Timer className="h-5 w-5" aria-hidden />
                 {timerLabel}
               </span>
             )}
@@ -296,7 +296,7 @@ export function CheckoutView({
                           setOnlineAmount(amount)
                         }}
                       />
-                      <MercadoPagoLogo className="h-5 w-5 shrink-0 text-[#009EE3]" />
+                      <MercadoPagoBadge />
                       <span className="min-w-0 flex-1">
                         <span className="block text-sm font-medium text-[color:var(--booking-fg)]">
                           {amount === 'DEPOSIT' ? `Pagar seña (${depositPercentage}%)` : 'Pagar el total'}
@@ -319,7 +319,7 @@ export function CheckoutView({
                       checked={payChoice === 'ONLINE'}
                       onChange={() => setPayChoice('ONLINE')}
                     />
-                    <MercadoPagoLogo className="h-5 w-5 shrink-0 text-[#009EE3]" />
+                    <MercadoPagoBadge />
                     <span className="min-w-0 flex-1">
                       <span className="block text-sm font-medium text-[color:var(--booking-fg)]">Pagar ahora</span>
                       <span className="block text-xs text-[color:var(--booking-fg-muted)]">Con Mercado Pago</span>
@@ -345,7 +345,7 @@ export function CheckoutView({
                     'Cargando...'
                   ) : (
                     <>
-                      <MercadoPagoLogo className="h-6 w-6 shrink-0 text-white" />
+                      <MercadoPagoBadge />
                       Pagar {formatMoney(payNowAmount)} con Mercado Pago
                     </>
                   )}
