@@ -104,4 +104,6 @@ export type CreatedAppointment = {
   endTime: string
   serviceName: string
   cancellationToken: string | null
+  /** Set while the slot is held for checkout; the booking is released after it. */
+  paymentHoldExpiresAt?: string | null
 }

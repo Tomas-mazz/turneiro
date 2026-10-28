@@ -28,7 +28,7 @@ import {
   BusinessInfoBar,
   LoginModal,
   MonthCalendar,
-  PaymentStep,
+  CheckoutView,
   ServicePicker,
   SlotGrid,
   TeamStrip,
@@ -41,8 +41,8 @@ import { resolvePublicPageBackground } from '@/lib/publicPageBackground'
 import { bookingDerivedBackground } from '@/lib/booking'
 
 type ThemeMode = 'DARK' | 'LIGHT'
-/** The whole selection happens in 'booking'; payment and confirmation get their own screen. */
-type View = 'booking' | 'payment' | 'done'
+/** The whole selection happens in 'booking'; checkout (details + payment) and confirmation get their own screen. */
+type View = 'booking' | 'checkout' | 'done'
 
 /** How far ahead clients can book. */
 const BOOKING_WINDOW_DAYS = 60
@@ -304,7 +304,6 @@ export default function BusinessBookingPage() {
 
   // Paint html/body with the page background so overscroll matches the brand color.
   useEffect(() => {
-    if (view === 'payment') return
     const html = document.documentElement
     const body = document.body
     const prev = [html.style.backgroundColor, body.style.backgroundColor]
@@ -474,67 +473,108 @@ export default function BusinessBookingPage() {
     scrollToSection('booking-summary')
   }
 
-  const createAppointment = (opts: { deferConfirmationUntilPayment: boolean; onSuccess: () => void }) => {
-    if (!business || selectedServices.length === 0 || !selectedDate || !selectedSlot) return
-
+  const validEmail = (): string | null => {
     const email = clientEmail.trim()
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/
-    if (!emailRegex.test(email)) {
-      setSubmitError('Ingresá un email válido (por ejemplo, tunombre@gmail.com).')
+    if (/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email)) return email
+    setSubmitError('Ingresá un email válido (por ejemplo, tunombre@gmail.com).')
+    return null
+  }
+
+  const selectionPayload = () => ({
+    businessSlug: slug,
+    ...(selectedServices.length === 1
+      ? { serviceId: selectedServices[0].id }
+      : { serviceIds: selectedServices.map((s) => s.id) }),
+    ...(selectedServices.length === 1 && selectedServices[0].addOns?.length
+      ? { addOnIds: selectedServices[0].addOns.map((a) => a.id) }
+      : {}),
+    date: selectedDate,
+    slotTime: selectedSlot,
+    employeeId: preferredEmployeeId,
+  })
+
+  const showSubmitError = (err: any, fallback: string) => {
+    const status = err.response?.status
+    const msg = err.response?.data?.error
+    if (status === 409) {
+      // The time was taken in the meantime (or no longer applies): show why and refresh the day.
+      setSubmitError(msg || 'Ese horario se acaba de ocupar. Elegí otro, por favor.')
+      setSlotsRefreshKey((k) => k + 1)
       return
     }
+    setSubmitError(status >= 500 || isTechnicalError(msg) ? fallback : msg || fallback)
+  }
+
+  /** Free bookings: details are in "Tu reserva" and the booking is confirmed right away. */
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!business || selectedServices.length === 0 || !selectedDate || !selectedSlot) return
+    const email = validEmail()
+    if (!email) return
     setSubmitLoading(true)
     setSubmitError(null)
     api
       .post<CreatedAppointment>('/appointments', {
-        businessSlug: slug,
-        ...(selectedServices.length === 1
-          ? { serviceId: selectedServices[0].id }
-          : { serviceIds: selectedServices.map((s) => s.id) }),
-        ...(selectedServices.length === 1 && selectedServices[0].addOns?.length
-          ? { addOnIds: selectedServices[0].addOns.map((a) => a.id) }
-          : {}),
-        date: selectedDate,
-        slotTime: selectedSlot,
+        ...selectionPayload(),
         clientName: clientName.trim(),
         clientEmail: email,
         clientPhone: clientPhone.trim(),
-        employeeId: preferredEmployeeId,
-        deferConfirmationUntilPayment: opts.deferConfirmationUntilPayment,
       })
       .then((res) => {
         setCreatedAppointment(res.data)
-        opts.onSuccess()
+        goToView('done')
       })
-      .catch((err) => {
-        const status = err.response?.status
-        const msg = err.response?.data?.error
-        if (status === 409) {
-          // The time was taken in the meantime (or no longer applies): show why and refresh the day.
-          setSubmitError(msg || 'Ese horario se acaba de ocupar. Elegí otro, por favor.')
-          setSlotsRefreshKey((k) => k + 1)
-          return
-        }
-        setSubmitError(
-          status >= 500 || isTechnicalError(msg)
-            ? 'No se pudo completar la reserva. Por favor intentá de nuevo.'
-            : msg || 'No se pudo crear la cita'
-        )
-      })
+      .catch((err) => showSubmitError(err, 'No se pudo completar la reserva. Por favor intentá de nuevo.'))
       .finally(() => setSubmitLoading(false))
   }
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault()
-    const requiresPayment = !!business?.settings?.paymentRequired
-    createAppointment({
-      deferConfirmationUntilPayment: requiresPayment,
-      onSuccess: () => goToView(requiresPayment ? 'payment' : 'done'),
-    })
+  /** Businesses that take payments: hold the slot and move to the checkout screen. */
+  const handleContinueToCheckout = () => {
+    if (!business || selectedServices.length === 0 || !selectedDate || !selectedSlot) return
+    setSubmitLoading(true)
+    setSubmitError(null)
+    api
+      .post<CreatedAppointment>('/appointments/hold', selectionPayload())
+      .then((res) => {
+        setCreatedAppointment(res.data)
+        setPaymentError(null)
+        // Logged-in clients don't have to type what we already know.
+        if (!clientName.trim() && user?.name && user.role === 'USER') setClientName(user.name)
+        if (!clientEmail.trim() && user?.email && user.role === 'USER') setClientEmail(user.email)
+        goToView('checkout')
+      })
+      .catch((err) => showSubmitError(err, 'No se pudo reservar el horario. Por favor intentá de nuevo.'))
+      .finally(() => setSubmitLoading(false))
   }
 
-  const handleSubmitAndPay = () => {
-    createAppointment({ deferConfirmationUntilPayment: true, onSuccess: () => goToView('payment') })
+  /** Checkout: save the details, then pay online or confirm a pay-at-shop booking. */
+  const completeCheckout = (payAt: 'ONLINE' | 'SHOP', onSaved: () => void) => {
+    if (!createdAppointment) return
+    const email = validEmail()
+    if (!email) return
+    setSubmitLoading(true)
+    setSubmitError(null)
+    setPaymentError(null)
+    api
+      .post<CreatedAppointment>(`/appointments/${createdAppointment.id}/checkout`, {
+        cancellationToken: createdAppointment.cancellationToken,
+        clientName: clientName.trim(),
+        clientEmail: email,
+        clientPhone: clientPhone.trim(),
+        payAt,
+      })
+      .then((res) => {
+        setCreatedAppointment(res.data)
+        onSaved()
+      })
+      .catch((err) => {
+        if (err.response?.status === 410) {
+          // The hold ran out: the timer shows the expired state.
+          setCreatedAppointment((prev) => (prev ? { ...prev, paymentHoldExpiresAt: new Date().toISOString() } : prev))
+        }
+        showSubmitError(err, 'No se pudo confirmar la reserva. Por favor intentá de nuevo.')
+      })
+      .finally(() => setSubmitLoading(false))
   }
 
   const primaryColor = business?.primaryColor || '#f5f5f5'
@@ -544,7 +584,13 @@ export default function BusinessBookingPage() {
     setPaymentLoading(true)
     setPaymentError(null)
     api
-      .post<{ preferenceId: string; initPoint: string; amount: number; provider: string }>(
+      .post<{
+        preferenceId: string
+        initPoint: string
+        amount: number
+        provider: string
+        paymentHoldExpiresAt: string | null
+      }>(
         '/payments/create-intent',
         {
           appointmentId: createdAppointment.id,
@@ -567,6 +613,8 @@ export default function BusinessBookingPage() {
         sessionStorage.setItem('mp_booking', JSON.stringify(storage))
         setPaymentAmount(res.data.amount)
         setMercadoPagoPreferenceId(res.data.preferenceId)
+        // The hold is extended while paying on Mercado Pago.
+        setCreatedAppointment((prev) => (prev ? { ...prev, paymentHoldExpiresAt: res.data.paymentHoldExpiresAt } : prev))
 
         // Prefer Mercado Pago hosted redirect (initPoint). If it doesn't redirect,
         // fall back to the embedded Brick on this page.
@@ -599,16 +647,10 @@ export default function BusinessBookingPage() {
       .finally(() => setPaymentLoading(false))
   }
 
-  /** Leaving the payment screen releases the held slot and returns to the booking page. */
-  const handleCancelPendingAndBack = async () => {
-    if (createdAppointment?.id) {
-      try {
-        await api.post('/payments/cancel-pending', { appointmentId: createdAppointment.id })
-      } catch {
-        // If cancellation fails, we still navigate back so user can continue.
-      }
-    }
-    setCreatedAppointment(null)
+  /** Leaving the checkout releases the held slot (see the effect below) and returns to the booking page. */
+  const handleCancelPendingAndBack = () => {
+    setSubmitError(null)
+    setPaymentError(null)
     setMercadoPagoPreferenceId(null)
     setPaymentAmount(null)
     setMercadoPagoRedirectMode('idle')
@@ -616,9 +658,25 @@ export default function BusinessBookingPage() {
       window.clearTimeout(mpFallbackTimerRef.current)
       mpFallbackTimerRef.current = null
     }
-    setSlotsRefreshKey((k) => k + 1)
     goToView('booking')
   }
+
+  // Back on the booking page from the checkout (our button or the browser's): free the held slot
+  // so the client can pick it again, then refresh the day's times.
+  const prevViewRef = useRef<View>(view)
+  useEffect(() => {
+    const prev = prevViewRef.current
+    prevViewRef.current = view
+    if (prev !== 'checkout' || view !== 'booking' || !createdAppointment) return
+    const held = createdAppointment
+    setCreatedAppointment(null)
+    api
+      .post('/payments/cancel-pending', { appointmentId: held.id })
+      .catch(() => {
+        // The hold expires on its own anyway.
+      })
+      .finally(() => setSlotsRefreshKey((k) => k + 1))
+  }, [view, createdAppointment])
 
   const handleForceMercadoPagoBrick = () => {
     if (!mercadoPagoPreferenceId) return
@@ -673,7 +731,8 @@ export default function BusinessBookingPage() {
       : !selectedDate
         ? 'Elegí un día en el calendario.'
         : null
-  const canShowPayment = !!(createdAppointment && selectedDate && selectedSlot)
+  const canShowCheckout = !!(createdAppointment && selectedDate && selectedSlot && dateLabel)
+  const takesPayments = !!(business.settings?.paymentRequired || business.settings?.paymentOptionalEnabled)
 
   return (
     <main className="min-h-screen overflow-x-hidden">
@@ -800,12 +859,9 @@ export default function BusinessBookingPage() {
                   onClientEmail={setClientEmail}
                   onClientPhone={setClientPhone}
                   onSubmit={handleSubmit}
-                  onSubmitAndPay={handleSubmitAndPay}
+                  onContinueToCheckout={takesPayments ? handleContinueToCheckout : undefined}
                   submitLoading={submitLoading}
                   submitError={submitError}
-                  paymentRequired={!!business.settings?.paymentRequired}
-                  paymentOptionalEnabled={!!business.settings?.paymentOptionalEnabled}
-                  primaryColor={primaryColor}
                 />
               </section>
             </div>
@@ -848,44 +904,41 @@ export default function BusinessBookingPage() {
         </BookingLayout>
       )}
 
-      {view === 'payment' && canShowPayment && createdAppointment && selectedDate && selectedSlot && (
-        <PaymentStep
-          businessName={business.name}
-          logo={business.logo}
-          fontFamily={businessFontFamily}
-          createdAppointment={createdAppointment}
-          selectedDate={selectedDate}
-          selectedSlot={selectedSlot}
-          paymentType={business.settings?.paymentType ?? null}
-          depositPercentage={business.settings?.depositPercentage ?? null}
-          servicePrice={totalPrice}
-          paymentAmount={paymentAmount}
-          paymentError={paymentError}
-          mercadoPagoPreferenceId={mercadoPagoPreferenceId}
-          mercadoPagoPublicKey={business.settings?.mercadoPagoPublicKey ?? null}
-          mercadoPagoRedirectMode={mercadoPagoRedirectMode}
-          paymentLoading={paymentLoading}
-          onMercadoPagoIntent={handleCreateMercadoPagoIntent}
-          onPaymentError={setPaymentError}
-          onMercadoPagoBack={handleCancelPendingAndBack}
-          onForceMercadoPagoBrick={handleForceMercadoPagoBrick}
-          onBack={handleCancelPendingAndBack}
-          onGoToServices={handleCancelPendingAndBack}
-          showPaymentStep
-          primaryColor={primaryColor}
-          pageBackgroundColor={pageBackgroundColor}
-          pageBackgroundImage={pageBackgroundImage}
-          isDarkTheme={isDarkTheme}
-          onToggleTheme={toggleTheme}
-          onOpenLogin={handleOpenLogin}
-          onOpenRegister={() => router.push('/register')}
-          user={user}
-          onLogout={handleLogout}
-        />
+      {view === 'checkout' && canShowCheckout && createdAppointment && dateLabel && selectedSlot && (
+        <BookingLayout {...layoutProps} onGoToServices={handleCancelPendingAndBack}>
+          <CheckoutView
+            services={selectedServices}
+            dateLabel={dateLabel}
+            slot={selectedSlot}
+            employeeName={showTeamStep ? preferredEmployee?.name ?? null : null}
+            holdExpiresAt={createdAppointment.paymentHoldExpiresAt ?? null}
+            clientName={clientName}
+            clientEmail={clientEmail}
+            clientPhone={clientPhone}
+            onClientName={setClientName}
+            onClientEmail={setClientEmail}
+            onClientPhone={setClientPhone}
+            paymentRequired={!!business.settings?.paymentRequired}
+            depositPercentage={
+              business.settings?.paymentType === 'PERCENTAGE' ? business.settings?.depositPercentage ?? null : null
+            }
+            submitLoading={submitLoading || paymentLoading}
+            submitError={submitError || paymentError}
+            onPayOnline={(amount) => completeCheckout('ONLINE', () => handleCreateMercadoPagoIntent(amount))}
+            onPayAtShop={() => completeCheckout('SHOP', () => goToView('done'))}
+            onBack={handleCancelPendingAndBack}
+            mercadoPagoRedirectMode={mercadoPagoRedirectMode}
+            mercadoPagoPreferenceId={mercadoPagoPreferenceId}
+            mercadoPagoPublicKey={business.settings?.mercadoPagoPublicKey ?? null}
+            paymentAmount={paymentAmount}
+            onPaymentError={setPaymentError}
+            onForceMercadoPagoBrick={handleForceMercadoPagoBrick}
+          />
+        </BookingLayout>
       )}
 
-      {/* Payment/confirmation without an appointment (e.g. back/forward after a reload): return to booking. */}
-      {((view === 'payment' && !canShowPayment) || (view === 'done' && !createdAppointment)) && (
+      {/* Checkout/confirmation without an appointment (e.g. back/forward after a reload): return to booking. */}
+      {((view === 'checkout' && !canShowCheckout) || (view === 'done' && !createdAppointment)) && (
         <ResetToBooking onReset={backToBooking} />
       )}
 

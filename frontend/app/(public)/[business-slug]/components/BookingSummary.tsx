@@ -4,6 +4,7 @@ import type { FormEvent } from 'react'
 import { CalendarDays, Clock, User, X } from 'lucide-react'
 import type { ServiceOption } from '../types'
 import { serviceOptionTotalPrice } from '../utils'
+import { ClientFields } from './ClientFields'
 
 type BookingSummaryProps = {
   services: ServiceOption[]
@@ -18,19 +19,13 @@ type BookingSummaryProps = {
   onClientEmail: (v: string) => void
   onClientPhone: (v: string) => void
   onSubmit: (e: FormEvent) => void
-  onSubmitAndPay: () => void
+  /** Set when the business takes payments: the details and payment are filled in on the checkout screen. */
+  onContinueToCheckout?: () => void
   submitLoading: boolean
   submitError: string | null
-  paymentRequired: boolean
-  paymentOptionalEnabled: boolean
-  primaryColor: string
   /** The business has a team and no professional was chosen yet (first step). */
   employeeMissing?: boolean
 }
-
-const inputClass =
-  'w-full rounded-lg border border-[color:var(--booking-input-border)] bg-[color:var(--booking-input-bg)] px-4 py-3 text-[color:var(--booking-input-text)] placeholder:text-[color:var(--booking-input-placeholder)] focus:outline-none focus:ring-2 focus:ring-[color:var(--booking-border)]'
-const labelClass = 'mb-1.5 block text-sm font-medium text-[color:var(--booking-fg)]'
 
 /** "Tu reserva": what was picked, the client's details and the confirm button(s). */
 export function BookingSummary({
@@ -46,11 +41,9 @@ export function BookingSummary({
   onClientEmail,
   onClientPhone,
   onSubmit,
-  onSubmitAndPay,
+  onContinueToCheckout,
   submitLoading,
   submitError,
-  paymentRequired,
-  paymentOptionalEnabled,
   employeeMissing = false,
 }: BookingSummaryProps) {
   const totalPrice = services.reduce((acc, s) => acc + serviceOptionTotalPrice(s), 0)
@@ -137,60 +130,32 @@ export function BookingSummary({
 
       {hint && <p className="text-sm text-[color:var(--booking-fg-muted)]">{hint}</p>}
 
-      {ready && (
-        <form onSubmit={onSubmit} className="flex flex-col gap-4 border-t border-[color:var(--booking-divide)] pt-5">
-          <div>
-            <label htmlFor="clientName" className={labelClass}>
-              Nombre y apellido
-            </label>
-            <input
-              id="clientName"
-              type="text"
-              autoComplete="name"
-              required
-              value={clientName}
-              onChange={(e) => onClientName(e.target.value)}
-              className={inputClass}
-              placeholder="Tu nombre"
-            />
-          </div>
-          <div>
-            <label htmlFor="clientPhone" className={labelClass}>
-              WhatsApp
-            </label>
-            <input
-              id="clientPhone"
-              type="tel"
-              inputMode="tel"
-              autoComplete="tel"
-              required
-              value={clientPhone}
-              onChange={(e) => {
-                const raw = e.target.value.replace(/[^\d+]/g, '')
-                onClientPhone(raw.startsWith('+') ? `+${raw.replace(/\+/g, '')}` : raw)
-              }}
-              className={inputClass}
-              placeholder="+54 9 351 1234567"
-            />
-          </div>
-          <div>
-            <label htmlFor="clientEmail" className={labelClass}>
-              Email
-            </label>
-            <input
-              id="clientEmail"
-              type="email"
-              autoComplete="email"
-              required
-              value={clientEmail}
-              onChange={(e) => onClientEmail(e.target.value)}
-              className={inputClass}
-              placeholder="tunombre@email.com"
-            />
-            <p className="mt-1.5 text-xs text-[color:var(--booking-fg-subtle)]">
-              Te mandamos la confirmación y el link para cancelar.
+      {ready && onContinueToCheckout && (
+        <div className="flex flex-col gap-3 border-t border-[color:var(--booking-divide)] pt-5">
+          {submitError && (
+            <p className="rounded-lg border border-red-500/50 bg-red-500/10 px-3 py-2 text-sm text-red-400" role="alert">
+              {submitError}
             </p>
-          </div>
+          )}
+          <button type="button" onClick={onContinueToCheckout} disabled={submitLoading} className={primaryBtnClass}>
+            {submitLoading ? 'Reservando horario...' : 'Continuar'}
+          </button>
+          <p className="text-center text-xs text-[color:var(--booking-fg-subtle)]">
+            Te guardamos el horario unos minutos para completar tus datos y el pago.
+          </p>
+        </div>
+      )}
+
+      {ready && !onContinueToCheckout && (
+        <form onSubmit={onSubmit} className="flex flex-col gap-4 border-t border-[color:var(--booking-divide)] pt-5">
+          <ClientFields
+            clientName={clientName}
+            clientEmail={clientEmail}
+            clientPhone={clientPhone}
+            onClientName={onClientName}
+            onClientEmail={onClientEmail}
+            onClientPhone={onClientPhone}
+          />
 
           {submitError && (
             <p className="rounded-lg border border-red-500/50 bg-red-500/10 px-3 py-2 text-sm text-red-400" role="alert">
@@ -198,33 +163,9 @@ export function BookingSummary({
             </p>
           )}
 
-          {paymentOptionalEnabled && !paymentRequired ? (
-            <div className="flex flex-col gap-2">
-              <button
-                type="submit"
-                disabled={submitLoading}
-                className={primaryBtnClass}
-              >
-                {submitLoading ? 'Reservando...' : 'Reservar y pagar en el local'}
-              </button>
-              <button
-                type="button"
-                disabled={submitLoading}
-                onClick={onSubmitAndPay}
-                className="w-full rounded-lg border border-[color:var(--booking-secondary-btn-border)] bg-transparent py-3 font-medium text-[color:var(--booking-fg)] transition-opacity hover:opacity-90 disabled:opacity-50"
-              >
-                {submitLoading ? 'Reservando...' : 'Reservar y pagar ahora'}
-              </button>
-            </div>
-          ) : (
-            <button
-              type="submit"
-              disabled={submitLoading}
-              className={primaryBtnClass}
-            >
-              {submitLoading ? 'Reservando...' : paymentRequired ? 'Continuar al pago' : 'Confirmar reserva'}
-            </button>
-          )}
+          <button type="submit" disabled={submitLoading} className={primaryBtnClass}>
+            {submitLoading ? 'Reservando...' : 'Confirmar reserva'}
+          </button>
         </form>
       )}
     </div>
