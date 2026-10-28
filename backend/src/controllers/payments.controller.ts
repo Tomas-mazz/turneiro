@@ -179,7 +179,7 @@ export async function createPaymentIntent(req: Request, res: Response) {
       )
 
     // Update appointment with payment info
-    await prisma.appointment.update({
+    const withPayment = await prisma.appointment.update({
       where: { id: appointmentId },
       data: {
         paymentProvider: 'MERCADOPAGO',
@@ -195,6 +195,7 @@ export async function createPaymentIntent(req: Request, res: Response) {
       initPoint,
       amount: paymentAmount,
       provider: 'MERCADOPAGO',
+      paymentHoldExpiresAt: withPayment.paymentHoldExpiresAt,
     })
   } catch (error) {
     console.error('createPaymentIntent error:', error)
