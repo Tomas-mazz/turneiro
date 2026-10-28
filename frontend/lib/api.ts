@@ -369,6 +369,29 @@ export async function upsertOwnerEmployeeServiceDurations(
   return data
 }
 
+/** One employee's schedule; `custom` is false while they follow the business hours. */
+export type EmployeeWorkingHours = { custom: boolean; hours: WorkingHoursItem[] }
+
+export async function getOwnerEmployeeWorkingHours(employeeId: string): Promise<EmployeeWorkingHours> {
+  const { data } = await api.get<EmployeeWorkingHours>(`/businesses/employees/${employeeId}/working-hours`)
+  return data
+}
+
+export async function updateOwnerEmployeeWorkingHours(
+  employeeId: string,
+  hours: WorkingHoursItem[]
+): Promise<EmployeeWorkingHours> {
+  const { data } = await api.put<EmployeeWorkingHours>(`/businesses/employees/${employeeId}/working-hours`, {
+    hours,
+  })
+  return data
+}
+
+export async function resetOwnerEmployeeWorkingHours(employeeId: string): Promise<EmployeeWorkingHours> {
+  const { data } = await api.delete<EmployeeWorkingHours>(`/businesses/employees/${employeeId}/working-hours`)
+  return data
+}
+
 export async function getOwnerEmployeeServiceRestrictions(
   employeeId: string
 ): Promise<EmployeeServiceRestrictionItem[]> {

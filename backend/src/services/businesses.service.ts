@@ -99,6 +99,18 @@ export async function getBusinessBySlugService(slug: string) {
           isOwner: true,
           // Services the employee does NOT do; the booking page lists the rest on their profile.
           serviceRestrictions: { select: { serviceId: true, subServiceId: true } },
+          // Own schedule; days missing here follow the business working hours.
+          workingHours: {
+            orderBy: { dayOfWeek: 'asc' },
+            select: {
+              dayOfWeek: true,
+              startTime: true,
+              endTime: true,
+              lunchStart: true,
+              lunchEnd: true,
+              isClosed: true,
+            },
+          },
         },
       },
     },

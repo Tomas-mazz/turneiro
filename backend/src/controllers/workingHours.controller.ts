@@ -3,7 +3,11 @@ import { ZodError } from 'zod'
 import type { AuthRequest } from '../middleware/auth'
 import { getBusinessContextOrRespond } from '../lib/requestGuards'
 import {
+  EmployeeNotInBusinessError,
+  getEmployeeWorkingHours,
   getWorkingHoursForBusiness,
+  replaceEmployeeWorkingHours,
+  resetEmployeeWorkingHours,
   upsertWorkingHoursForBusiness,
 } from '../services/workingHours.service'
 import { updateWorkingHoursSchema } from '../lib/schemas'
@@ -52,3 +56,40 @@ export async function updateMyWorkingHours(
   }
 }
 
+
+/** Owner dashboard: one employee's schedule (GET), set it (PUT, body validated by the route) or reset it (DELETE). */
+export async function getOwnerEmployeeWorkingHours(req: AuthRequest, res: Response, next: NextFunction) {
+  return handleEmployeeHours(req, res, next, (businessId, employeeId) =>
+    getEmployeeWorkingHours(businessId, employeeId)
+  )
+}
+
+export async function updateOwnerEmployeeWorkingHours(req: AuthRequest, res: Response, next: NextFunction) {
+  return handleEmployeeHours(req, res, next, (businessId, employeeId) =>
+    replaceEmployeeWorkingHours(businessId, employeeId, req.body.hours)
+  )
+}
+
+export async function resetOwnerEmployeeWorkingHours(req: AuthRequest, res: Response, next: NextFunction) {
+  return handleEmployeeHours(req, res, next, (businessId, employeeId) =>
+    resetEmployeeWorkingHours(businessId, employeeId)
+  )
+}
+
+async function handleEmployeeHours(
+  req: AuthRequest,
+  res: Response,
+  next: NextFunction,
+  run: (businessId: string, employeeId: string) => Promise<unknown>
+) {
+  try {
+    const ctx = getBusinessContextOrRespond(req, res)
+    if (!ctx) return
+    const employeeId = String(req.params.id || '').trim()
+    if (!employeeId) return res.status(400).json({ error: 'Empleado inválido' })
+    return res.json(await run(ctx.businessId, employeeId))
+  } catch (err) {
+    if (err instanceof EmployeeNotInBusinessError) return res.status(404).json({ error: err.message })
+    next(err)
+  }
+}

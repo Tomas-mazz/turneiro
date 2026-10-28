@@ -37,6 +37,7 @@ const db = vi.hoisted(() => ({
     settings: { slotIntervalMinutes: number | null } | null
   },
   employees: [] as { id: string; businessId: string }[],
+  employeeHours: [] as (WorkingHoursRow & { employeeId: string })[],
   appointments: [] as AppointmentRow[],
   blockedSlots: [] as BlockedSlotRow[],
   duration: 30,
@@ -77,6 +78,11 @@ vi.mock('../src/lib/prisma', () => ({
     employee: {
       findMany: vi.fn(async ({ where }: any) =>
         db.employees.filter((e) => e.businessId === where.businessId && (!where.id || e.id === where.id)),
+      ),
+    },
+    employeeWorkingHours: {
+      findMany: vi.fn(async ({ where }: any) =>
+        db.employeeHours.filter((wh) => where.employeeId.in.includes(wh.employeeId)),
       ),
     },
     appointment: {
@@ -172,6 +178,7 @@ beforeEach(() => {
     settings: { slotIntervalMinutes: 30 },
   }
   db.employees = []
+  db.employeeHours = []
   db.appointments = []
   db.blockedSlots = []
   db.duration = 30
@@ -300,6 +307,51 @@ describe('getAvailabilityService: late hours in Argentina (server in UTC)', () =
     appointment({ startTime: ar(MONDAY, '21:30'), endTime: ar(MONDAY, '22:00') })
     expect(await slotsFor(MONDAY)).not.toContain('21:30')
     expect(await slotsFor(MONDAY)).toContain('21:00')
+  })
+})
+
+describe('getAvailabilityService: employee working hours', () => {
+  beforeEach(() => {
+    db.employees = [
+      { id: 'emp_a', businessId: BUSINESS_ID },
+      { id: 'emp_b', businessId: BUSINESS_ID },
+    ]
+  })
+
+  it("uses the employee's own hours for the days they set", async () => {
+    db.employeeHours = [{ ...hours(1, '15:00', '17:00'), employeeId: 'emp_a' }]
+    expect(await slotsFor(MONDAY, 'emp_a')).toEqual(['15:00', '15:30', '16:00', '16:30'])
+  })
+
+  it('falls back to the business hours on days the employee did not set', async () => {
+    db.employeeHours = [{ ...hours(1, '15:00', '17:00'), employeeId: 'emp_a' }]
+    expect(await slotsFor(TUESDAY, 'emp_a')).toEqual([
+      '09:00', '09:30', '10:00', '10:30', '11:00', '11:30', '12:00', '12:30',
+    ])
+  })
+
+  it("an employee's day off only closes their agenda", async () => {
+    db.employeeHours = [{ ...hours(1, '09:00', '13:00'), isClosed: true, employeeId: 'emp_a' }]
+    expect(await slotsFor(MONDAY, 'emp_a')).toEqual([])
+    expect(await slotsFor(MONDAY, 'emp_b')).toHaveLength(8)
+  })
+
+  it('an employee can work on a day the business is closed', async () => {
+    db.employeeHours = [{ ...hours(3, '10:00', '11:00'), employeeId: 'emp_a' }]
+    expect(await slotsFor('2026-10-28', 'emp_a')).toEqual(['10:00', '10:30'])
+    expect(await slotsFor('2026-10-28', 'emp_b')).toEqual([])
+  })
+
+  it('the week view uses each employee\'s own hours', async () => {
+    db.employeeHours = [
+      { ...hours(1, '09:00', '13:00'), isClosed: true, employeeId: 'emp_a' },
+      { ...hours(3, '10:00', '11:00'), employeeId: 'emp_a' },
+    ]
+    const start = new Date(MONDAY + 'T12:00:00')
+    const weekA = await getWeekAvailabilityService(SLUG, 'svc_1', start, 'emp_a')
+    expect(weekA.slice(0, 3).map((d) => d.hasSlots)).toEqual([false, true, true])
+    const weekAll = await getWeekAvailabilityService(SLUG, 'svc_1', start)
+    expect(weekAll.slice(0, 3).map((d) => d.hasSlots)).toEqual([true, true, true])
   })
 })
 

@@ -3,6 +3,7 @@
 import type React from 'react'
 import { useEffect, useMemo, useState } from 'react'
 import type { OwnerEmployeeListItem } from '@/types'
+import { EmployeeHoursEditor } from '../EmployeeHoursEditor'
 
 const COLOR_OPTIONS: Array<{ id: string; label: string; hex: string | null }> = [
   { id: '', label: 'Auto (por defecto)', hex: null },
@@ -442,6 +443,7 @@ export function EmployeesSection({
                           </button>
                         </div>
                       </div>
+                      <EmployeeHoursEditor employeeId={emp.id} />
                     </div>
                   )}
                 </div>

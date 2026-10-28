@@ -56,16 +56,16 @@ model Business {
 
 // Employee model - display profile for booking page (name, photo); admin creates these
 model Employee {
-  id         String   @id @default(cuid())
-  name       String
-  photoUrl   String?
+  id                   String   @id @default(cuid())
+  name                 String
+  photoUrl             String?
   /// Short public description shown on the booking page (e.g. specialty).
-  bio        String?
-  businessId String
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
-  isOwner    Boolean  @default(false)
-  userId     String?  @unique // optional link to User (STAFF) for dashboard / per-employee flows
+  bio                  String?
+  businessId           String
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+  isOwner              Boolean  @default(false)
+  userId               String?  @unique // optional link to User (STAFF) for dashboard / per-employee flows
   /// Color (Google Calendar event colorId) to use for this employee's appointments
   /// in the BUSINESS OWNER's calendar view (owner's calendar).
   ownerCalendarColorId String?
@@ -74,13 +74,15 @@ model Employee {
   staffCalendarColorId String?
 
   // Relations
-  business     Business      @relation(fields: [businessId], references: [id], onDelete: Cascade)
-  user         User?         @relation(fields: [userId], references: [id], onDelete: SetNull)
+  business            Business                     @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  user                User?                        @relation(fields: [userId], references: [id], onDelete: SetNull)
   // In the future, appointments and blocked slots can be scoped per employee
-  appointments Appointment[]
-  blockedSlots BlockedSlot[]
-  serviceDurations EmployeeServiceDuration[]
+  appointments        Appointment[]
+  blockedSlots        BlockedSlot[]
+  serviceDurations    EmployeeServiceDuration[]
   serviceRestrictions EmployeeServiceRestriction[]
+  /// Own schedule; days without a row use the business working hours.
+  workingHours        EmployeeWorkingHours[]
 
   @@index([businessId])
   @@index([userId])
@@ -101,33 +103,33 @@ model EmployeeServiceRestriction {
   service    Service?    @relation(fields: [serviceId], references: [id], onDelete: Cascade)
   subService SubService? @relation(fields: [subServiceId], references: [id], onDelete: Cascade)
 
+  @@unique([employeeId, serviceId])
+  @@unique([employeeId, subServiceId])
   @@index([employeeId])
   @@index([serviceId])
   @@index([subServiceId])
-  @@unique([employeeId, serviceId])
-  @@unique([employeeId, subServiceId])
 }
 
 /// Optional per-employee override duration for a Service or SubService.
 /// If no override exists, booking uses the base duration from Service/SubService.
 model EmployeeServiceDuration {
-  id          String   @id @default(cuid())
-  employeeId  String
-  serviceId   String?
+  id           String   @id @default(cuid())
+  employeeId   String
+  serviceId    String?
   subServiceId String?
-  duration    Int // minutes
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  duration     Int // minutes
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
 
-  employee   Employee   @relation(fields: [employeeId], references: [id], onDelete: Cascade)
-  service    Service?   @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+  employee   Employee    @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  service    Service?    @relation(fields: [serviceId], references: [id], onDelete: Cascade)
   subService SubService? @relation(fields: [subServiceId], references: [id], onDelete: Cascade)
 
+  @@unique([employeeId, serviceId])
+  @@unique([employeeId, subServiceId])
   @@index([employeeId])
   @@index([serviceId])
   @@index([subServiceId])
-  @@unique([employeeId, serviceId])
-  @@unique([employeeId, subServiceId])
 }
 
 // User model - authentication for business owners/staff and end clients (USER)
@@ -167,11 +169,11 @@ model Service {
   images           String[] @default([]) // Up to 5 image URLs (enforced in API)
 
   // Relations
-  business     Business      @relation(fields: [businessId], references: [id], onDelete: Cascade)
-  appointments Appointment[]
-  subServices  SubService[]
-  addOnScopes  ServiceAddOnService[]
-  employeeDurations EmployeeServiceDuration[]
+  business             Business                     @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  appointments         Appointment[]
+  subServices          SubService[]
+  addOnScopes          ServiceAddOnService[]
+  employeeDurations    EmployeeServiceDuration[]
   employeeRestrictions EmployeeServiceRestriction[]
 
   @@index([businessId])
@@ -192,9 +194,9 @@ model SubService {
   updatedAt        DateTime @updatedAt
 
   // Relations
-  service     Service                  @relation(fields: [serviceId], references: [id], onDelete: Cascade)
-  addOnScopes ServiceAddOnSubService[]
-  employeeDurations EmployeeServiceDuration[]
+  service              Service                      @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+  addOnScopes          ServiceAddOnSubService[]
+  employeeDurations    EmployeeServiceDuration[]
   employeeRestrictions EmployeeServiceRestriction[]
 
   @@index([serviceId])
@@ -280,10 +282,10 @@ model Appointment {
   employeeNotificationSentAt DateTime?
 
   // Relations
-  business     Business  @relation(fields: [businessId], references: [id], onDelete: Cascade)
-  service      Service?  @relation(fields: [serviceId], references: [id], onDelete: SetNull)
-  employee     Employee? @relation(fields: [employeeId], references: [id], onDelete: SetNull)
-  syncedToUser User?     @relation(fields: [syncedToUserId], references: [id], onDelete: SetNull)
+  business     Business           @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  service      Service?           @relation(fields: [serviceId], references: [id], onDelete: SetNull)
+  employee     Employee?          @relation(fields: [employeeId], references: [id], onDelete: SetNull)
+  syncedToUser User?              @relation(fields: [syncedToUserId], references: [id], onDelete: SetNull)
   addOns       AppointmentAddOn[]
 
   @@index([businessId])
@@ -303,7 +305,7 @@ model AppointmentAddOn {
   priceSnapshot  Float
   createdAt      DateTime @default(now())
 
-  appointment  Appointment @relation(fields: [appointmentId], references: [id], onDelete: Cascade)
+  appointment  Appointment   @relation(fields: [appointmentId], references: [id], onDelete: Cascade)
   serviceAddOn ServiceAddOn? @relation(fields: [serviceAddOnId], references: [id], onDelete: SetNull)
 
   @@index([appointmentId])
@@ -327,6 +329,24 @@ model WorkingHours {
 
   @@unique([businessId, dayOfWeek])
   @@index([businessId])
+}
+
+// EmployeeWorkingHours model - per-employee schedule overriding the business hours for that day
+model EmployeeWorkingHours {
+  id         String   @id @default(cuid())
+  employeeId String
+  dayOfWeek  Int // 0 = Sunday, 1 = Monday, ..., 6 = Saturday
+  startTime  String // Format: "HH:MM"
+  endTime    String // Format: "HH:MM"
+  lunchStart String?
+  lunchEnd   String?
+  isClosed   Boolean  @default(false)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  employee Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  @@unique([employeeId, dayOfWeek])
 }
 
 // BlockedSlot model - manually blocked time slots or days
@@ -354,10 +374,10 @@ model BlockedSlot {
 
 // BusinessSettings model - business configuration
 model BusinessSettings {
-  id                               String   @id @default(cuid())
+  id                               String    @id @default(cuid())
   /// Font family applied to the public booking pages for this business.
   /// Stored as an enum-like string on purpose (keeps migrations simple).
-  fontFamily                       String   @default("ROBOTO") // ROBOTO, MONTSERRAT, INTER, POPPINS, NUNITO, PLAYFAIR, ROBOTO_SLAB
+  fontFamily                       String    @default("ROBOTO") // ROBOTO, MONTSERRAT, INTER, POPPINS, NUNITO, PLAYFAIR, ROBOTO_SLAB
   /// Public booking page background (dark theme). Null = built-in default (#171717).
   publicPageBackgroundDark         String?
   /// Public booking page background (light theme). Null = built-in default (#FFFFFF).
@@ -367,9 +387,9 @@ model BusinessSettings {
   /// SOFT | NORMAL | STRONG. Null = default to SOFT.
   publicBrandIntensity             String?
   /// When true, apply a subtle gradient on the public booking background.
-  publicUseGradient                Boolean? @default(false)
-  paymentRequired                  Boolean  @default(false)
-  paymentOptionalEnabled           Boolean  @default(false)
+  publicUseGradient                Boolean?  @default(false)
+  paymentRequired                  Boolean   @default(false)
+  paymentOptionalEnabled           Boolean   @default(false)
   paymentType                      String? // PERCENTAGE or FULL
   depositPercentage                Float? // If paymentType is PERCENTAGE
   mercadoPagoPublicKey             String?
@@ -379,18 +399,18 @@ model BusinessSettings {
   mercadoPagoUserId                String?
   mercadoPagoConnectedAt           DateTime?
   mercadoPagoWebhookSecret         String?
-  requireRegistrationBeforePayment Boolean  @default(true)
+  requireRegistrationBeforePayment Boolean   @default(true)
   freeCancellationWindow           Int? // Hours before appointment (e.g., 24)
-  cancellationHasCost              Boolean  @default(false)
+  cancellationHasCost              Boolean   @default(false)
   lateCancellationFee              Float? // Percentage if cancellationHasCost is true
   bufferTime                       Int? // Legacy: additional buffer minutes between appointments
-  slotIntervalMinutes              Int      @default(15) // Base slot interval (15, 20, 30...) for availability generation
-  showServiceConfirmModal          Boolean  @default(false) // Show extra confirmation modal after "Confirmar servicio"
+  slotIntervalMinutes              Int       @default(15) // Base slot interval (15, 20, 30...) for availability generation
+  showServiceConfirmModal          Boolean   @default(false) // Show extra confirmation modal after "Confirmar servicio"
   /// When true, public booking allows selecting multiple services/subservices in one appointment.
-  allowMultipleServices            Boolean  @default(false)
-  businessId                       String   @unique
-  createdAt                        DateTime @default(now())
-  updatedAt                        DateTime @updatedAt
+  allowMultipleServices            Boolean   @default(false)
+  businessId                       String    @unique
+  createdAt                        DateTime  @default(now())
+  updatedAt                        DateTime  @updatedAt
 
   // Relations
   business Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
