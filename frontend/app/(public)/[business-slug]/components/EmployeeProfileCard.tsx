@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react'
 import { AnimatePresence, motion, useMotionValue, useTransform } from 'framer-motion'
 import { ChevronDown, Clock, Scissors, X } from 'lucide-react'
 import type { Business, Employee } from '../types'
-import { servicesForEmployee } from '../utils'
+import { servicesForEmployee, workingHoursForEmployee } from '../utils'
 import { DAY_NAMES, DAY_ORDER, hoursLabel, todayDayOfWeek } from './BusinessInfoBar'
 
 /** Where the card starts: the team card that was tapped (viewport coordinates). */
@@ -73,7 +73,8 @@ export function EmployeeProfileCard({ employee, origin, business, onClose }: Emp
   })()
 
   const today = todayDayOfWeek()
-  const byDay = new Map(business.workingHours.map((wh) => [wh.dayOfWeek, wh]))
+  const hours = workingHoursForEmployee(business, employee)
+  const byDay = new Map(hours.map((wh) => [wh.dayOfWeek, wh]))
   const serviceNames = employee ? servicesForEmployee(business.services, employee).map((s) => s.name) : []
   const faceClass = 'col-start-1 row-start-1'
 
@@ -164,7 +165,7 @@ export function EmployeeProfileCard({ employee, origin, business, onClose }: Emp
                   )}
                 </section>
 
-                {business.workingHours.length > 0 && (
+                {hours.length > 0 && (
                   <section>
                     <button
                       type="button"

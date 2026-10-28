@@ -12,7 +12,13 @@ import {
   clearAdminActingShopSlug,
 } from '@/lib/auth'
 import type { Business, ServiceOption, CreatedAppointment } from './types'
-import { formatDateKey, getNowInArgentina, serviceOptionTotalPrice, servicesForEmployee } from './utils'
+import {
+  formatDateKey,
+  getNowInArgentina,
+  serviceOptionTotalPrice,
+  servicesForEmployee,
+  workingHoursForEmployee,
+} from './utils'
 import { Lock } from 'lucide-react'
 import {
   BookingDone,
@@ -496,9 +502,15 @@ export default function BusinessBookingPage() {
     [slots, selectedDate, todayKey, currentTimeArgentina]
   )
 
+  /** Weekdays the chosen professional works (business hours when they have no own schedule). */
   const openWeekdays = useMemo(
-    () => new Set((business?.workingHours ?? []).filter((wh) => !wh.isClosed).map((wh) => wh.dayOfWeek)),
-    [business?.workingHours]
+    () =>
+      new Set(
+        (business ? workingHoursForEmployee(business, preferredEmployee) : [])
+          .filter((wh) => !wh.isClosed)
+          .map((wh) => wh.dayOfWeek)
+      ),
+    [business, preferredEmployee]
   )
 
   const handleSelectServices = (next: ServiceOption[]) => {

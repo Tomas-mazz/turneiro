@@ -18,6 +18,14 @@ export function servicesForEmployee(services: Business['services'], employee: Em
   })
 }
 
+/** A professional's schedule: their own hours for the days they set, the business hours otherwise. */
+export function workingHoursForEmployee(business: Business, employee: Employee | null): Business['workingHours'] {
+  const own = employee?.workingHours ?? []
+  if (own.length === 0) return business.workingHours
+  const ownDays = new Set(own.map((wh) => wh.dayOfWeek))
+  return [...own, ...business.workingHours.filter((wh) => !ownDays.has(wh.dayOfWeek))]
+}
+
 /** Base service/subservicio price plus optional adicionales. */
 export function serviceOptionTotalPrice(s: ServiceOption): number {
   const extras = (s.addOns ?? []).reduce((acc, a) => acc + (Number.isFinite(a.price) ? a.price : 0), 0)

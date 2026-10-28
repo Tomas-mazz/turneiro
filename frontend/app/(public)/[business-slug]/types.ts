@@ -5,6 +5,8 @@ export type Employee = {
   bio?: string | null
   /** Services/subservices this employee does NOT do. */
   serviceRestrictions?: { serviceId: string | null; subServiceId: string | null }[]
+  /** Own schedule; days missing here follow the business working hours. */
+  workingHours?: Business['workingHours']
   isOwner: boolean
 }
 
