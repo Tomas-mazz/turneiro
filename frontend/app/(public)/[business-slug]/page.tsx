@@ -19,7 +19,7 @@ import {
   servicesForEmployee,
   workingHoursForEmployee,
 } from './utils'
-import { Lock } from 'lucide-react'
+import { Lock, Timer, X } from 'lucide-react'
 import {
   BookingDone,
   BookingLayout,
@@ -102,6 +102,8 @@ export default function BusinessBookingPage() {
   const [submitLoading, setSubmitLoading] = useState(false)
   const [submitError, setSubmitError] = useState<string | null>(null)
   const [createdAppointment, setCreatedAppointment] = useState<CreatedAppointment | null>(null)
+  /** Message shown over the booking page (e.g. the checkout time ran out). */
+  const [notice, setNotice] = useState<string | null>(null)
 
   const [paymentAmount, setPaymentAmount] = useState<number | null>(null)
   const [paymentLoading, setPaymentLoading] = useState(false)
@@ -231,18 +233,12 @@ export default function BusinessBookingPage() {
         serviceIds?: string[]
         selectedDate?: string | null
         preferredEmployeeId?: string | null
-        clientName?: string
-        clientEmail?: string
-        clientPhone?: string
       }
       const team = business.employees ?? []
       const teamSize = team.length
       const restoredEmployee =
         teamSize === 1 ? team[0] : team.find((e) => e.id === parsed.preferredEmployeeId) ?? null
       if (restoredEmployee) setPreferredEmployeeId(restoredEmployee.id)
-      if (parsed.clientName) setClientName(parsed.clientName)
-      if (parsed.clientEmail) setClientEmail(parsed.clientEmail)
-      if (parsed.clientPhone) setClientPhone(parsed.clientPhone)
       // Later steps only make sense once the professional is known.
       if (teamSize > 1 && !restoredEmployee) return
       const services = restoredEmployee ? servicesForEmployee(business.services, restoredEmployee) : business.services
@@ -288,12 +284,9 @@ export default function BusinessBookingPage() {
         serviceIds: selectedServices.map((s) => s.id),
         selectedDate,
         preferredEmployeeId,
-        clientName,
-        clientEmail,
-        clientPhone,
       })
     )
-  }, [slug, selectedServices, selectedDate, preferredEmployeeId, clientName, clientEmail, clientPhone])
+  }, [slug, selectedServices, selectedDate, preferredEmployeeId])
 
   // Adicionales solo aplican a una línea de servicio por turno (API actual).
   useEffect(() => {
@@ -538,9 +531,6 @@ export default function BusinessBookingPage() {
       .then((res) => {
         setCreatedAppointment(res.data)
         setPaymentError(null)
-        // Logged-in clients don't have to type what we already know.
-        if (!clientName.trim() && user?.name && user.role === 'USER') setClientName(user.name)
-        if (!clientEmail.trim() && user?.email && user.role === 'USER') setClientEmail(user.email)
         goToView('checkout')
       })
       .catch((err) => showSubmitError(err, 'No se pudo reservar el horario. Por favor intentá de nuevo.'))
@@ -677,6 +667,26 @@ export default function BusinessBookingPage() {
       })
       .finally(() => setSlotsRefreshKey((k) => k + 1))
   }, [view, createdAppointment])
+
+  const handleCheckoutExpired = () => {
+    setNotice('Se terminó el tiempo para completar tu reserva y liberamos el horario. Elegilo de nuevo si sigue libre.')
+    handleCancelPendingAndBack()
+  }
+
+  // Notices hide on their own after a few seconds.
+  useEffect(() => {
+    if (!notice) return
+    const id = window.setTimeout(() => setNotice(null), 8000)
+    return () => window.clearTimeout(id)
+  }, [notice])
+
+  // A finished booking doesn't leave the client's details around for the next one.
+  useEffect(() => {
+    if (view !== 'done') return
+    setClientName('')
+    setClientEmail('')
+    setClientPhone('')
+  }, [view])
 
   const handleForceMercadoPagoBrick = () => {
     if (!mercadoPagoPreferenceId) return
@@ -927,6 +937,7 @@ export default function BusinessBookingPage() {
             onPayOnline={(amount) => completeCheckout('ONLINE', () => handleCreateMercadoPagoIntent(amount))}
             onPayAtShop={() => completeCheckout('SHOP', () => goToView('done'))}
             onBack={handleCancelPendingAndBack}
+            onExpire={handleCheckoutExpired}
             mercadoPagoRedirectMode={mercadoPagoRedirectMode}
             mercadoPagoPreferenceId={mercadoPagoPreferenceId}
             mercadoPagoPublicKey={business.settings?.mercadoPagoPublicKey ?? null}
@@ -952,6 +963,23 @@ export default function BusinessBookingPage() {
             />
           </div>
         </BookingLayout>
+      )}
+
+      {notice && (
+        <div className="fixed inset-x-0 top-4 z-[90] flex justify-center px-4" role="status" aria-live="polite">
+          <div className="flex w-full max-w-md items-start gap-3 rounded-2xl bg-red-600 px-4 py-3 text-sm font-medium text-white shadow-xl">
+            <Timer className="mt-0.5 h-5 w-5 shrink-0" aria-hidden />
+            <p className="flex-1">{notice}</p>
+            <button
+              type="button"
+              onClick={() => setNotice(null)}
+              className="-mr-1 rounded-full p-1 hover:bg-white/15"
+              aria-label="Cerrar aviso"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+        </div>
       )}
 
       <LoginModal

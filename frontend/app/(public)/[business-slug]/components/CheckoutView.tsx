@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, type FormEvent } from 'react'
+import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { ArrowLeft, CalendarDays, Clock, Store, Timer, User } from 'lucide-react'
 import type { ServiceOption } from '../types'
 import { serviceOptionTotalPrice } from '../utils'
@@ -34,6 +34,8 @@ type CheckoutViewProps = {
   onPayAtShop: () => void
   /** Release the held slot and go back to pick another time. */
   onBack: () => void
+  /** The hold ran out: the parent sends the client back to the booking page with a notice. */
+  onExpire: () => void
   mercadoPagoRedirectMode: 'idle' | 'redirecting' | 'fallback'
   mercadoPagoPreferenceId: string | null
   mercadoPagoPublicKey: string | null
@@ -87,6 +89,7 @@ export function CheckoutView({
   onPayOnline,
   onPayAtShop,
   onBack,
+  onExpire,
   mercadoPagoRedirectMode,
   mercadoPagoPreferenceId,
   mercadoPagoPublicKey,
@@ -109,6 +112,14 @@ export function CheckoutView({
       ? null
       : `${Math.floor(secondsLeft / 60)}:${String(secondsLeft % 60).padStart(2, '0')}`
   const inPaymentFlow = mercadoPagoRedirectMode !== 'idle'
+
+  // Out of time while still filling in the details: leave the checkout on our own (once).
+  const expiredHandledRef = useRef(false)
+  useEffect(() => {
+    if (!expired || inPaymentFlow || expiredHandledRef.current) return
+    expiredHandledRef.current = true
+    onExpire()
+  }, [expired, inPaymentFlow, onExpire])
 
   const handleSubmit = (e: FormEvent) => {
     e.preventDefault()
@@ -191,31 +202,13 @@ export function CheckoutView({
             <span>Total</span>
             <span>{formatMoney(total)}</span>
           </p>
-          {!expired && (
-            <p className="mt-3 text-xs text-[color:var(--booking-fg-subtle)]">
-              Te guardamos este horario mientras corre el tiempo.
-            </p>
-          )}
+          <p className="mt-3 text-xs text-[color:var(--booking-fg-subtle)]">
+            Te guardamos este horario mientras corre el tiempo.
+          </p>
         </section>
 
         <section className={cardClass} aria-labelledby="checkout-form-title">
-          {expired && !inPaymentFlow ? (
-            <div className="py-6 text-center">
-              <h2 id="checkout-form-title" className="text-lg font-semibold text-[color:var(--booking-fg)]">
-                Se terminó el tiempo
-              </h2>
-              <p className="mt-2 text-sm text-[color:var(--booking-fg-muted)]">
-                Liberamos el horario para que otra persona pueda reservarlo. Podés elegirlo de nuevo si sigue libre.
-              </p>
-              <button
-                type="button"
-                onClick={onBack}
-                className="mt-5 w-full rounded-lg bg-[color:var(--booking-cta-bg)] py-3 font-semibold text-[color:var(--booking-cta-fg)] hover:opacity-90"
-              >
-                Elegir otro horario
-              </button>
-            </div>
-          ) : mercadoPagoRedirectMode === 'redirecting' ? (
+          {mercadoPagoRedirectMode === 'redirecting' ? (
             <div className="py-6 text-center">
               <h2 id="checkout-form-title" className="text-lg font-semibold text-[color:var(--booking-fg)]">
                 Abriendo Mercado Pago...
@@ -346,7 +339,7 @@ export function CheckoutView({
                   ) : (
                     <>
                       <MercadoPagoBadge />
-                      Pagar {formatMoney(payNowAmount)} con Mercado Pago
+                      Reservar y pagar con Mercado Pago
                     </>
                   )}
                 </button>
@@ -356,9 +349,14 @@ export function CheckoutView({
                   disabled={submitLoading}
                   className="w-full rounded-lg bg-[color:var(--booking-cta-bg)] py-3.5 font-semibold text-[color:var(--booking-cta-fg)] shadow-sm transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
                 >
-                  {submitLoading ? 'Confirmando...' : 'Confirmar reserva'}
+                  {submitLoading ? 'Reservando...' : 'Reservar'}
                 </button>
               )}
+              <p className="-mt-1 text-center text-xs text-[color:var(--booking-fg-subtle)]">
+                {payChoice === 'ONLINE'
+                  ? `Vas a pagar ${formatMoney(payNowAmount)} en Mercado Pago. Tu turno queda reservado cuando se acredita el pago.`
+                  : `Pagás ${formatMoney(total)} en el local el día del turno.`}
+              </p>
             </form>
           )}
         </section>
