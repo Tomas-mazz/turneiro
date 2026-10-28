@@ -10,13 +10,11 @@ import {
   getGoogleCalendarStatus,
   disconnectGoogleCalendar,
 } from '@/lib/api'
-import { panel } from '@/lib/panelTheme'
 
 const GOOGLE_CALENDAR_URL = 'https://calendar.google.com'
 
 export default function SettingPage() {
   const [businessTitle, setBusinessTitle] = useState<string | null>(null)
-  const [businessSlug, setBusinessSlug] = useState<string | null>(null)
   const [userRole, setUserRole] = useState<string | null>(null)
   const [calendarConnected, setCalendarConnected] = useState<boolean | null>(null)
   const [calendarLoading, setCalendarLoading] = useState(false)
@@ -30,7 +28,6 @@ export default function SettingPage() {
     getMyBusiness()
       .then((b) => {
         setBusinessTitle(`${b.name} - Configuración`)
-        setBusinessSlug(b.slug)
       })
       .catch(() => setBusinessTitle('Configuración'))
 

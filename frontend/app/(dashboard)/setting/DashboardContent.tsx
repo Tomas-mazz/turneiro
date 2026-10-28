@@ -4,7 +4,6 @@ import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
 import { format, addDays } from 'date-fns'
-import { es } from 'date-fns/locale'
 import { getAuthUser, getAdminActingShopSlug } from '@/lib/auth'
 import {
   getMyBusiness,
@@ -19,9 +18,6 @@ import {
   deleteSubService,
   getAppointmentsByPhone,
   cancelAppointmentByOwner,
-  getGoogleCalendarAuthUrl,
-  getGoogleCalendarStatus,
-  disconnectGoogleCalendar,
   getBlockedSlots,
   createBlockedSlot,
   deleteBlockedSlot,
@@ -65,8 +61,6 @@ import type {
   OwnerEmployeeListItem,
 } from '@/types'
 
-const GOOGLE_CALENDAR_URL = 'https://calendar.google.com'
-
 type DashboardSection = 'all' | 'services' | 'payments' | 'blocking' | 'hours' | 'employees' | 'cancel'
 type PaymentMode = 'REQUIRED' | 'OPTIONAL' | 'CONFIRM_ONLY'
 type FontFamilyKey = 'ROBOTO' | 'MONTSERRAT' | 'INTER' | 'POPPINS' | 'NUNITO' | 'PLAYFAIR'
@@ -99,7 +93,6 @@ function formatConnectionDate(value: string | null): string | null {
 export function DashboardContent({ section = 'all' }: { section?: DashboardSection }) {
   const searchParams = useSearchParams()
   const [businessTitle, setBusinessTitle] = useState<string | null>(null)
-  const [businessSlug, setBusinessSlug] = useState<string | null>(null)
   const [capabilities, setCapabilities] = useState<IndustryCapabilities | null>(null)
   const [services, setServices] = useState<ServiceListItem[]>([])
   const [loadingServices, setLoadingServices] = useState(true)
@@ -157,12 +150,8 @@ export function DashboardContent({ section = 'all' }: { section?: DashboardSecti
     serviceId: string
     subServiceId: string
   } | null>(null)
-  const [showServiceConfirmModal, setShowServiceConfirmModal] = useState(false)
-  const [showServiceConfirmModalSaving, setShowServiceConfirmModalSaving] = useState(false)
   const [allowMultipleServices, setAllowMultipleServices] = useState(false)
   const [allowMultipleServicesSaving, setAllowMultipleServicesSaving] = useState(false)
-  const [paymentRequired, setPaymentRequired] = useState(false)
-  const [paymentOptionalEnabled, setPaymentOptionalEnabled] = useState(false)
   const [paymentMode, setPaymentMode] = useState<PaymentMode>('CONFIRM_ONLY')
   const [paymentType, setPaymentType] = useState<'FULL' | 'PERCENTAGE'>('FULL')
   const [depositPercentage, setDepositPercentage] = useState('30')
@@ -236,7 +225,6 @@ export function DashboardContent({ section = 'all' }: { section?: DashboardSecti
     getMyBusiness()
       .then((b) => {
         setBusinessTitle(`${b.name} - Configuración`)
-        setBusinessSlug(b.slug)
         setCapabilities((b as any).capabilities ?? null)
       })
       .catch(() => setBusinessTitle('Configuración'))
@@ -275,7 +263,6 @@ export function DashboardContent({ section = 'all' }: { section?: DashboardSecti
     if (!actsAsOwner) return
     getBusinessSettings()
       .then((s) => {
-        setShowServiceConfirmModal(!!s.showServiceConfirmModal)
         setAllowMultipleServices(!!(s as { allowMultipleServices?: boolean }).allowMultipleServices)
         const nextFont = String((s as any).fontFamily ?? 'ROBOTO').toUpperCase()
         if (FONT_OPTIONS.some((x) => x.key === nextFont)) {
@@ -283,8 +270,6 @@ export function DashboardContent({ section = 'all' }: { section?: DashboardSecti
         } else {
           setFontFamily('ROBOTO')
         }
-        setPaymentRequired(!!s.paymentRequired)
-        setPaymentOptionalEnabled(!!s.paymentOptionalEnabled)
         const mode: PaymentMode = s.paymentRequired
           ? 'REQUIRED'
           : s.paymentOptionalEnabled
@@ -313,7 +298,6 @@ export function DashboardContent({ section = 'all' }: { section?: DashboardSecti
         setPublicDefaultTheme(th === 'LIGHT' ? 'LIGHT' : 'DARK')
       })
       .catch(() => {
-        setShowServiceConfirmModal(false)
         setAllowMultipleServices(false)
         setFontFamily('ROBOTO')
         setBgDarkHex(DEFAULT_PUBLIC_PAGE_BG_DARK)
@@ -323,8 +307,6 @@ export function DashboardContent({ section = 'all' }: { section?: DashboardSecti
         setPublicUseGradient(false)
         setPublicDefaultTheme('DARK')
         setPaymentMode('CONFIRM_ONLY')
-        setPaymentRequired(false)
-        setPaymentOptionalEnabled(false)
         setHasMercadoPagoAccessToken(false)
         setMercadoPagoConnectionType(null)
         setMercadoPagoAccountId(null)
@@ -797,8 +779,6 @@ export function DashboardContent({ section = 'all' }: { section?: DashboardSecti
         mercadoPagoPublicKey: mercadoPagoPublicKey.trim() || null,
         mercadoPagoWebhookSecret: mercadoPagoWebhookSecret.trim() || null,
       })
-      setPaymentRequired(updated.paymentRequired)
-      setPaymentOptionalEnabled(updated.paymentOptionalEnabled)
       setPaymentMode(
         updated.paymentRequired
           ? 'REQUIRED'
@@ -1367,23 +1347,6 @@ export function DashboardContent({ section = 'all' }: { section?: DashboardSecti
       <ServicesSection
         visible={actsAsOwner && (section === 'all' || section === 'services')}
         subServicesEnabled={capabilities?.allowSubServices !== false}
-        showServiceConfirmModal={showServiceConfirmModal}
-        showServiceConfirmModalSaving={showServiceConfirmModalSaving}
-        onToggleShowConfirm={async (next) => {
-          setShowServiceConfirmModal(next)
-          setShowServiceConfirmModalSaving(true)
-          try {
-            await updateBusinessSettings({ showServiceConfirmModal: next })
-          } catch (err) {
-            setShowServiceConfirmModal((prev) => !prev)
-            setError(
-              (err as { response?: { data?: { error?: string } } })?.response?.data?.error ||
-                'Error al guardar la configuración'
-            )
-          } finally {
-            setShowServiceConfirmModalSaving(false)
-          }
-        }}
         allowMultipleServices={allowMultipleServices}
         allowMultipleServicesSaving={allowMultipleServicesSaving}
         onToggleAllowMultipleServices={async (next) => {

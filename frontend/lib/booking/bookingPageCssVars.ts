@@ -18,8 +18,6 @@ export function bookingPageCssVars(backgroundHex: string): CSSProperties {
     /* Superficies elevadas: mezcla del color del negocio + blanco (no blanco puro; coherencia con el fondo). */
     const modalSurface = mixHex(hex, '#FFFFFF', 0.76)
     const cartSurface = mixHex(hex, '#FFFFFF', 0.7)
-    const modalBorder = mixTowardBlack(modalSurface, 0.1)
-    const cartBorder = mixTowardBlack(cartSurface, 0.11)
     const ctaFill = mixHex(hex, '#111111', 0.72)
 
     return {

@@ -74,7 +74,6 @@ export type Business = {
     paymentType: string | null
     depositPercentage: number | null
     mercadoPagoPublicKey?: string | null
-    showServiceConfirmModal?: boolean
     allowMultipleServices?: boolean
     publicPageBackgroundDark?: string | null
     publicPageBackgroundLight?: string | null

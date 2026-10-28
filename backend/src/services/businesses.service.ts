@@ -84,7 +84,6 @@ export async function getBusinessBySlugService(slug: string) {
           paymentType: true,
           depositPercentage: true,
           mercadoPagoPublicKey: true,
-          showServiceConfirmModal: true,
           allowMultipleServices: true,
           publicPageBackgroundDark: true,
           publicPageBackgroundLight: true,
@@ -274,7 +273,6 @@ export async function getBusinessByIdForAdmin(
           lateCancellationFee: true,
           bufferTime: true,
           slotIntervalMinutes: true,
-          showServiceConfirmModal: true,
           allowMultipleServices: true,
         },
       },
@@ -464,7 +462,6 @@ export interface UpdateBusinessForAdminInput {
   lateCancellationFee?: number | null
   bufferTime?: number | null
   slotIntervalMinutes?: number
-  showServiceConfirmModal?: boolean
   allowMultipleServices?: boolean
   ownerName?: string
   ownerEmail?: string
@@ -534,7 +531,6 @@ export async function updateBusinessForAdmin(
       input.lateCancellationFee !== undefined ||
       input.bufferTime !== undefined ||
       input.slotIntervalMinutes !== undefined ||
-      input.showServiceConfirmModal !== undefined ||
       input.allowMultipleServices !== undefined
 
     if (hasSettingsInput) {
@@ -587,10 +583,6 @@ export async function updateBusinessForAdmin(
         input.slotIntervalMinutes !== undefined
           ? input.slotIntervalMinutes
           : existingSettings?.slotIntervalMinutes ?? 15
-      const showServiceConfirmModal =
-        input.showServiceConfirmModal !== undefined
-          ? input.showServiceConfirmModal
-          : existingSettings?.showServiceConfirmModal ?? false
       const allowMultipleServices =
         input.allowMultipleServices !== undefined
           ? input.allowMultipleServices
@@ -620,7 +612,6 @@ export async function updateBusinessForAdmin(
           lateCancellationFee,
           bufferTime,
           slotIntervalMinutes,
-          showServiceConfirmModal,
           allowMultipleServices,
         },
         update: {
@@ -636,7 +627,6 @@ export async function updateBusinessForAdmin(
           lateCancellationFee,
           bufferTime,
           slotIntervalMinutes,
-          showServiceConfirmModal,
           allowMultipleServices,
         },
       })
@@ -833,7 +823,6 @@ export type BusinessSettings = {
   mercadoPagoConnectedAt: Date | null
   mercadoPagoTokenExpiresAt: Date | null
   mercadoPagoWebhookSecret: string | null
-  showServiceConfirmModal: boolean
   allowMultipleServices: boolean
   /** Null = use built-in default for public booking page (dark theme). */
   publicPageBackgroundDark: string | null
@@ -870,7 +859,6 @@ export async function getBusinessSettingsService(
         mercadoPagoConnectedAt: true,
         mercadoPagoTokenExpiresAt: true,
         mercadoPagoWebhookSecret: true,
-        showServiceConfirmModal: true,
         allowMultipleServices: true,
         publicPageBackgroundDark: true,
         publicPageBackgroundLight: true,
@@ -908,7 +896,6 @@ export async function getBusinessSettingsService(
     mercadoPagoConnectedAt: settings?.mercadoPagoConnectedAt ?? null,
     mercadoPagoTokenExpiresAt: settings?.mercadoPagoTokenExpiresAt ?? null,
     mercadoPagoWebhookSecret: settings?.mercadoPagoWebhookSecret ?? null,
-    showServiceConfirmModal: settings?.showServiceConfirmModal ?? false,
     allowMultipleServices: settings?.allowMultipleServices ?? false,
     publicPageBackgroundDark: settings?.publicPageBackgroundDark ?? null,
     publicPageBackgroundLight: settings?.publicPageBackgroundLight ?? null,
@@ -987,7 +974,6 @@ export async function updateBusinessSettingsService(
       mercadoPagoAccessToken: input.mercadoPagoAccessToken?.trim() || null,
       mercadoPagoWebhookSecret: input.mercadoPagoWebhookSecret ?? null,
       requireRegistrationBeforePayment: true,
-      showServiceConfirmModal: input.showServiceConfirmModal ?? false,
       allowMultipleServices,
       publicPageBackgroundDark: inputBgDark !== undefined ? inputBgDark : null,
       publicPageBackgroundLight: inputBgLight !== undefined ? inputBgLight : null,
@@ -1020,9 +1006,6 @@ export async function updateBusinessSettingsService(
         mercadoPagoUserId: null,
         mercadoPagoConnectedAt: null,
       }),
-      ...(input.showServiceConfirmModal !== undefined && {
-        showServiceConfirmModal: input.showServiceConfirmModal,
-      }),
       ...((input as { allowMultipleServices?: boolean }).allowMultipleServices !== undefined && {
         allowMultipleServices,
       }),
@@ -1049,7 +1032,6 @@ export async function updateBusinessSettingsService(
       mercadoPagoConnectedAt: true,
       mercadoPagoTokenExpiresAt: true,
       mercadoPagoWebhookSecret: true,
-      showServiceConfirmModal: true,
       allowMultipleServices: true,
       publicPageBackgroundDark: true,
       publicPageBackgroundLight: true,
@@ -1097,7 +1079,6 @@ export async function updateBusinessSettingsService(
     mercadoPagoConnectedAt: updated.mercadoPagoConnectedAt ?? null,
     mercadoPagoTokenExpiresAt: updated.mercadoPagoTokenExpiresAt ?? null,
     mercadoPagoWebhookSecret: updated.mercadoPagoWebhookSecret ?? null,
-    showServiceConfirmModal: updated.showServiceConfirmModal,
     allowMultipleServices: updated.allowMultipleServices ?? false,
     publicPageBackgroundDark: updated.publicPageBackgroundDark ?? null,
     publicPageBackgroundLight: updated.publicPageBackgroundLight ?? null,

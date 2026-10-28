@@ -5,7 +5,6 @@ import type {
   OwnerEmployeeListItem,
   ServiceListItem,
   SubServiceAdminItem,
-  EmployeeServiceRestrictionItem,
 } from '@/types'
 import {
   getOwnerEmployeeServiceRestrictions,
@@ -40,7 +39,6 @@ export function EmployeeServiceRestrictionsModal({
   const [error, setError] = useState<string | null>(null)
   /** true = employee DOES the service, false = disabled */
   const [enabledByKey, setEnabledByKey] = useState<Record<string, boolean>>({})
-  const [existing, setExisting] = useState<EmployeeServiceRestrictionItem[]>([])
   const [openServiceIds, setOpenServiceIds] = useState<Record<string, boolean>>({})
 
   const rows: Row[] = useMemo(() => {
@@ -66,7 +64,6 @@ export function EmployeeServiceRestrictionsModal({
     setError(null)
     getOwnerEmployeeServiceRestrictions(employee.id)
       .then((items) => {
-        setExisting(items)
         const disabledKeys = new Set<string>()
         for (const it of items) {
           if (it.serviceId) disabledKeys.add(rowKey('SERVICE', it.serviceId))
@@ -80,7 +77,6 @@ export function EmployeeServiceRestrictionsModal({
       })
       .catch((err) => {
         setError(err?.response?.data?.error || 'No se pudieron cargar los permisos por empleado.')
-        setExisting([])
         setEnabledByKey({})
       })
       .finally(() => setLoading(false))

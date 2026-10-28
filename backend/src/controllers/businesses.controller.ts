@@ -98,11 +98,6 @@ export async function getPublicServiceAddOns(req: Request, res: Response, next: 
   }
 }
 
-export async function getBusinesses(req: Request, res: Response) {
-  // TODO: Implement
-  res.json({ message: 'Not implemented' })
-}
-
 export async function getMyProfile(req: AuthRequest, res: Response, next: NextFunction) {
   try {
     const ctx = getBusinessContextOrRespond(req, res)
@@ -224,7 +219,6 @@ export async function updateBusinessSettings(req: AuthRequest, res: Response, ne
     const {
       fontFamily,
       theme,
-      showServiceConfirmModal,
       allowMultipleServices,
       paymentRequired,
       paymentOptionalEnabled,
@@ -301,7 +295,6 @@ export async function updateBusinessSettings(req: AuthRequest, res: Response, ne
       ...(mercadoPagoPublicKey !== undefined && { mercadoPagoPublicKey }),
       ...(mercadoPagoAccessToken !== undefined && { mercadoPagoAccessToken }),
       ...(mercadoPagoWebhookSecret !== undefined && { mercadoPagoWebhookSecret }),
-      ...(showServiceConfirmModal !== undefined && { showServiceConfirmModal: !!showServiceConfirmModal }),
       ...(allowMultipleServices !== undefined && { allowMultipleServices: !!allowMultipleServices }),
       ...(bgDark.value !== undefined && { publicPageBackgroundDark: bgDark.value }),
       ...(bgLight.value !== undefined && { publicPageBackgroundLight: bgLight.value }),

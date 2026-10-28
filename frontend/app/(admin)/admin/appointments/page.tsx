@@ -16,12 +16,6 @@ import type {
 
 type StatusFilter = 'ALL' | 'UPCOMING' | 'COMPLETED' | 'CANCELLED'
 
-const STATUS_LABELS: Record<Exclude<StatusFilter, 'ALL'>, string> = {
-  UPCOMING: 'Próximas',
-  COMPLETED: 'Completadas',
-  CANCELLED: 'Canceladas',
-}
-
 function formatDateTime(value: string) {
   const date = new Date(value)
   if (Number.isNaN(date.getTime())) return '—'

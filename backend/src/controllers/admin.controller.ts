@@ -155,7 +155,6 @@ export async function updateBusiness(req: AuthRequest, res: Response, next: Next
       lateCancellationFee: body.lateCancellationFee,
       bufferTime: body.bufferTime,
       slotIntervalMinutes: body.slotIntervalMinutes,
-      showServiceConfirmModal: body.showServiceConfirmModal,
       ownerName: body.ownerName,
       ownerEmail: body.ownerEmail,
       ownerPassword: body.ownerPassword,
