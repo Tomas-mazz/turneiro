@@ -3,7 +3,6 @@
 import { useState, useEffect } from 'react'
 import { api } from '@/lib/api'
 import type { Business, ServiceOption } from '../types'
-import { ServiceAboutModal } from './ServiceAboutModal'
 import { BookingAddOnsModal, type BookingAddOnItem } from './BookingAddOnsModal'
 
 type ServicePickerProps = {
@@ -24,7 +23,7 @@ type AddOnModalState = {
   baseBeforeAppend: ServiceOption[] | null
 }
 
-/** Service list for the one-page booking: services, subservices, add-ons and "Ver más" details. */
+/** Service list for the one-page booking: services, subservices and add-ons. */
 export function ServicePicker({
   business,
   businessSlug,
@@ -35,33 +34,15 @@ export function ServicePicker({
   pageBackgroundColor,
   isDarkTheme = true,
 }: ServicePickerProps) {
-  const truncateWords = (text: string, maxWords: number) => {
-    const cleaned = (text ?? '').trim().replace(/\s+/g, ' ')
-    if (!cleaned) return ''
-    const words = cleaned.split(' ')
-    if (words.length <= maxWords) return cleaned
-    return `${words.slice(0, maxWords).join(' ')}…`
-  }
-
   const serviceNameColor = 'text-[color:var(--booking-fg)]'
   const serviceMetaColor = 'text-[color:var(--booking-fg-muted)]'
   const serviceRowHover = 'hover:bg-[color:var(--booking-row-hover)]'
   const bulletBorder = 'border-[color:var(--booking-bullet-border)]'
   const bulletFill = 'bg-[color:var(--booking-bullet-fill)]'
 
-  const verMasBtnClass =
-    'inline-flex h-5 items-center rounded-full border border-[color:var(--booking-vermas-border)] bg-[color:var(--booking-vermas-bg)] px-2 text-[10px] font-medium leading-none text-[color:var(--booking-vermas-text)] transition-colors hover:opacity-90'
-
   const [openServiceSubListId, setOpenServiceSubListId] = useState<string | null>(null)
   const [activeServiceId, setActiveServiceId] = useState<string | null>(null)
-  const [aboutOpen, setAboutOpen] = useState(false)
   const [addOnModal, setAddOnModal] = useState<AddOnModalState | null>(null)
-  const [aboutTarget, setAboutTarget] = useState<{
-      title: string
-      images: string[]
-      shortDescription?: string | null
-      description?: string | null
-    } | null>(null)
 
   const allowMultiple = !!business.settings?.allowMultipleServices
 
@@ -131,46 +112,8 @@ export function ServicePicker({
     setOpenServiceSubListId(parentId)
   }, [selectedServices])
 
-  const openAboutForSelection = (sel: ServiceOption) => {
-    if (sel.parentServiceId) {
-      const parent = business.services.find((x) => x.id === sel.parentServiceId) ?? null
-      const sub = parent?.subServices?.find((x) => x.id === sel.id) ?? null
-      setAboutTarget({
-        title: sub?.name ?? sel.name,
-        images: sub?.images ?? [],
-        shortDescription: sub?.shortDescription ?? null,
-        description: sub?.description ?? null,
-      })
-    } else {
-      const svc = business.services.find((x) => x.id === sel.id) ?? null
-      setAboutTarget({
-        title: svc?.name ?? sel.name,
-        images: svc?.images ?? [],
-        shortDescription: svc?.shortDescription ?? null,
-        description: svc?.description ?? null,
-      })
-    }
-    setAboutOpen(true)
-  }
-
   return (
     <div className="min-w-0">
-      <ServiceAboutModal
-        open={aboutOpen}
-        title={aboutTarget?.title ?? ''}
-        images={aboutTarget?.images ?? []}
-        shortDescription={aboutTarget?.shortDescription ?? null}
-        description={aboutTarget?.description ?? null}
-        pageBackgroundColor={pageBackgroundColor}
-        isDarkTheme={isDarkTheme}
-        primaryColor={primaryColor}
-        showConfirmButton={false}
-        onClose={() => {
-          setAboutOpen(false)
-          setAboutTarget(null)
-        }}
-        onConfirm={() => setAboutOpen(false)}
-      />
       {addOnModal && (
         <BookingAddOnsModal
           open
@@ -210,10 +153,6 @@ export function ServicePicker({
               const isSubListOpen = openServiceSubListId === s.id
               const isActiveParent = activeServiceId === s.id
               const serviceShort = s.shortDescription?.trim() || ''
-              const serviceLong = s.description?.trim() || ''
-              const serviceHasMoreDetails =
-                (Array.isArray(s.images) && s.images.length > 0) || !!serviceLong
-              const serviceShortTruncated = truncateWords(serviceShort, 6)
 
               return (
                 <li key={s.id} className="py-1">
@@ -267,51 +206,8 @@ export function ServicePicker({
                           {formatEstimatedDuration(s)}
                         </p>
                       )}
-                      {(serviceShort || serviceHasMoreDetails) && (
-                        <div className={`mt-2 text-xs md:text-sm ${serviceMetaColor}`}>
-                          {serviceShort ? (
-                            <span className="min-w-0" title={serviceShort}>
-                              {serviceShortTruncated}
-                              {serviceHasMoreDetails && (
-                                <button
-                                  type="button"
-                                  onClick={(e) => {
-                                    e.stopPropagation()
-                                    const sel: ServiceOption = {
-                                      id: s.id,
-                                      name: s.name,
-                                      price: s.price,
-                                      duration: s.duration,
-                                    }
-                                    openAboutForSelection(sel)
-                                  }}
-                                  className={`${verMasBtnClass} ml-2 align-middle`}
-                                  aria-label={`Ver más sobre ${s.name}`}
-                                >
-                                  Ver más
-                                </button>
-                              )}
-                            </span>
-                          ) : serviceHasMoreDetails ? (
-                            <button
-                              type="button"
-                              onClick={(e) => {
-                                e.stopPropagation()
-                                const sel: ServiceOption = {
-                                  id: s.id,
-                                  name: s.name,
-                                  price: s.price,
-                                  duration: s.duration,
-                                }
-                                openAboutForSelection(sel)
-                              }}
-                              className={verMasBtnClass}
-                              aria-label={`Ver más sobre ${s.name}`}
-                            >
-                              Ver más
-                            </button>
-                          ) : null}
-                        </div>
+                      {serviceShort && (
+                        <p className={`mt-2 text-xs md:text-sm ${serviceMetaColor}`}>{serviceShort}</p>
                       )}
                     </div>
                     {!hasSubServices && (
@@ -343,10 +239,6 @@ export function ServicePicker({
                       <ul className="mt-1 space-y-1 pb-1">
                         {subServices.map((sub) => {
                           const subShort = sub.shortDescription?.trim() || ''
-                          const subLong = sub.description?.trim() || ''
-                          const subHasMoreDetails =
-                            (Array.isArray(sub.images) && sub.images.length > 0) || !!subLong
-                          const subShortTruncated = truncateWords(subShort, 6)
                           const isSelected =
                             selectedServices.some(
                               (x) => x.id === sub.id && x.parentServiceId === s.id
@@ -400,59 +292,8 @@ export function ServicePicker({
                                   <p className={`mt-0.5 text-xs md:text-sm ${serviceMetaColor}`}>
                                     {formatEstimatedDuration(sub)}
                                   </p>
-                                  {(subShort || subHasMoreDetails) && (
-                                    <div className={`mt-1 text-[11px] md:text-xs ${serviceMetaColor}`}>
-                                      {subShort ? (
-                                        <span className="min-w-0" title={subShort}>
-                                          {subShortTruncated}
-                                          {subHasMoreDetails && (
-                                            <button
-                                              type="button"
-                                              onClick={(e) => {
-                                                e.stopPropagation()
-                                                const sel: ServiceOption = {
-                                                  id: sub.id,
-                                                  name: `${s.name} - ${sub.name}`,
-                                                  price: sub.price,
-                                                  duration: sub.duration,
-                                                  parentServiceId: s.id,
-                                                  parentServiceName: s.name,
-                                                }
-                                                setOpenServiceSubListId(s.id)
-                                                setActiveServiceId(s.id)
-                                                openAboutForSelection(sel)
-                                              }}
-                                              className={`${verMasBtnClass} ml-2 align-middle`}
-                                              aria-label={`Ver más sobre ${sub.name}`}
-                                            >
-                                              Ver más
-                                            </button>
-                                          )}
-                                        </span>
-                                      ) : subHasMoreDetails ? (
-                                        <button
-                                          type="button"
-                                          onClick={(e) => {
-                                            e.stopPropagation()
-                                            const sel: ServiceOption = {
-                                              id: sub.id,
-                                              name: `${s.name} - ${sub.name}`,
-                                              price: sub.price,
-                                              duration: sub.duration,
-                                              parentServiceId: s.id,
-                                              parentServiceName: s.name,
-                                            }
-                                            setOpenServiceSubListId(s.id)
-                                            setActiveServiceId(s.id)
-                                            openAboutForSelection(sel)
-                                          }}
-                                          className={verMasBtnClass}
-                                          aria-label={`Ver más sobre ${sub.name}`}
-                                        >
-                                          Ver más
-                                        </button>
-                                      ) : null}
-                                    </div>
+                                  {subShort && (
+                                    <p className={`mt-1 text-[11px] md:text-xs ${serviceMetaColor}`}>{subShort}</p>
                                   )}
                                 </div>
                                 <span
