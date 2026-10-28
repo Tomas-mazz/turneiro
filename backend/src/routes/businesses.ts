@@ -20,6 +20,7 @@ import {
   updateBusinessInfoSchema,
   updateOwnerCalendarColorSchema,
   updateOwnerEmployeeSchema,
+  updateWorkingHoursSchema,
 } from '../lib/schemas'
 import {
   createOwnerEmployee,
@@ -37,6 +38,11 @@ import {
   listOwnerEmployeeServiceRestrictions,
   replaceOwnerEmployeeServiceRestrictions,
 } from '../controllers/employeeServiceRestrictions.controller'
+import {
+  getOwnerEmployeeWorkingHours,
+  resetOwnerEmployeeWorkingHours,
+  updateOwnerEmployeeWorkingHours,
+} from '../controllers/workingHours.controller'
 
 const router = Router()
 
@@ -112,6 +118,27 @@ router.put(
   requireOwnerOrAdminActing,
   requireBusinessContext,
   replaceOwnerEmployeeServiceRestrictions
+)
+
+// Owner dashboard: per-employee schedule (falls back to the business hours when not set)
+router.get(
+  '/employees/:id/working-hours',
+  requireOwnerOrAdminActing,
+  requireBusinessContext,
+  getOwnerEmployeeWorkingHours
+)
+router.put(
+  '/employees/:id/working-hours',
+  requireOwnerOrAdminActing,
+  requireBusinessContext,
+  validateRequest(updateWorkingHoursSchema),
+  updateOwnerEmployeeWorkingHours
+)
+router.delete(
+  '/employees/:id/working-hours',
+  requireOwnerOrAdminActing,
+  requireBusinessContext,
+  resetOwnerEmployeeWorkingHours
 )
 
 router.get('/:slug/add-ons', getPublicServiceAddOns)

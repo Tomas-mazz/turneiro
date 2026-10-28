@@ -95,3 +95,84 @@ export async function upsertWorkingHoursForBusiness(
 
   return getWorkingHoursForBusiness(businessId)
 }
+
+export class EmployeeNotInBusinessError extends Error {
+  constructor() {
+    super('Empleado no encontrado')
+    this.name = 'EmployeeNotInBusinessError'
+  }
+}
+
+async function assertEmployeeInBusiness(businessId: string, employeeId: string): Promise<void> {
+  const employee = await prisma.employee.findFirst({
+    where: { id: employeeId, businessId },
+    select: { id: true },
+  })
+  if (!employee) throw new EmployeeNotInBusinessError()
+}
+
+/**
+ * Schedule of one employee for the 7 days. `custom` is false when they follow the business
+ * hours; days they did not set show the business hours.
+ */
+export async function getEmployeeWorkingHours(
+  businessId: string,
+  employeeId: string
+): Promise<{ custom: boolean; hours: WorkingHoursRow[] }> {
+  await assertEmployeeInBusiness(businessId, employeeId)
+  const [businessHours, own] = await Promise.all([
+    getWorkingHoursForBusiness(businessId),
+    prisma.employeeWorkingHours.findMany({ where: { employeeId } }),
+  ])
+  const byDay = new Map(own.map((r) => [r.dayOfWeek, r]))
+  return {
+    custom: own.length > 0,
+    hours: businessHours.map((bh) => {
+      const row = byDay.get(bh.dayOfWeek)
+      if (!row) return bh
+      return {
+        id: row.id,
+        dayOfWeek: row.dayOfWeek,
+        startTime: row.startTime,
+        endTime: row.endTime,
+        isClosed: row.isClosed,
+        lunchStart: row.lunchStart,
+        lunchEnd: row.lunchEnd,
+      }
+    }),
+  }
+}
+
+/** Give an employee their own schedule (replaces all 7 days). */
+export async function replaceEmployeeWorkingHours(
+  businessId: string,
+  employeeId: string,
+  hours: WorkingHoursItemInput[]
+): Promise<{ custom: boolean; hours: WorkingHoursRow[] }> {
+  await assertEmployeeInBusiness(businessId, employeeId)
+  await prisma.$transaction([
+    prisma.employeeWorkingHours.deleteMany({ where: { employeeId } }),
+    prisma.employeeWorkingHours.createMany({
+      data: hours.map((h) => ({
+        employeeId,
+        dayOfWeek: h.dayOfWeek,
+        startTime: h.startTime,
+        endTime: h.endTime,
+        isClosed: h.isClosed,
+        lunchStart: h.lunchStart ?? null,
+        lunchEnd: h.lunchEnd ?? null,
+      })),
+    }),
+  ])
+  return getEmployeeWorkingHours(businessId, employeeId)
+}
+
+/** Back to the business hours. */
+export async function resetEmployeeWorkingHours(
+  businessId: string,
+  employeeId: string
+): Promise<{ custom: boolean; hours: WorkingHoursRow[] }> {
+  await assertEmployeeInBusiness(businessId, employeeId)
+  await prisma.employeeWorkingHours.deleteMany({ where: { employeeId } })
+  return getEmployeeWorkingHours(businessId, employeeId)
+}
