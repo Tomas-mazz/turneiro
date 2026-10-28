@@ -75,6 +75,7 @@ export default function AdminBusinessPage() {
     cancellationHasCost: false,
     lateCancellationFee: '',
     bufferTime: '',
+    ownerName: '',
     ownerEmail: '',
     ownerPassword: '',
   })
@@ -115,7 +116,6 @@ export default function AdminBusinessPage() {
   const [savingEmployeeId, setSavingEmployeeId] = useState<string | null>(null)
   const [editingEmployee, setEditingEmployee] = useState<AdminEmployeeListItem | null>(null)
   const [businessSaved, setBusinessSaved] = useState(false)
-  const [showServiceConfirmModalSaving, setShowServiceConfirmModalSaving] = useState(false)
   const [allowMultipleServicesSaving, setAllowMultipleServicesSaving] = useState(false)
 
   const DAY_NAMES = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado']
@@ -154,8 +154,8 @@ export default function AdminBusinessPage() {
           cancellationHasCost: b.settings?.cancellationHasCost ?? false,
           lateCancellationFee: b.settings?.lateCancellationFee ?? '',
           bufferTime: b.settings?.bufferTime ?? '',
-          showServiceConfirmModal: b.settings?.showServiceConfirmModal ?? false,
           allowMultipleServices: b.settings?.allowMultipleServices ?? false,
+          ownerName: b.ownerName ?? '',
           ownerEmail: b.owner?.email ?? '',
           ownerPassword: '',
         })
@@ -172,15 +172,6 @@ export default function AdminBusinessPage() {
       .catch(() => setEmployees([]))
       .finally(() => setEmployeesLoading(false))
   }, [id, business])
-
-  const loadServices = () => {
-    if (!id) return
-    setServicesLoading(true)
-    getAdminBusinessServices(id)
-      .then(setServices)
-      .catch(() => setError('Error al cargar servicios'))
-      .finally(() => setServicesLoading(false))
-  }
 
   useEffect(() => {
     if (id && business) {
@@ -571,8 +562,8 @@ export default function AdminBusinessPage() {
         ? Number(form.lateCancellationFee)
         : null
       body.bufferTime = form.bufferTime === '' ? null : Number(form.bufferTime)
-      if (form.showServiceConfirmModal !== undefined) body.showServiceConfirmModal = !!form.showServiceConfirmModal
       if (form.allowMultipleServices !== undefined) body.allowMultipleServices = !!form.allowMultipleServices
+      if (form.ownerName?.trim()) body.ownerName = form.ownerName.trim()
       if (form.ownerEmail !== undefined) body.ownerEmail = form.ownerEmail.trim() || undefined
       if (form.ownerPassword?.trim()) body.ownerPassword = form.ownerPassword
 
@@ -1014,25 +1005,6 @@ export default function AdminBusinessPage() {
         </fieldset>
 
         <ServicesFieldset
-          showServiceConfirmModal={!!form.showServiceConfirmModal}
-          showServiceConfirmModalSaving={showServiceConfirmModalSaving}
-          onToggleShowConfirm={async (next) => {
-            if (!id) return
-            setForm((p) => ({ ...p, showServiceConfirmModal: next }))
-            setShowServiceConfirmModalSaving(true)
-            try {
-              await updateAdminBusiness(id, { showServiceConfirmModal: next })
-            } catch (err: unknown) {
-              setForm((p) => ({ ...p, showServiceConfirmModal: !next }))
-              const msg =
-                err && typeof err === 'object' && 'response' in err
-                  ? (err as { response?: { data?: { error?: string } } }).response?.data?.error
-                  : null
-              setError(msg || 'Error al guardar la configuración')
-            } finally {
-              setShowServiceConfirmModalSaving(false)
-            }
-          }}
           allowMultipleServices={!!form.allowMultipleServices}
           allowMultipleServicesSaving={allowMultipleServicesSaving}
           onToggleAllowMultipleServices={async (next) => {
@@ -1471,11 +1443,29 @@ export default function AdminBusinessPage() {
 
         <fieldset className="rounded-lg border border-neutral-200 p-4">
           <legend className="text-sm font-medium text-neutral-700">
-            Credenciales del dueño del negocio
+            Dueño del negocio
           </legend>
           <p className="mb-3 text-xs text-neutral-500">
             Email actual del owner (solo lectura). Para cambiar el email o la contraseña, completá los campos y guardá.
           </p>
+          <div className="mb-4">
+            <label htmlFor="ownerName" className="mb-1 block text-sm text-neutral-600">
+              Nombre del dueño *
+            </label>
+            <input
+              id="ownerName"
+              name="ownerName"
+              type="text"
+              value={form.ownerName ?? ''}
+              onChange={handleChange}
+              placeholder="Ej: Juan Pérez"
+              className={`w-full rounded-lg border px-3 py-2 focus:ring-1 ${fieldErrors.ownerName ? 'border-red-500 focus:border-red-500 focus:ring-red-500' : 'border-neutral-300 focus:border-neutral-500 focus:ring-neutral-500'}`}
+            />
+            <p className="mt-0.5 text-xs text-neutral-500">Así lo ven los clientes al reservar. No uses el email.</p>
+            {fieldErrors.ownerName && (
+              <p className="mt-0.5 text-sm text-red-600" role="alert">{fieldErrors.ownerName}</p>
+            )}
+          </div>
           <div className="grid gap-4 sm:grid-cols-2">
             <div>
               <label htmlFor="ownerEmail" className="mb-1 block text-sm text-neutral-600">

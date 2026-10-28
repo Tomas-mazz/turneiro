@@ -54,7 +54,6 @@ export function BookingSuccessClient() {
   const mercadoPagoPaymentIdFromUrl = pickMercadoPagoPaymentId(searchParams)
   const [booking, setBooking] = useState<StoredBooking | null>(null)
   const [appointmentForDone, setAppointmentForDone] = useState<CreatedAppointment | null>(null)
-  const [primaryColor, setPrimaryColor] = useState('#f5f5f5')
   const [confirming, setConfirming] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
@@ -78,7 +77,6 @@ export function BookingSuccessClient() {
         serviceName: b.serviceName,
         cancellationToken: b.cancellationToken,
       })
-      setPrimaryColor(b.primaryColor?.trim() || '#f5f5f5')
     }
 
     if (!appointmentId) {
@@ -129,9 +127,6 @@ export function BookingSuccessClient() {
         .finally(() => setConfirming(false))
       return
     }
-
-    const color = stored?.primaryColor?.trim() || '#f5f5f5'
-    setPrimaryColor(color)
 
     api
       .post<ConfirmPaymentResponse>('/payments/confirm', {
@@ -207,7 +202,7 @@ export function BookingSuccessClient() {
       className="min-h-screen flex flex-col items-center justify-center px-4 py-12"
       style={{ backgroundColor: 'hsl(0, 0%, 9%)' }}
     >
-      <BookingDone appointment={appointmentForDone} primaryColor={primaryColor} />
+      <BookingDone appointment={appointmentForDone} />
       {booking.cancellationToken && (
         <p className="mt-6 max-w-md text-center text-sm text-neutral-400">
           Para cancelar:{' '}

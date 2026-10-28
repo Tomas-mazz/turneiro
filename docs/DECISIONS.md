@@ -16,6 +16,8 @@ Product and technical choices that should survive UI refactors. Update this file
 10. **Marketing access:** Landing “Solicitar acceso” is sales-led (email contact), not open self-serve OWNER signup.
 11. **Client picks the professional:** With more than one employee, the client must choose who does the job before picking a service; there is no "anyone" option and no random/automatic assignment (it would push bookings onto some barbers). Services shown are the ones that professional does (`EmployeeServiceRestriction`), and availability is that professional's only. With a single employee the step is skipped.
 12. **Business public info is owner-editable:** Owners edit name, description, phone, address and social links (WhatsApp, Instagram, Facebook, Maps, Google reviews) from the dashboard; empty fields are hidden on the public page.
+13. **No "next free slot" shortcut naming a professional:** The public page does not promote the earliest-free barber (e.g. a cover chip "Próximo turno libre con X"); like #11, it would steer bookings toward some barbers and cause friction in the shop.
+14. **People are shown by their real name:** The owner's name is required when a business is created and is what clients see on the booking page; owner and staff names can never be an email address.
 
 ## Technical rules
 

@@ -11,9 +11,6 @@ type NewService = {
 }
 
 type Props = {
-  showServiceConfirmModal: boolean
-  showServiceConfirmModalSaving: boolean
-  onToggleShowConfirm: (next: boolean) => void
   allowMultipleServices: boolean
   allowMultipleServicesSaving: boolean
   onToggleAllowMultipleServices: (next: boolean) => void
@@ -30,9 +27,6 @@ type Props = {
 }
 
 export function ServicesFieldset({
-  showServiceConfirmModal,
-  showServiceConfirmModalSaving,
-  onToggleShowConfirm,
   allowMultipleServices,
   allowMultipleServicesSaving,
   onToggleAllowMultipleServices,
@@ -98,13 +92,6 @@ export function ServicesFieldset({
       <p className="mb-4 text-xs text-neutral-500">Creá, editá o eliminá servicios. El owner solo puede editar precio y duración.</p>
 
       <div className="mb-4 space-y-3">
-        <SwitchRow
-          title="Pedir confirmación antes del calendario"
-          description="Cuando el cliente confirme un servicio/subservicio, se mostrará un segundo modal para confirmar antes de pasar al calendario."
-          checked={showServiceConfirmModal}
-          disabled={showServiceConfirmModalSaving}
-          onChange={onToggleShowConfirm}
-        />
         <SwitchRow
           title="Permitir seleccionar más de un servicio"
           description="Si está activado, el cliente podrá seleccionar múltiples servicios/subservicios en una misma reserva (ej. uñas + pies)."

@@ -7,7 +7,6 @@ import type {
   SidebarMenuDefinition,
   SidebarMenuItemDef,
   SidebarMenuSectionDef,
-  SidebarMenuStandaloneDef,
 } from './types'
 
 /** Full shop menu (owner) — filtered by role */

@@ -109,10 +109,10 @@ export interface AdminBusinessDetail {
     lateCancellationFee: number | null
   bufferTime: number | null
   slotIntervalMinutes: number
-    showServiceConfirmModal?: boolean
     allowMultipleServices?: boolean
   } | null
   owner: { id: string; email: string } | null
+  ownerName: string | null
 }
 
 export type CreateBusinessBody = {
@@ -141,13 +141,13 @@ export type CreateBusinessBody = {
   cancellationHasCost?: boolean
   lateCancellationFee?: number | null
   bufferTime?: number | null
+  ownerName: string
   ownerEmail?: string
   ownerPassword?: string
 }
 
 export type UpdateBusinessBody = Partial<CreateBusinessBody> & {
   slotIntervalMinutes?: number
-  showServiceConfirmModal?: boolean
   allowMultipleServices?: boolean
 }
 
@@ -223,6 +223,7 @@ export interface SellerBusinessDetail {
   createdAt: string
   updatedAt: string
   owner: { id: string; email: string } | null
+  ownerName: string | null
 }
 
 export type CreateSellerBusinessBody = Omit<CreateBusinessBody, 'paymentRequired'>

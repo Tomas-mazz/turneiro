@@ -222,30 +222,6 @@ export async function deleteCalendarEvent(
 }
 
 /**
- * Get calendar event details
- */
-export async function getCalendarEvent(
-  refreshToken: string,
-  calendarId: string,
-  eventId: string
-): Promise<calendar_v3.Schema$Event> {
-  try {
-    const auth = createAuthenticatedClient(refreshToken)
-    const calendar = google.calendar({ version: 'v3', auth })
-
-    const response = await calendar.events.get({
-      calendarId,
-      eventId,
-    })
-
-    return response.data
-  } catch (error) {
-    console.error('Error getting calendar event:', error)
-    throw new Error('Failed to get calendar event')
-  }
-}
-
-/**
  * List calendars for user
  */
 export async function listCalendars(

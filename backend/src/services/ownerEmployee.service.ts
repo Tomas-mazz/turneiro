@@ -23,10 +23,13 @@ export async function ensureOwnerEmployee(
     return
   }
 
+  const ownerUser = options?.ownerUserId
+    ? await tx.user.findUnique({ where: { id: options.ownerUserId }, select: { name: true } })
+    : null
   await tx.employee.create({
     data: {
       businessId,
-      name: options?.fallbackName?.trim() || 'Dueño',
+      name: options?.fallbackName?.trim() || ownerUser?.name?.trim() || 'Dueño',
       isOwner: true,
       userId: options?.ownerUserId,
     },

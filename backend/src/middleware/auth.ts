@@ -75,34 +75,6 @@ export function requireSeller(
   })
 }
 
-export function requireAdminOrSeller(
-  req: AuthRequest,
-  res: Response,
-  next: NextFunction
-): void {
-  requireAuth(req, res, () => {
-    if (!req.user || !['ADMIN', 'SELLER'].includes(req.user.role)) {
-      res.status(403).json({ error: 'Acceso denegado.' })
-      return
-    }
-    next()
-  })
-}
-
-export function requireOwnerOnly(
-  req: AuthRequest,
-  res: Response,
-  next: NextFunction
-): void {
-  requireAuth(req, res, () => {
-    if (!req.user || req.user.role !== 'OWNER') {
-      res.status(403).json({ error: 'Acceso denegado. Solo dueños del negocio.' })
-      return
-    }
-    next()
-  })
-}
-
 /** OWNER, or ADMIN acting as a shop (header set before requireBusinessContext). */
 export function requireOwnerOrAdminActing(
   req: AuthRequest,

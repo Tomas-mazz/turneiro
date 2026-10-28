@@ -224,6 +224,14 @@ const optionalUrl = z
   .union([z.string().url(), z.string().regex(/^\/[^\s]*$/, 'Debe ser URL o ruta'), z.literal('')])
   .transform((s) => (s === '' ? undefined : s))
 
+/** A person's display name (owner, staff). Clients see it on the booking page, so an email is rejected. */
+const personNameSchema = z
+  .string()
+  .trim()
+  .min(1, 'El nombre es obligatorio')
+  .max(200)
+  .refine((v) => !v.includes('@'), 'Usá el nombre real, no un email')
+
 const createBusinessObjectSchema = z.object({
   name: z.string().min(1, 'El nombre es obligatorio').max(200),
   slug: slugSchema,
@@ -239,6 +247,7 @@ const createBusinessObjectSchema = z.object({
   coverVideoMobile: optionalUrl.optional(),
   theme: z.enum(['DARK', 'LIGHT']).optional().default('DARK'),
   paymentRequired: z.boolean(),
+  ownerName: personNameSchema,
   ownerEmail: z.union([z.string().email(), z.literal('')]).optional(),
   ownerPassword: z.string().optional(),
 })
@@ -297,6 +306,7 @@ export const updateBusinessSchema = z.object({
     .min(5, 'Mínimo 5 minutos')
     .max(240, 'Máximo 240 minutos')
     .optional(),
+  ownerName: personNameSchema.optional(),
   ownerEmail: z.union([z.string().email(), z.literal('')]).optional(),
   ownerPassword: z.string().optional(),
 })
@@ -420,7 +430,7 @@ export type CreateSellerAdminInput = z.infer<typeof createSellerAdminSchema>
 
 export const createEmployeeAdminSchema = z
   .object({
-    name: z.string().min(1, 'El nombre es obligatorio').max(200),
+    name: personNameSchema,
     photoUrl: optionalUrl.optional(),
     // Optional credentials to create a STAFF user that can log into /dashboard
     staffEmail: z.union([z.string().email(), z.literal('')]).optional(),
@@ -443,7 +453,7 @@ export const createEmployeeAdminSchema = z
   )
 
 export const updateEmployeeAdminSchema = z.object({
-  name: z.string().min(1).max(200).optional(),
+  name: personNameSchema.optional(),
   photoUrl: optionalUrl.optional(),
 })
 
@@ -457,7 +467,7 @@ const optionalColorId = z
   .transform((v) => (v === '' ? null : v))
 
 export const createOwnerEmployeeSchema = z.object({
-  name: z.string().min(1, 'El nombre es obligatorio').max(200),
+  name: personNameSchema,
   photoUrl: optionalUrl.optional(),
   staffEmail: z.string().email('Email inválido'),
   staffPassword: z.string().min(6, 'La contraseña debe tener al menos 6 caracteres'),
@@ -466,7 +476,7 @@ export const createOwnerEmployeeSchema = z.object({
 
 export const updateOwnerEmployeeSchema = z
   .object({
-    name: z.string().min(1).max(200).optional(),
+    name: personNameSchema.optional(),
     photoUrl: optionalUrl.optional(),
     staffEmail: z.union([z.string().email(), z.literal('')]).optional(),
     staffPassword: z.union([z.string().min(6), z.literal('')]).optional(),

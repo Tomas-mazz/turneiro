@@ -7,9 +7,6 @@ import type { OwnerEmployeeListItem, ServiceListItem } from '@/types'
 type Props = {
   visible: boolean
   subServicesEnabled: boolean
-  showServiceConfirmModal: boolean
-  showServiceConfirmModalSaving: boolean
-  onToggleShowConfirm: (next: boolean) => void
   allowMultipleServices: boolean
   allowMultipleServicesSaving: boolean
   onToggleAllowMultipleServices: (next: boolean) => void
@@ -40,9 +37,6 @@ type Props = {
 export function ServicesSection({
   visible,
   subServicesEnabled,
-  showServiceConfirmModal,
-  showServiceConfirmModalSaving,
-  onToggleShowConfirm,
   allowMultipleServices,
   allowMultipleServicesSaving,
   onToggleAllowMultipleServices,
@@ -143,13 +137,6 @@ export function ServicesSection({
     <section className="mt-8 mb-10 sm:mt-10 sm:mb-12">
       <h2 className="text-lg font-semibold text-neutral-900 sm:text-xl">Servicios (precio, duración y estado)</h2>
       <div className="mt-3 space-y-3">
-        <SwitchRow
-          title="Pedir confirmación antes del calendario"
-          description="Cuando el cliente confirme un servicio/subservicio, se mostrará un segundo modal para confirmar antes de pasar al calendario."
-          checked={showServiceConfirmModal}
-          disabled={showServiceConfirmModalSaving}
-          onChange={onToggleShowConfirm}
-        />
         <SwitchRow
           title="Permitir seleccionar más de un servicio"
           description="Si está activado, el cliente podrá seleccionar múltiples servicios/subservicios en una misma reserva (ej. uñas + pies)."

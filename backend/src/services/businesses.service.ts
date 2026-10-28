@@ -84,7 +84,6 @@ export async function getBusinessBySlugService(slug: string) {
           paymentType: true,
           depositPercentage: true,
           mercadoPagoPublicKey: true,
-          showServiceConfirmModal: true,
           allowMultipleServices: true,
           publicPageBackgroundDark: true,
           publicPageBackgroundLight: true,
@@ -194,6 +193,7 @@ export interface AdminBusinessDetail {
   slotIntervalMinutes: number
   } | null
   owner: { id: string; email: string } | null
+  ownerName: string | null
 }
 
 /** Shape returned by getBusinessByIdForAdmin query (schema has theme, coverVideo, settings, users). */
@@ -230,6 +230,7 @@ type BusinessByIdAdminRow = {
   slotIntervalMinutes: number
   } | null
   users: { id: string; email: string }[]
+  employees: { name: string }[]
 }
 
 /**
@@ -272,7 +273,6 @@ export async function getBusinessByIdForAdmin(
           lateCancellationFee: true,
           bufferTime: true,
           slotIntervalMinutes: true,
-          showServiceConfirmModal: true,
           allowMultipleServices: true,
         },
       },
@@ -280,6 +280,11 @@ export async function getBusinessByIdForAdmin(
         where: { role: 'OWNER' },
         take: 1,
         select: { id: true, email: true },
+      },
+      employees: {
+        where: { isOwner: true },
+        take: 1,
+        select: { name: true },
       },
     } as Prisma.BusinessSelect,
   }) as BusinessByIdAdminRow | null
@@ -307,6 +312,7 @@ export async function getBusinessByIdForAdmin(
     updatedAt: business.updatedAt.toISOString(),
     settings: business.settings,
     owner,
+    ownerName: business.employees[0]?.name ?? null,
   }
 }
 
@@ -325,6 +331,7 @@ export interface CreateBusinessForAdminInput {
   coverVideoMobile?: string | null
   theme?: 'DARK' | 'LIGHT'
   paymentRequired: boolean
+  ownerName: string
   ownerEmail?: string
   ownerPassword?: string
 }
@@ -392,7 +399,7 @@ export async function createBusinessForAdmin(
     }
 
     // Ensure the owner profile exists even if owner credentials are added later.
-    await ensureOwnerEmployee(tx, b.id, { fallbackName: input.name })
+    await ensureOwnerEmployee(tx, b.id, { fallbackName: input.ownerName })
 
     if (
       input.ownerEmail &&
@@ -414,12 +421,13 @@ export async function createBusinessForAdmin(
         data: {
           email: ownerEmail,
           password: hashed,
+          name: input.ownerName,
           role: 'OWNER',
           businessId: b.id,
         },
         select: { id: true },
       })
-      await ensureOwnerEmployee(tx, b.id, { ownerUserId: ownerUser.id, fallbackName: input.name })
+      await ensureOwnerEmployee(tx, b.id, { ownerUserId: ownerUser.id, fallbackName: input.ownerName })
     }
 
     return b
@@ -454,8 +462,8 @@ export interface UpdateBusinessForAdminInput {
   lateCancellationFee?: number | null
   bufferTime?: number | null
   slotIntervalMinutes?: number
-  showServiceConfirmModal?: boolean
   allowMultipleServices?: boolean
+  ownerName?: string
   ownerEmail?: string
   ownerPassword?: string
 }
@@ -523,7 +531,6 @@ export async function updateBusinessForAdmin(
       input.lateCancellationFee !== undefined ||
       input.bufferTime !== undefined ||
       input.slotIntervalMinutes !== undefined ||
-      input.showServiceConfirmModal !== undefined ||
       input.allowMultipleServices !== undefined
 
     if (hasSettingsInput) {
@@ -576,10 +583,6 @@ export async function updateBusinessForAdmin(
         input.slotIntervalMinutes !== undefined
           ? input.slotIntervalMinutes
           : existingSettings?.slotIntervalMinutes ?? 15
-      const showServiceConfirmModal =
-        input.showServiceConfirmModal !== undefined
-          ? input.showServiceConfirmModal
-          : existingSettings?.showServiceConfirmModal ?? false
       const allowMultipleServices =
         input.allowMultipleServices !== undefined
           ? input.allowMultipleServices
@@ -609,7 +612,6 @@ export async function updateBusinessForAdmin(
           lateCancellationFee,
           bufferTime,
           slotIntervalMinutes,
-          showServiceConfirmModal,
           allowMultipleServices,
         },
         update: {
@@ -625,10 +627,17 @@ export async function updateBusinessForAdmin(
           lateCancellationFee,
           bufferTime,
           slotIntervalMinutes,
-          showServiceConfirmModal,
           allowMultipleServices,
         },
       })
+    }
+
+    if (input.ownerName !== undefined) {
+      // Clients see the owner by this name on the booking page.
+      await ensureOwnerEmployee(tx, businessId, { fallbackName: input.ownerName })
+      await tx.employee.updateMany({ where: { businessId, isOwner: true }, data: { name: input.ownerName } })
+      const ownerUser = existing.users[0]
+      if (ownerUser) await tx.user.update({ where: { id: ownerUser.id }, data: { name: input.ownerName } })
     }
 
     const ownerEmail =
@@ -814,7 +823,6 @@ export type BusinessSettings = {
   mercadoPagoConnectedAt: Date | null
   mercadoPagoTokenExpiresAt: Date | null
   mercadoPagoWebhookSecret: string | null
-  showServiceConfirmModal: boolean
   allowMultipleServices: boolean
   /** Null = use built-in default for public booking page (dark theme). */
   publicPageBackgroundDark: string | null
@@ -851,7 +859,6 @@ export async function getBusinessSettingsService(
         mercadoPagoConnectedAt: true,
         mercadoPagoTokenExpiresAt: true,
         mercadoPagoWebhookSecret: true,
-        showServiceConfirmModal: true,
         allowMultipleServices: true,
         publicPageBackgroundDark: true,
         publicPageBackgroundLight: true,
@@ -889,7 +896,6 @@ export async function getBusinessSettingsService(
     mercadoPagoConnectedAt: settings?.mercadoPagoConnectedAt ?? null,
     mercadoPagoTokenExpiresAt: settings?.mercadoPagoTokenExpiresAt ?? null,
     mercadoPagoWebhookSecret: settings?.mercadoPagoWebhookSecret ?? null,
-    showServiceConfirmModal: settings?.showServiceConfirmModal ?? false,
     allowMultipleServices: settings?.allowMultipleServices ?? false,
     publicPageBackgroundDark: settings?.publicPageBackgroundDark ?? null,
     publicPageBackgroundLight: settings?.publicPageBackgroundLight ?? null,
@@ -968,7 +974,6 @@ export async function updateBusinessSettingsService(
       mercadoPagoAccessToken: input.mercadoPagoAccessToken?.trim() || null,
       mercadoPagoWebhookSecret: input.mercadoPagoWebhookSecret ?? null,
       requireRegistrationBeforePayment: true,
-      showServiceConfirmModal: input.showServiceConfirmModal ?? false,
       allowMultipleServices,
       publicPageBackgroundDark: inputBgDark !== undefined ? inputBgDark : null,
       publicPageBackgroundLight: inputBgLight !== undefined ? inputBgLight : null,
@@ -1001,9 +1006,6 @@ export async function updateBusinessSettingsService(
         mercadoPagoUserId: null,
         mercadoPagoConnectedAt: null,
       }),
-      ...(input.showServiceConfirmModal !== undefined && {
-        showServiceConfirmModal: input.showServiceConfirmModal,
-      }),
       ...((input as { allowMultipleServices?: boolean }).allowMultipleServices !== undefined && {
         allowMultipleServices,
       }),
@@ -1030,7 +1032,6 @@ export async function updateBusinessSettingsService(
       mercadoPagoConnectedAt: true,
       mercadoPagoTokenExpiresAt: true,
       mercadoPagoWebhookSecret: true,
-      showServiceConfirmModal: true,
       allowMultipleServices: true,
       publicPageBackgroundDark: true,
       publicPageBackgroundLight: true,
@@ -1078,7 +1079,6 @@ export async function updateBusinessSettingsService(
     mercadoPagoConnectedAt: updated.mercadoPagoConnectedAt ?? null,
     mercadoPagoTokenExpiresAt: updated.mercadoPagoTokenExpiresAt ?? null,
     mercadoPagoWebhookSecret: updated.mercadoPagoWebhookSecret ?? null,
-    showServiceConfirmModal: updated.showServiceConfirmModal,
     allowMultipleServices: updated.allowMultipleServices ?? false,
     publicPageBackgroundDark: updated.publicPageBackgroundDark ?? null,
     publicPageBackgroundLight: updated.publicPageBackgroundLight ?? null,

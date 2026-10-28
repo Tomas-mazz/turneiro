@@ -34,6 +34,7 @@ export default function SellerNewBusinessPage() {
     coverPhotoMobile: '',
     coverVideoMobile: '',
     logo: '',
+    ownerName: '',
     ownerEmail: '',
     ownerPassword: '',
     theme: 'DARK',
@@ -145,6 +146,7 @@ export default function SellerNewBusinessPage() {
         name: form.name.trim(),
         slug: form.slug.trim() || slugify(form.name),
         category: form.category.trim(),
+        ownerName: form.ownerName.trim(),
         theme: 'DARK',
       }
       if (form.description?.trim()) body.description = form.description.trim()
@@ -406,10 +408,28 @@ export default function SellerNewBusinessPage() {
         </fieldset>
 
         <fieldset className="rounded-lg border border-neutral-200 p-4">
-          <legend className="text-sm font-medium text-neutral-700">Credenciales del owner (opcional)</legend>
+          <legend className="text-sm font-medium text-neutral-700">Dueño del negocio</legend>
           <p className="mb-3 text-xs text-neutral-500">
-            Si cargás email, la contraseña es obligatoria (mín. 6 caracteres).
+            Email y contraseña son opcionales. Si cargás email, la contraseña es obligatoria (mín. 6 caracteres).
           </p>
+          <div className="mb-4">
+            <label htmlFor="ownerName" className="mb-1 block text-sm text-neutral-600">
+              Nombre del dueño *
+            </label>
+            <input
+              id="ownerName"
+              name="ownerName"
+              type="text"
+              value={form.ownerName ?? ''}
+              onChange={handleChange}
+              placeholder="Ej: Juan Pérez"
+              className={`w-full rounded-lg border px-3 py-2 focus:ring-1 ${fieldErrors.ownerName ? 'border-red-500 focus:border-red-500 focus:ring-red-500' : 'border-neutral-300 focus:border-neutral-500 focus:ring-neutral-500'}`}
+            />
+            <p className="mt-0.5 text-xs text-neutral-500">Así lo ven los clientes al reservar. No uses el email.</p>
+            {fieldErrors.ownerName && (
+              <p className="mt-0.5 text-sm text-red-600" role="alert">{fieldErrors.ownerName}</p>
+            )}
+          </div>
           <div className="grid gap-4 sm:grid-cols-2">
             <div>
               <label htmlFor="ownerEmail" className="mb-1 block text-sm text-neutral-600">

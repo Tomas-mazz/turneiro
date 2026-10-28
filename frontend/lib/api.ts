@@ -856,7 +856,6 @@ export type BusinessSettings = {
   mercadoPagoConnectedAt: string | null
   mercadoPagoTokenExpiresAt: string | null
   mercadoPagoWebhookSecret: string | null
-  showServiceConfirmModal: boolean
   allowMultipleServices: boolean
   publicPageBackgroundDark: string | null
   publicPageBackgroundLight: string | null

@@ -48,7 +48,6 @@ type SetupFormState = {
   lateCancellationFee: number | ''
   bufferTime: number | ''
   slotIntervalMinutes: number | ''
-  showServiceConfirmModal: boolean
   allowMultipleServices: boolean
 }
 
@@ -110,7 +109,6 @@ export default function AdminBusinessSetupPage() {
     lateCancellationFee: '',
     bufferTime: '',
     slotIntervalMinutes: 15,
-    showServiceConfirmModal: false,
     allowMultipleServices: false,
   })
   const [workingHours, setWorkingHours] = useState<WorkingHoursItem[]>([])
@@ -147,7 +145,6 @@ export default function AdminBusinessSetupPage() {
           lateCancellationFee: b.settings?.lateCancellationFee ?? '',
           bufferTime: b.settings?.bufferTime ?? '',
           slotIntervalMinutes: b.settings?.slotIntervalMinutes ?? 15,
-          showServiceConfirmModal: b.settings?.showServiceConfirmModal ?? false,
           allowMultipleServices: b.settings?.allowMultipleServices ?? false,
         })
       })
@@ -353,7 +350,6 @@ export default function AdminBusinessSetupPage() {
     bufferTime: form.bufferTime === '' ? null : Number(form.bufferTime),
     slotIntervalMinutes:
       form.slotIntervalMinutes === '' ? undefined : Number(form.slotIntervalMinutes),
-    showServiceConfirmModal: form.showServiceConfirmModal,
     allowMultipleServices: form.allowMultipleServices,
     ...(form.paymentRequired && { depositPercentage: form.depositPercentage === '' ? null : Number(form.depositPercentage) }),
   })
@@ -726,37 +722,6 @@ export default function AdminBusinessSetupPage() {
           <p className="mt-2 text-sm text-neutral-600">
             Agregá los servicios que ofrece el negocio (nombre, precio, duración) y, cuando sea necesario, variantes dentro de cada servicio (subservicios con distinto precio/duración).
           </p>
-          <div className="mt-4 rounded-lg border border-neutral-200 bg-neutral-50/40 p-4">
-            <label className="flex items-start gap-3">
-              <input
-                type="checkbox"
-                checked={form.showServiceConfirmModal}
-                onChange={async (e) => {
-                  const next = e.target.checked
-                  setForm((p) => ({ ...p, showServiceConfirmModal: next }))
-                  try {
-                    await updateAdminBusiness(id, { showServiceConfirmModal: next })
-                  } catch (err: unknown) {
-                    setForm((p) => ({ ...p, showServiceConfirmModal: !next }))
-                    const msg =
-                      err && typeof err === 'object' && 'response' in err
-                        ? (err as { response?: { data?: { error?: string } } }).response?.data?.error
-                        : null
-                    setError(msg || 'Error al guardar la configuración')
-                  }
-                }}
-                className="mt-1 rounded border-neutral-300"
-              />
-              <span>
-                <span className="block text-sm font-medium text-neutral-900">
-                  Pedir confirmación antes del calendario
-                </span>
-                <span className="mt-0.5 block text-xs text-neutral-600">
-                  Cuando el cliente confirme un servicio/subservicio, se mostrará un segundo modal para confirmar antes de pasar al calendario.
-                </span>
-              </span>
-            </label>
-          </div>
 
           <div className="mt-3 rounded-lg border border-neutral-200 bg-neutral-50/40 p-4">
             <label className="flex items-start gap-3">
