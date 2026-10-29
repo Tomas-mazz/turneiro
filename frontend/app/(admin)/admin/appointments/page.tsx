@@ -161,7 +161,10 @@ export default function AdminAppointmentsPage() {
                 ...a,
                 status: 'CANCELLED',
                 cancellationReason: cancelReason.trim(),
-                paymentStatus: result.refunded ? 'REFUNDED' : a.paymentStatus,
+                paymentStatus:
+                  result.refundStatus && result.refundStatus !== 'NONE'
+                    ? result.refundStatus
+                    : a.paymentStatus,
               }
             : a
         )
@@ -429,6 +432,8 @@ export default function AdminAppointmentsPage() {
                               ? 'bg-emerald-50 text-emerald-800'
                               : apt.paymentStatus === 'REFUNDED'
                               ? 'bg-amber-50 text-amber-800'
+                              : apt.paymentStatus === 'REFUND_FAILED'
+                              ? 'bg-red-50 text-red-800'
                               : 'bg-neutral-50 text-neutral-700'
                           }`}
                         >
@@ -436,6 +441,8 @@ export default function AdminAppointmentsPage() {
                             ? 'Pagada'
                             : apt.paymentStatus === 'REFUNDED'
                             ? 'Reembolsada'
+                            : apt.paymentStatus === 'REFUND_FAILED'
+                            ? 'Reembolso pendiente'
                             : 'Pendiente'}
                         </span>
                         {apt.status === 'CANCELLED' && apt.cancellationReason && (

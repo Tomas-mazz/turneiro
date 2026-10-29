@@ -8,6 +8,7 @@ import { resolveSelectionDurations } from './selectionDurations.service'
 import { employeeCanPerformSelections } from './employeeServiceRestrictions.service'
 import type { CompleteCheckoutInput, CreateAppointmentInput, HoldAppointmentInput } from '../lib/schemas'
 import * as mercadopagoService from './mercadopago.service'
+import { getValidMercadoPagoAccessTokenForBusiness } from './mercadopago-oauth.service'
 import * as googleCalendarService from './google-calendar.service'
 import {
   sendAppointmentConfirmationEmailUsingLoadedAppointment,
@@ -70,6 +71,55 @@ export class CancellationNotAllowedError extends Error {
     super(message)
     this.name = 'CancellationNotAllowedError'
   }
+}
+
+export type RefundStatus = 'NONE' | 'REFUNDED' | 'REFUND_FAILED'
+
+type RefundableAppointment = {
+  id: string
+  businessId: string
+  paymentStatus: string
+  paymentIntentId: string | null
+  paymentProvider: string | null
+  business: { settings: Prisma.BusinessSettingsGetPayload<object> | null }
+}
+
+/**
+ * Refunds a paid appointment in full. The payment was collected with the business's
+ * Mercado Pago OAuth token, so the refund must use that same token.
+ * Failures are surfaced as REFUND_FAILED so the business can refund manually.
+ */
+async function refundPaidAppointment(
+  appointment: RefundableAppointment
+): Promise<{ refundStatus: RefundStatus; refundAmount: number }> {
+  if (
+    appointment.paymentStatus !== 'PAID' ||
+    !appointment.paymentIntentId ||
+    appointment.paymentProvider !== 'MERCADOPAGO'
+  ) {
+    return { refundStatus: 'NONE', refundAmount: 0 }
+  }
+
+  try {
+    const accessToken = await getValidMercadoPagoAccessTokenForBusiness(
+      appointment.businessId,
+      appointment.business.settings
+    )
+    if (!accessToken) {
+      throw new Error('Business has no Mercado Pago access token')
+    }
+    const refund = await mercadopagoService.processRefund(appointment.paymentIntentId, undefined, {
+      accessToken,
+    })
+    return { refundStatus: 'REFUNDED', refundAmount: refund.amount }
+  } catch (error) {
+    console.error('Refund failed for appointment', appointment.id, error)
+    return { refundStatus: 'REFUND_FAILED', refundAmount: 0 }
+  }
+}
+
+function paymentStatusAfterRefund(currentStatus: string, refundStatus: RefundStatus): string {
+  return refundStatus === 'NONE' ? currentStatus : refundStatus
 }
 
 /**
@@ -932,36 +982,14 @@ export async function cancelAppointmentService(token: string) {
     )
   }
 
-  // Process refund if payment was made
-  let refundAmount = 0
-  const aptPaymentIntentId = appointment.paymentIntentId
-  const aptPaymentProvider = appointment.paymentProvider
-
-  if (
-    appointment.paymentStatus === 'PAID' &&
-    aptPaymentIntentId &&
-    aptPaymentProvider
-  ) {
-    try {
-      if (aptPaymentProvider === 'MERCADOPAGO') {
-        const refund = await mercadopagoService.processRefund(
-          aptPaymentIntentId
-        )
-        refundAmount = refund.amount
-      }
-    } catch (error) {
-      console.error('Refund error during cancellation:', error)
-      // Continue with cancellation even if refund fails
-      // Admin will need to process refund manually
-    }
-  }
+  const { refundStatus, refundAmount } = await refundPaidAppointment(appointment)
 
   await prisma.appointment.update({
     where: { id: appointment.id },
     data: {
       status: 'CANCELLED',
-      paymentStatus: refundAmount > 0 ? 'REFUNDED' : appointment.paymentStatus,
-      refundAmount: refundAmount > 0 ? refundAmount : undefined,
+      paymentStatus: paymentStatusAfterRefund(appointment.paymentStatus, refundStatus),
+      refundAmount: refundStatus === 'REFUNDED' ? refundAmount : undefined,
     },
   })
 
@@ -985,7 +1013,7 @@ export async function cancelAppointmentService(token: string) {
     console.error('Failed to send cancellation email to employee:', err)
   )
 
-  return { cancelled: true, id: appointment.id, refunded: refundAmount > 0 }
+  return { cancelled: true, id: appointment.id, refunded: refundStatus === 'REFUNDED', refundStatus }
 }
 
 export interface AppointmentListItem {
@@ -1185,36 +1213,15 @@ export async function adminCancelAppointmentService(
     throw new CancellationNotAllowedError('La cita ya fue cancelada')
   }
 
-  // For admin cancellation, we mirror owner behaviour: full refund when paid.
-  let refundAmount = 0
-  const aptPaymentIntentId = appointment.paymentIntentId
-  const aptPaymentProvider = appointment.paymentProvider
-
-  if (
-    appointment.paymentStatus === 'PAID' &&
-    aptPaymentIntentId &&
-    aptPaymentProvider
-  ) {
-    try {
-      if (aptPaymentProvider === 'MERCADOPAGO') {
-        const refund = await mercadopagoService.processRefund(
-          aptPaymentIntentId
-        )
-        refundAmount = refund.amount
-      }
-    } catch (error) {
-      console.error('Refund error during admin cancellation:', error)
-      // Continue with cancellation even if refund fails
-    }
-  }
+  const { refundStatus, refundAmount } = await refundPaidAppointment(appointment)
 
   await prisma.appointment.update({
     where: { id: appointmentId },
     data: {
       status: 'CANCELLED',
       cancellationReason: reason,
-      paymentStatus: refundAmount > 0 ? 'REFUNDED' : appointment.paymentStatus,
-      refundAmount: refundAmount > 0 ? refundAmount : undefined,
+      paymentStatus: paymentStatusAfterRefund(appointment.paymentStatus, refundStatus),
+      refundAmount: refundStatus === 'REFUNDED' ? refundAmount : undefined,
     },
   })
 
@@ -1238,7 +1245,7 @@ export async function adminCancelAppointmentService(
     console.error('Failed to send cancellation email to client (admin):', err)
   )
 
-  return { cancelled: true, id: appointment.id, refunded: refundAmount > 0 }
+  return { cancelled: true, id: appointment.id, refunded: refundStatus === 'REFUNDED', refundStatus }
 }
 
 export async function adminUpdateAppointmentStatusService(
@@ -1300,37 +1307,15 @@ export async function cancelAppointmentByOwnerService(
     }
   }
 
-  // Process full refund when owner cancels (business's responsibility)
-  let refundAmount = 0
-  const aptPaymentIntentId = appointment.paymentIntentId
-  const aptPaymentProvider = appointment.paymentProvider
-
-  if (
-    appointment.paymentStatus === 'PAID' &&
-    aptPaymentIntentId &&
-    aptPaymentProvider
-  ) {
-    try {
-      if (aptPaymentProvider === 'MERCADOPAGO') {
-        const refund = await mercadopagoService.processRefund(
-          aptPaymentIntentId
-        )
-        refundAmount = refund.amount
-      }
-    } catch (error) {
-      console.error('Refund error during owner cancellation:', error)
-      // Continue with cancellation even if refund fails
-      // Admin will need to process refund manually
-    }
-  }
+  const { refundStatus, refundAmount } = await refundPaidAppointment(appointment)
 
   await prisma.appointment.update({
     where: { id: appointmentId },
     data: {
       status: 'CANCELLED',
       cancellationReason: reason,
-      paymentStatus: refundAmount > 0 ? 'REFUNDED' : appointment.paymentStatus,
-      refundAmount: refundAmount > 0 ? refundAmount : undefined,
+      paymentStatus: paymentStatusAfterRefund(appointment.paymentStatus, refundStatus),
+      refundAmount: refundStatus === 'REFUNDED' ? refundAmount : undefined,
     },
   })
 
@@ -1354,7 +1339,7 @@ export async function cancelAppointmentByOwnerService(
     console.error('Failed to send cancellation email to client:', err)
   )
 
-  return { cancelled: true, id: appointment.id, refunded: refundAmount > 0 }
+  return { cancelled: true, id: appointment.id, refunded: refundStatus === 'REFUNDED', refundStatus }
 }
 
 export interface AppointmentByTokenResult {

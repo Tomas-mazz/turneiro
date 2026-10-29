@@ -263,10 +263,18 @@ export function buildClientCancellationEmailHtml(args: {
   dateTimeLabel: string
   employeeName?: string | null
   cancellationReason: string
+  refundLine?: string | null
   frontendBaseUrl: string
 }): string {
-  const { business, serviceName, dateTimeLabel, employeeName, cancellationReason, frontendBaseUrl } =
-    args
+  const {
+    business,
+    serviceName,
+    dateTimeLabel,
+    employeeName,
+    cancellationReason,
+    refundLine,
+    frontendBaseUrl,
+  } = args
 
   const employeeBlock = employeeName
     ? fieldBlock('Profesional', escapeHtml(employeeName))
@@ -282,6 +290,7 @@ export function buildClientCancellationEmailHtml(args: {
     fieldBlock('Fecha', escapeHtml(dateTimeLabel)),
     employeeBlock,
     fieldBlock('Motivo', escapeHtml(cancellationReason)),
+    refundLine ? fieldBlock('Pago', escapeHtml(refundLine)) : '',
     fieldBlock('Contacto', buildBusinessContactHtml(business, frontendBaseUrl)),
   ].join('')
 
@@ -296,6 +305,7 @@ export function buildStaffCancellationEmailHtml(args: {
   clientPhone: string
   serviceName: string
   dateTimeLabel: string
+  refundLine?: string | null
 }): string {
   const {
     businessName,
@@ -304,6 +314,7 @@ export function buildStaffCancellationEmailHtml(args: {
     clientPhone,
     serviceName,
     dateTimeLabel,
+    refundLine,
   } = args
 
   const body = [
@@ -316,6 +327,7 @@ export function buildStaffCancellationEmailHtml(args: {
     fieldBlock('Cliente', `<strong>${escapeHtml(clientName)}</strong><br />${escapeHtml(clientPhone)}`),
     fieldBlock('Servicio', escapeHtml(serviceName)),
     fieldBlock('Fecha', escapeHtml(dateTimeLabel)),
+    refundLine ? fieldBlock('Pago', escapeHtml(refundLine)) : '',
   ].join('')
 
   return wrapEmail('Turno cancelado', body)

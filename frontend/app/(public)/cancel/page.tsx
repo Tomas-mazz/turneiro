@@ -45,6 +45,7 @@ function CancelContent() {
   const [status, setStatus] = useState<'loading' | 'idle' | 'cancelling' | 'done' | 'error'>('loading')
   const [message, setMessage] = useState<string | null>(null)
   const [appointment, setAppointment] = useState<AppointmentInfo | null>(null)
+  const [refundStatus, setRefundStatus] = useState<'NONE' | 'REFUNDED' | 'REFUND_FAILED'>('NONE')
 
   useEffect(() => {
     if (!token) {
@@ -74,10 +75,11 @@ function CancelContent() {
     setStatus('cancelling')
     setMessage(null)
     api
-      .post('/appointments/cancel', { token })
-      .then(() => {
+      .post<{ refundStatus?: 'NONE' | 'REFUNDED' | 'REFUND_FAILED' }>('/appointments/cancel', { token })
+      .then((res) => {
         setStatus('done')
         setMessage('Turno cancelado correctamente.')
+        setRefundStatus(res.data.refundStatus ?? 'NONE')
       })
       .catch((err) => {
         setStatus('error')
@@ -108,6 +110,16 @@ function CancelContent() {
       <main className="min-h-screen flex items-center justify-center px-4" style={{ backgroundColor: 'hsl(0, 0%, 9%)' }}>
         <div className="bg-neutral-900 border border-neutral-800 rounded-2xl p-6 text-center max-w-sm">
           <p className="text-white font-medium">{message}</p>
+          {refundStatus === 'REFUNDED' && (
+            <p className="text-neutral-400 text-sm mt-2">
+              Te devolvimos el pago por Mercado Pago. Puede tardar unos días en verse reflejado.
+            </p>
+          )}
+          {refundStatus === 'REFUND_FAILED' && (
+            <p className="text-amber-400 text-sm mt-2">
+              No pudimos procesar la devolución automáticamente. El negocio ya fue avisado y la va a hacer a la brevedad.
+            </p>
+          )}
         </div>
       </main>
     )

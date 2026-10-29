@@ -605,10 +605,15 @@ export function DashboardContent({ section = 'all' }: { section?: DashboardSecti
     if (!cancelModal || !cancelReason.trim()) return
     setCancelling(true)
     try {
-      await cancelAppointmentByOwner(cancelModal.id, cancelReason.trim())
+      const result = await cancelAppointmentByOwner(cancelModal.id, cancelReason.trim())
       setSearchedAppointments((prev) => prev.filter((a) => a.id !== cancelModal.id))
       setCancelModal(null)
       setCancelReason('')
+      if (result.refundStatus === 'REFUND_FAILED') {
+        setError(
+          'Turno cancelado, pero no pudimos devolver el pago automáticamente. Hacé la devolución desde tu cuenta de Mercado Pago.'
+        )
+      }
     } catch (err) {
       setError((err as { response?: { data?: { error?: string } } })?.response?.data?.error || 'Error al cancelar')
     } finally {
