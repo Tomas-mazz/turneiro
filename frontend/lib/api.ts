@@ -232,11 +232,13 @@ export async function getAppointmentsByPhone(
   return data
 }
 
+export type RefundStatus = 'NONE' | 'REFUNDED' | 'REFUND_FAILED'
+
 export async function cancelAppointmentByOwner(
   id: string,
   reason: string
-): Promise<{ cancelled: boolean; id: string }> {
-  const { data } = await api.post<{ cancelled: boolean; id: string }>(
+): Promise<{ cancelled: boolean; id: string; refundStatus?: RefundStatus }> {
+  const { data } = await api.post<{ cancelled: boolean; id: string; refundStatus?: RefundStatus }>(
     `/appointments/${id}/cancel`,
     { reason }
   )
@@ -774,8 +776,8 @@ export async function getAdminAppointments(
 export async function adminCancelAppointment(
   id: string,
   reason: string
-): Promise<{ cancelled: boolean; id: string; refunded: boolean }> {
-  const { data } = await api.post<{ cancelled: boolean; id: string; refunded: boolean }>(
+): Promise<{ cancelled: boolean; id: string; refunded: boolean; refundStatus?: RefundStatus }> {
+  const { data } = await api.post<{ cancelled: boolean; id: string; refunded: boolean; refundStatus?: RefundStatus }>(
     `/admin/appointments/${id}/cancel`,
     { reason }
   )
