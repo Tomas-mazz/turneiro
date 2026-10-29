@@ -128,6 +128,26 @@ function formatDateTimeRange(start: Date, end: Date): { dateLabel: string; timeL
   return { dateLabel, timeLabel }
 }
 
+/** Refund status line for cancellation emails; null when nothing was paid. */
+function buildRefundLine(
+  appointment: { paymentStatus: string; refundAmount: number | null; paymentAmount: number | null },
+  audience: 'client' | 'staff'
+): string | null {
+  if (appointment.paymentStatus === 'REFUNDED') {
+    const amount = `$${formatARS(appointment.refundAmount ?? appointment.paymentAmount ?? 0)}`
+    return audience === 'client'
+      ? `Te devolvimos ${amount} por Mercado Pago. Puede tardar unos días en verse reflejado.`
+      : `Se devolvieron ${amount} al cliente por Mercado Pago.`
+  }
+  if (appointment.paymentStatus === 'REFUND_FAILED') {
+    const amount = `$${formatARS(appointment.paymentAmount ?? 0)}`
+    return audience === 'client'
+      ? `Tu devolución de ${amount} está pendiente. El negocio la va a procesar a la brevedad.`
+      : `No pudimos devolver automáticamente ${amount} al cliente. Hacé la devolución desde tu cuenta de Mercado Pago.`
+  }
+  return null
+}
+
 function formatDateTimeCombined(start: Date, end: Date): string {
   const { dateLabel, timeLabel } = formatDateTimeRange(start, end)
   return `${dateLabel}, ${timeLabel}`
@@ -593,6 +613,7 @@ export async function sendCancellationEmailToClient(appointmentId: string, reaso
     dateTimeLabel,
     employeeName: appointment.employee?.name ?? null,
     cancellationReason: reason,
+    refundLine: buildRefundLine(appointment, 'client'),
     frontendBaseUrl,
   })
 
@@ -678,6 +699,7 @@ export async function sendCancellationEmailToEmployee(appointmentId: string): Pr
     clientPhone: appointment.clientPhone,
     serviceName: appointment.serviceName,
     dateTimeLabel,
+    refundLine: buildRefundLine(appointment, 'staff'),
   })
 
   const fromName = appointment.business.name
