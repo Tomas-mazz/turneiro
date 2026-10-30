@@ -1,6 +1,7 @@
 export { BookingHeader } from './BookingHeader'
 export { BookingLayout } from './BookingLayout'
 export { BookingDone } from './BookingDone'
+export { BookingPageSkeleton } from './BookingPageSkeleton'
 export { LoginModal } from './LoginModal'
 export { CheckoutView } from './CheckoutView'
 export { BookingSummary } from './BookingSummary'
