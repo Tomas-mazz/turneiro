@@ -1,12 +1,18 @@
-import { MercadoPagoConfig, Preference, Payment } from 'mercadopago'
+import { MercadoPagoConfig, Preference, Payment, PaymentRefund } from 'mercadopago'
 import crypto from 'crypto'
 import { prisma } from '../lib/prisma'
 
 const fallbackToken = process.env.MERCADOPAGO_ACCESS_TOKEN
 
-const clientsByToken = new Map<string, { preferenceClient: Preference; paymentClient: Payment }>()
+type MercadoPagoClients = {
+  preferenceClient: Preference
+  paymentClient: Payment
+  refundClient: PaymentRefund
+}
 
-function getClients(accessToken?: string | null): { preferenceClient: Preference; paymentClient: Payment } {
+const clientsByToken = new Map<string, MercadoPagoClients>()
+
+function getClients(accessToken?: string | null): MercadoPagoClients {
   const token = accessToken?.trim() || fallbackToken
   if (!token) {
     throw new Error('Mercado Pago no configurado: falta MERCADOPAGO_ACCESS_TOKEN')
@@ -18,15 +24,10 @@ function getClients(accessToken?: string | null): { preferenceClient: Preference
   const created = {
     preferenceClient: new Preference(client),
     paymentClient: new Payment(client),
+    refundClient: new PaymentRefund(client),
   }
   clientsByToken.set(token, created)
   return created
-}
-
-type MercadoPagoRefundBody = { amount?: number }
-type MercadoPagoRefundResponse = { id?: string | number }
-type RefundCapablePaymentClient = Payment & {
-  refund(args: { id: number; body: MercadoPagoRefundBody }): Promise<MercadoPagoRefundResponse>
 }
 
 /**
@@ -79,32 +80,27 @@ export async function createPreference(
 }
 
 /**
- * Process a refund for a Mercado Pago payment
+ * Refund a Mercado Pago payment (full refund when `amount` is omitted).
+ * `paymentId` is the MP payment id, not the preference id stored on the appointment.
  */
 export async function processRefund(
   paymentId: string,
   amount?: number,
   options?: { accessToken?: string | null }
 ): Promise<{ refundId: string; amount: number; status: string }> {
-  const { paymentClient: pay } = getClients(options?.accessToken)
+  const { refundClient } = getClients(options?.accessToken)
   try {
-    const payment = await pay.get({ id: Number(paymentId) })
-
-    const refundBody: MercadoPagoRefundBody = {}
-    if (amount !== undefined) {
-      refundBody.amount = amount
-    }
-
-    const refundClient = pay as unknown as RefundCapablePaymentClient
-    const refund = await refundClient.refund({
-      id: Number(paymentId),
-      body: refundBody,
+    const refund = await refundClient.create({
+      payment_id: paymentId,
+      body: amount !== undefined ? { amount } : {},
+      // Same key for the same payment so a retried cancellation cannot refund twice.
+      requestOptions: { idempotencyKey: `refund-${paymentId}-${amount ?? 'full'}` },
     })
 
     return {
-      refundId: String(refund?.id || paymentId),
-      amount: amount || payment.transaction_amount || 0,
-      status: 'approved',
+      refundId: String(refund.id ?? paymentId),
+      amount: refund.amount ?? amount ?? 0,
+      status: refund.status ?? 'approved',
     }
   } catch (error) {
     console.error('Mercado Pago processRefund error:', error)
