@@ -23,6 +23,7 @@ import { Lock, Timer, X } from 'lucide-react'
 import {
   BookingDone,
   BookingLayout,
+  BookingPageSkeleton,
   BookingSummary,
   BusinessHero,
   BusinessInfoBar,
@@ -36,9 +37,7 @@ import {
   EmployeeProfileCard,
 } from './components'
 import type { CardOrigin } from './components/EmployeeProfileCard'
-import { LoadingSpinner } from '@/components/LoadingSpinner'
-import { resolvePublicPageBackground } from '@/lib/publicPageBackground'
-import { bookingDerivedBackground } from '@/lib/booking'
+import { resolveBookingPageBackground } from '@/lib/booking'
 
 type ThemeMode = 'DARK' | 'LIGHT'
 /** The whole selection happens in 'booking'; checkout (details + payment) and confirmation get their own screen. */
@@ -146,30 +145,12 @@ export default function BusinessBookingPage() {
   const toggleTheme = () => setThemeMode((prev) => (prev === 'DARK' ? 'LIGHT' : 'DARK'))
 
   const { pageBackgroundColor, pageBackgroundImage } = useMemo(() => {
-    const legacy = resolvePublicPageBackground(
-      isDarkTheme,
-      business?.settings?.publicPageBackgroundDark ?? null,
-      business?.settings?.publicPageBackgroundLight ?? null
-    )
-    const derived = bookingDerivedBackground({
-      brandColor: business?.settings?.publicBrandColor ?? null,
-      intensity: (business?.settings?.publicBrandIntensity as any) ?? null,
-      useGradient: business?.settings?.publicUseGradient ?? false,
-      variant: isDarkTheme ? 'DARK' : 'LIGHT',
-      legacyBackground: legacy,
-    })
+    const derived = resolveBookingPageBackground(isDarkTheme, business?.settings)
     return {
       pageBackgroundColor: derived.backgroundHex,
       pageBackgroundImage: derived.backgroundImage,
     }
-  }, [
-    isDarkTheme,
-    business?.settings?.publicPageBackgroundDark,
-    business?.settings?.publicPageBackgroundLight,
-    business?.settings?.publicBrandColor,
-    business?.settings?.publicBrandIntensity,
-    business?.settings?.publicUseGradient,
-  ])
+  }, [isDarkTheme, business?.settings])
 
   const goToView = useCallback((next: View) => {
     setView(next)
@@ -700,7 +681,7 @@ export default function BusinessBookingPage() {
   const backToBooking = useCallback(() => setView('booking'), [])
 
   if (loading) {
-    return <LoadingSpinner variant={themeMode === 'DARK' ? 'dark' : 'light'} bgColor="bg-neutral-100" />
+    return <BookingPageSkeleton />
   }
 
   if (error || !business) {

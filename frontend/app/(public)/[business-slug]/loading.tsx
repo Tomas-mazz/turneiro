@@ -1,5 +1,5 @@
-import { LoadingSpinner } from '@/components/LoadingSpinner'
+import { BookingPageSkeleton } from './components/BookingPageSkeleton'
 
 export default function BusinessLoading() {
-  return <LoadingSpinner bgColor="bg-neutral-100" />
+  return <BookingPageSkeleton />
 }

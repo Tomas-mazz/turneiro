@@ -1,6 +1,12 @@
 import { cache } from 'react'
 import { Metadata } from 'next'
 import { notFound } from 'next/navigation'
+import type { CSSProperties } from 'react'
+import {
+  bookingPageCssVars,
+  resolveBookingPageBackground,
+  type BookingBackgroundSettings,
+} from '@/lib/booking'
 
 type PublicBusinessMeta = {
   name: string
@@ -8,6 +14,8 @@ type PublicBusinessMeta = {
   logo?: string | null
   coverPhoto: string | null
   address: string | null
+  theme?: string | null
+  settings?: BookingBackgroundSettings | null
 }
 
 type BusinessLookup =
@@ -80,5 +88,15 @@ export default async function BusinessLayout({
   const lookup = await getBusiness(slug)
   if (lookup.status === 'not-found') notFound()
 
-  return <>{children}</>
+  // Paint the shop's colors from the server so the loading skeleton already matches the page.
+  const business = lookup.status === 'found' ? lookup.business : null
+  const isDarkTheme = business?.theme?.toUpperCase() !== 'LIGHT'
+  const background = resolveBookingPageBackground(isDarkTheme, business?.settings)
+  const style: CSSProperties = {
+    backgroundColor: background.backgroundHex,
+    ...(background.backgroundImage ? { backgroundImage: background.backgroundImage } : {}),
+    ...bookingPageCssVars(background.backgroundHex),
+  }
+
+  return <div style={style}>{children}</div>
 }

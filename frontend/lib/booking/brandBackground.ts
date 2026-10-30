@@ -4,6 +4,7 @@ import { normalizeHex6 } from './luminance'
 import {
   DEFAULT_PUBLIC_PAGE_BG_DARK,
   DEFAULT_PUBLIC_PAGE_BG_LIGHT,
+  resolvePublicPageBackground,
 } from '@/lib/publicPageBackground'
 
 export type BrandIntensity = 'SOFT' | 'NORMAL' | 'STRONG'
@@ -77,3 +78,29 @@ export function bookingBackgroundStyle(input: Input): CSSProperties {
   }
 }
 
+
+export type BookingBackgroundSettings = {
+  publicPageBackgroundDark?: string | null
+  publicPageBackgroundLight?: string | null
+  publicBrandColor?: string | null
+  publicBrandIntensity?: string | null
+  publicUseGradient?: boolean | null
+}
+
+/** Page background for a business's booking page; shared by the page and its loading skeleton. */
+export function resolveBookingPageBackground(
+  isDarkTheme: boolean,
+  settings: BookingBackgroundSettings | null | undefined
+): Output {
+  return bookingDerivedBackground({
+    brandColor: settings?.publicBrandColor ?? null,
+    intensity: (settings?.publicBrandIntensity as BrandIntensity | null | undefined) ?? null,
+    useGradient: settings?.publicUseGradient ?? false,
+    variant: isDarkTheme ? 'DARK' : 'LIGHT',
+    legacyBackground: resolvePublicPageBackground(
+      isDarkTheme,
+      settings?.publicPageBackgroundDark ?? null,
+      settings?.publicPageBackgroundLight ?? null
+    ),
+  })
+}
