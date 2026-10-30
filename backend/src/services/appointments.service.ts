@@ -108,9 +108,14 @@ async function refundPaidAppointment(
     if (!accessToken) {
       throw new Error('Business has no Mercado Pago access token')
     }
-    const refund = await mercadopagoService.processRefund(appointment.paymentIntentId, undefined, {
+    // paymentIntentId holds the preference id; the refund needs the MP payment id.
+    const payment = await mercadopagoService.findApprovedPaymentByAppointmentId(appointment.id, {
       accessToken,
     })
+    if (!payment) {
+      throw new Error('No approved Mercado Pago payment found for appointment')
+    }
+    const refund = await mercadopagoService.processRefund(payment.id, undefined, { accessToken })
     return { refundStatus: 'REFUNDED', refundAmount: refund.amount }
   } catch (error) {
     console.error('Refund failed for appointment', appointment.id, error)
