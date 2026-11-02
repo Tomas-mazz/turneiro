@@ -1,4 +1,4 @@
-import type { Metadata } from 'next'
+import type { Metadata, Viewport } from 'next'
 import { Roboto, Montserrat, Inter, Poppins, Nunito, Playfair_Display } from 'next/font/google'
 import './globals.css'
 
@@ -45,14 +45,24 @@ const playfair = Playfair_Display({
 })
 
 export const metadata: Metadata = {
+  // Lets relative OG/icon URLs resolve to absolute ones, which link previews (WhatsApp) require.
+  metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL || 'https://turneiro.com'),
   title: 'Turneiro',
   description: 'Turneiro — reservas online para tu negocio',
   verification: {
     google: 'uSv3BhswGG0gLTYDKUe5o0VAgoGj5JeKgU4qSEB1sSo',
   },
   icons: {
-    icon: '/logos/pngegg.png',
+    icon: [
+      { url: '/favicon.ico', sizes: '48x48' },
+      { url: '/brand/icon.svg', type: 'image/svg+xml' },
+    ],
+    apple: '/brand/apple-touch-icon.png',
   },
+}
+
+export const viewport: Viewport = {
+  themeColor: '#2D3FE0',
 }
 
 export default function RootLayout({
