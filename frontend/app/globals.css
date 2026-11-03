@@ -184,7 +184,26 @@ html:has(.landing) {
   padding: 0.7rem 1.25rem;
   font-weight: 700;
   box-shadow: var(--landing-sticker-shadow);
-  transition: background-color 0.15s ease, box-shadow 0.1s ease, transform 0.1s ease;
+  /* Springy overshoot so the sticker "pops" off the page. */
+  transition:
+    background-color 0.15s ease,
+    box-shadow 0.25s cubic-bezier(0.34, 1.56, 0.64, 1),
+    transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+  will-change: transform;
+}
+
+/* Hover (mouse only, so it doesn't stick after a tap): lift and tilt slightly, shadow grows. */
+@media (hover: hover) {
+  .landing-btn-primary:hover,
+  .landing-btn-secondary:hover,
+  .landing-btn-highlight:hover {
+    box-shadow: 6px 6px 0 var(--landing-ink);
+    transform: translate(-2px, -2px) rotate(-1.5deg);
+  }
+
+  .landing-btn-highlight:hover {
+    animation: landing-wiggle 0.5s ease-in-out;
+  }
 }
 
 .landing-btn-primary {
@@ -215,11 +234,21 @@ html:has(.landing) {
   background: #ffdb66;
 }
 
+@keyframes landing-wiggle {
+  0% { transform: translate(-2px, -2px) rotate(-1.5deg); }
+  30% { transform: translate(-2px, -3px) rotate(2deg); }
+  60% { transform: translate(-2px, -2px) rotate(-2.5deg); }
+  100% { transform: translate(-2px, -2px) rotate(-1.5deg); }
+}
+
+/* Press: sink into the page, shadow shrinks. Fast so it feels tactile. */
 .landing-btn-primary:active,
 .landing-btn-secondary:active,
 .landing-btn-highlight:active {
-  box-shadow: 2px 2px 0 var(--landing-ink);
-  transform: translate(2px, 2px);
+  box-shadow: 1px 1px 0 var(--landing-ink);
+  transform: translate(3px, 3px) rotate(0deg);
+  animation: none;
+  transition-duration: 0.05s;
 }
 
 .landing-btn-primary:focus-visible,
@@ -238,8 +267,16 @@ html:has(.landing) {
 @media (prefers-reduced-motion: reduce) {
   .landing-btn-primary,
   .landing-btn-secondary,
-  .landing-btn-highlight {
+  .landing-btn-highlight,
+  .landing-btn-primary:hover,
+  .landing-btn-secondary:hover,
+  .landing-btn-highlight:hover,
+  .landing-btn-primary:active,
+  .landing-btn-secondary:active,
+  .landing-btn-highlight:active {
     transition: none;
+    animation: none;
+    transform: none;
   }
 }
 
