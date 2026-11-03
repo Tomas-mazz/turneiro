@@ -1,4 +1,5 @@
 import { ACCESS_MAILTO, DEMO_URL } from './constants'
+import { TurneiroLogo } from './TurneiroLogo'
 
 export function LandingHero() {
   return (
@@ -14,10 +15,8 @@ export function LandingHero() {
 
       <div className="landing-section-inner">
         <span className="landing-badge">1 mes gratis</span>
-        <p className="mt-5 font-heading text-5xl font-semibold tracking-tight text-[var(--landing-ink)] sm:text-6xl md:text-7xl">
-          Turneiro
-        </p>
-        <h1 className="mt-5 max-w-2xl font-heading text-2xl font-medium leading-snug tracking-tight text-[var(--landing-ink)] sm:text-3xl md:text-[2.15rem]">
+        <TurneiroLogo className="mt-6 w-[260px] sm:w-[340px] md:w-[400px]" priority />
+        <h1 className="mt-6 max-w-2xl text-4xl text-[var(--landing-ink)] sm:text-5xl md:text-6xl">
           Reservas online para tu negocio
         </h1>
         <p className="mt-4 max-w-xl text-base leading-relaxed text-[var(--landing-muted)] sm:text-lg">

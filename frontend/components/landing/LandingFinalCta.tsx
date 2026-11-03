@@ -7,7 +7,7 @@ export function LandingFinalCta() {
         <span className="landing-badge !border-white/20 !bg-white/10 !text-white/90">
           1 mes gratis
         </span>
-        <h2 className="mt-4 font-heading text-2xl font-semibold tracking-tight text-white sm:text-3xl">
+        <h2 className="mt-4 font-heading text-3xl text-white sm:text-4xl">
           Empezá a tomar turnos online
         </h2>
         <p className="mx-auto mt-3 max-w-lg text-sm leading-relaxed text-white/70 sm:text-base">

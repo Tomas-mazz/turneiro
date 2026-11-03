@@ -21,7 +21,7 @@ export function LandingSectionHeader({
   return (
     <div className="max-w-2xl">
       <span className="landing-label">{label}</span>
-      <h2 className="mt-4 font-heading text-2xl font-semibold tracking-tight text-[var(--landing-ink)] sm:text-3xl">
+      <h2 className="mt-4 font-heading text-3xl text-[var(--landing-ink)] sm:text-4xl">
         {title}
       </h2>
       {description ? (
