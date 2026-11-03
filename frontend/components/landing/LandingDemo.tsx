@@ -13,7 +13,7 @@ export function LandingDemo() {
         <div className="flex flex-col gap-6 p-7 sm:flex-row sm:items-center sm:justify-between sm:p-10">
           <div className="max-w-lg">
             <span className="landing-label">Probalo</span>
-            <h2 className="mt-4 font-heading text-xl font-semibold tracking-tight text-[var(--landing-ink)] sm:text-2xl">
+            <h2 className="mt-4 font-heading text-2xl text-[var(--landing-ink)] sm:text-3xl">
               Mirá cómo reserva un cliente
             </h2>
             <p className="mt-2 text-sm leading-relaxed text-[var(--landing-muted)] sm:text-base">
