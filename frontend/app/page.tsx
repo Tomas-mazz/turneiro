@@ -10,6 +10,8 @@ import { LandingPricing } from '@/components/landing/LandingPricing'
 import { LandingFaq } from '@/components/landing/LandingFaq'
 import { LandingFinalCta } from '@/components/landing/LandingFinalCta'
 
+const OG_IMAGE = '/brand/og-image.png'
+
 export const metadata: Metadata = {
   title: 'Turneiro | Reservas online para tu negocio',
   description:
@@ -20,6 +22,12 @@ export const metadata: Metadata = {
       'Plataforma de turnos online para barberías y salones. 1 mes gratis.',
     locale: 'es_AR',
     type: 'website',
+    siteName: 'Turneiro',
+    images: [{ url: OG_IMAGE, width: 1200, height: 630, alt: 'Turneiro' }],
+  },
+  twitter: {
+    card: 'summary_large_image',
+    images: [OG_IMAGE],
   },
 }
 
