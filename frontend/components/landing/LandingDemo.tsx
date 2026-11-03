@@ -21,7 +21,7 @@ export function LandingDemo() {
               clientes.
             </p>
           </div>
-          <span className="inline-flex shrink-0 items-center gap-2 self-start rounded-lg bg-[var(--landing-soft)] px-4 py-2.5 text-sm font-medium text-[var(--landing-accent)] transition-colors group-hover:bg-[var(--landing-accent)] group-hover:text-white sm:self-center">
+          <span className="landing-btn-primary shrink-0 gap-2 self-start text-sm sm:self-center">
             Ir a la demo
             <span aria-hidden className="transition-transform group-hover:translate-x-0.5">
               →
@@ -30,7 +30,7 @@ export function LandingDemo() {
         </div>
         <div
           aria-hidden
-          className="h-1.5 w-full bg-gradient-to-r from-[var(--landing-accent)] via-[var(--landing-accent-hover)] to-transparent opacity-80"
+          className="h-2 w-full border-t-[2.5px] border-[var(--landing-ink)] bg-[var(--landing-yellow)]"
         />
       </a>
     </LandingSection>

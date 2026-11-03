@@ -3,7 +3,7 @@ import { TurneiroLogo } from './TurneiroLogo'
 
 export function LandingHeader() {
   return (
-    <header className="landing-header sticky top-0 z-40 border-b border-[var(--landing-border)]/80 bg-[var(--landing-bg)]/85 backdrop-blur-md">
+    <header className="landing-header sticky top-0 z-40 border-b-[2.5px] border-[var(--landing-ink)] bg-white">
       <div className="mx-auto flex h-14 w-full max-w-5xl items-center justify-between px-5 sm:h-16 sm:px-8">
         <a href="#inicio" aria-label="Turneiro, ir al inicio">
           <TurneiroLogo className="w-[120px] sm:w-[136px]" priority />
@@ -21,7 +21,7 @@ export function LandingHeader() {
           >
             Precios
           </a>
-          <a href={ACCESS_MAILTO} className="landing-btn-primary px-3.5 py-2 text-sm sm:px-5 sm:py-2.5">
+          <a href={ACCESS_MAILTO} className="landing-btn-primary px-3.5 py-1.5 text-sm sm:px-5 sm:py-2">
             Solicitar acceso
           </a>
         </nav>
